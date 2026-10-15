@@ -7,7 +7,7 @@
 </h1>
 
 <p align="center">
-  <em>A modern, high-performance media tracker for movies, TV shows, and games — elevated with a bespoke Obsidian Glass UI, fullstack speed optimizations, and automated Cosmos Cloud / Docker deployment.</em>
+  <em>A modern, high-performance media tracker for movies, TV shows, and games — elevated with a bespoke Obsidian Glass UI, fullstack speed optimizations.</em>
 </p>
 
 <p align="center">
@@ -25,7 +25,6 @@
 - [✨ What's New & Different (vs. Original Watcharr)](#-whats-new--different-vs-original-watcharr)
   - [💎 Luxury Obsidian UI & UX Overhaul](#1-luxury-obsidian-ui--ux-overhaul)
   - [⚡ Fullstack Performance & Engine Optimization](#2-fullstack-performance--engine-optimization)
-  - [🐳 Automated CI/CD & Cosmos Cloud Integration](#3-automated-cicd--cosmos-cloud-integration)
 - [📊 Side-by-Side Comparison Matrix](#-side-by-side-comparison-matrix)
 
 ---
