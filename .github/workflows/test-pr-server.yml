@@ -1,0 +1,41 @@
+name: Test PR (server)
+
+on:
+  pull_request:
+    branches:
+      - "**"
+    tags-ignore:
+      - v*
+    paths:
+      - ".github/workflows/test-pr-server.yml"
+      - "server/**"
+
+jobs:
+  test_and_format_check_go:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - uses: actions/checkout@v7.0.0
+
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: "server/go.mod"
+
+      - name: go test all packages
+        run: go test ./...
+
+      - name: gofmt test
+        run: |
+          outp=$(gofmt -l .)
+          if [ -n "$outp" ]; then
+            echo "Need to fix formatting!"
+            echo "$outp"
+            exit 1
+          else
+            echo "Everything looks formatted"
+            exit 0
+          fi

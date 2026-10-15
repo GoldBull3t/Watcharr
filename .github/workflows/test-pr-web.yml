@@ -1,0 +1,36 @@
+name: Test PR (web)
+
+on:
+  pull_request:
+    branches:
+      - "**"
+    tags-ignore:
+      - v*
+    paths:
+      - ".github/workflows/test-pr-web.yml"
+      - "package*.json"
+      - "svelte.config.json"
+      - "vite.config.json"
+      - "tsconfig.json"
+      - ".prettier*"
+      - "src/**"
+
+jobs:
+  linter_check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7.0.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+          cache: "npm"
+
+      - name: Get dependencies
+        run: npm i
+
+      - name: Check for linting/formatting errors
+        run: npm run lint

@@ -1,0 +1,353 @@
+package migrate
+
+import (
+	"encoding/json"
+	"errors"
+	"log/slog"
+	"strings"
+	"time"
+
+	"github.com/sbondCo/Watcharr/database/entity"
+	"gorm.io/gorm"
+)
+
+// NOTE: For obvious reasons, once a migration is created and in production,
+// it is set in stone, so there should be almost no reason to change an existing
+// migration, create a new one instead!
+// If it's not obvious, changing an existing migration won't apply for people
+// who already have applied it and only apply for people who haven't yet,
+// so we are risking splitting the consistency of everyones databases as a
+// whole. I can't forsee any circumstance that would require doing so..
+// We should still delete older migrations once they can't safely run on new
+// schemas at all in the future (we can only truly support upgrading Watcharr
+// to the next and not skipping version in between.).
+
+var migrations = []Migration{
+	{
+		// Backfilling `plays` data from users Activity.
+		// (we have just created the 'count_as_play' column, instead of starting
+		// existing data from 0 plays, we can check what existing activities
+		// should count, and count them).
+		ID: "202603201715_0001",
+		Up: func(tx *gorm.DB) error {
+			migID := "202603201715_0001"
+			slog.Info("Migration is starting.", "mig", migID)
+			// For ADDED_WATCHED and STATUS_CHANGED activities where the data
+			// holds something saying FINISHED somewhere, count as a play.
+			res := tx.
+				Model(&entity.Activity{}).
+				Where(
+					`type IN ? AND data LIKE "%FINISHED%"`,
+					[]entity.ActivityType{
+						entity.ADDED_WATCHED,
+						entity.STATUS_CHANGED,
+					},
+				).
+				Update("count_as_play", 1)
+			if res.Error != nil {
+				slog.Error("First step failed!", "mig", migID,
+					"error", res.Error)
+				return res.Error
+			}
+			slog.Info("First step succeeded, continuing.", "mig", migID)
+			// For IMPORTED_ADDED_WATCHED* activities, we don't need to check
+			// data (since there isn't any). We know these should always count
+			// as a play, so count them.
+			res = tx.
+				Model(&entity.Activity{}).
+				Where("type IN ?", []string{
+					string(entity.IMPORTED_ADDED_WATCHED),
+					"IMPORTED_ADDED_WATCHED_JF",
+					"IMPORTED_ADDED_WATCHED_PLEX",
+				}).
+				Update("count_as_play", 1)
+			if res.Error != nil {
+				slog.Error("Second step failed!", "mig", migID,
+					"error", res.Error)
+				return res.Error
+			}
+			slog.Info("Second step succeeded, continuing.", "mig", migID)
+			return nil
+		},
+	},
+	{
+		// Dropping `deleted_at` columns for `watched_seasons` and
+		// `watched_episodes` tables since we do not use them.
+		ID: "202604142234_0002",
+		Up: func(tx *gorm.DB) error {
+			migID := "202604142234_0002"
+			slog.Info("Migration is starting.", "mig", migID)
+
+			// Drop deleted_at for watched_seasons
+			err := tx.Migrator().DropColumn(&entity.WatchedSeason{}, "deleted_at")
+			if err != nil {
+				slog.Error("watched_seasons migration failed!", "mig", migID)
+				return err
+			}
+			slog.Info("watched_seasons migration succeeded.", "mig", migID)
+
+			// Drop deleted_at for watched_episodes
+			err = tx.Migrator().DropColumn(&entity.WatchedEpisode{}, "deleted_at")
+			if err != nil {
+				slog.Error("watched_episodes migration failed!", "mig", migID)
+				return err
+			}
+			slog.Info("watched_episodes migration succeeded.", "mig", migID)
+
+			slog.Info("Migration complete.", "mig", migID)
+			return nil
+		},
+	},
+	{
+		// Moving to using WAL journal_mode for our sqlite database, which
+		// should grant us improvements in all areas.
+		// https://sqlite.org/pragma.html#pragma_journal_mode
+		ID: "202604162229_0003",
+		// NOTE: We are using `unsafe` so that this migration isn't ran inside
+		// of a transaction (can't change into WAL from within one), so we
+		// MUST ENSURE we are only doing one thing!
+		UNSAFE: true,
+		Up: func(db *gorm.DB) error {
+			migID := "202604162229_0003"
+			slog.Info("Migration is starting.", "mig", migID)
+
+			var mode string
+			res := db.Raw("PRAGMA journal_mode=WAL").Scan(&mode)
+			if res.Error != nil {
+				slog.Error("Setting journal_mode=WAL failed!", "mig", migID)
+				return res.Error
+			}
+			// Setting journal_mode might not return an error if it fails,
+			// it always returns the current journal_mode of the db, which
+			// will be WAL if it succeeds OR the "old" journal_mode if it
+			// wasn't changed.
+			// If the mode returned isn't WAL, then something has failed, so
+			// we'll error to stop here and prevent the migration record from
+			// being created, allowing the user to try again.
+			// Note: I was able to test this code by opening the db like this
+			// `sqlite.Open("file:data/watcharr.db?immutable=true")` and
+			// commenting out other code so we get right to this migration
+			// without failing at AutoMigration, etc.
+			slog.Info("journal_mode response.", "mode", mode)
+			if strings.ToLower(mode) != "wal" {
+				slog.Error("Setting journal_mode=WAL failed silently!")
+				return errors.New("Database is not in WAL mode after setting journal_mode=WAL")
+			}
+			slog.Info("WAL journal_mode migration succeeded.", "mig", migID)
+
+			slog.Info("Migration complete.", "mig", migID)
+			return nil
+		},
+	},
+	{
+		// Migrating third_party_{id,auth} data from Users table to the
+		// user_services table. Only Jellyfin users have their auth using the
+		// third_party columns so we can safely assume this.
+		ID: "202608070037_0004",
+		Up: func(tx *gorm.DB) error {
+			migID := "202608070037_0004"
+			slog.Info("Migration is starting.", "mig", migID)
+
+			// If the columns to migrate dont exist in this db, we can assume
+			// this migration has succeeded before OR this is a fresh db that
+			// doesn't need this migration to run.
+			if !tx.Migrator().HasColumn(&entity.User{}, "third_party_id") ||
+				!tx.Migrator().HasColumn(&entity.User{}, "third_party_auth") {
+				slog.Info("Current user table doesn't have third_party_id or third_party_auth columns. Skipping.",
+					"mig", migID)
+				return nil
+			}
+
+			// Migrate the data to user_services table.
+			tnow := time.Now()
+			err := tx.Exec(`
+				INSERT INTO user_services (user_id, name, client_id, auth_token, created_at, updated_at)
+				SELECT id, ?, third_party_id, third_party_auth, ?, ?
+				FROM users
+				WHERE third_party_id IS NOT NULL AND third_party_id != ''
+			`, "jellyfin", tnow, tnow).Error
+			if err != nil {
+				slog.Error("migration query failed!", "mig", migID)
+				return err
+			}
+
+			slog.Info("Migration complete.", "mig", migID)
+			return nil
+		},
+	},
+	{
+		// Replacing old activities that had `_AUTO`, `_JF` & `_PLEX` affixes
+		// to just use the base activity type (which is what we now do, so this
+		// migration updates all old data to conform with how we do this now).
+		ID: "202608181937_0005",
+		Up: func(tx *gorm.DB) error {
+			migID := "202608181937_0005"
+			slog.Info("Migration is starting.", "mig", migID)
+
+			// Migrate the _AUTO activities and their "reason".
+			migAutoActivity := func(from, to string) error {
+				var a []entity.Activity
+				err := tx.
+					Model(&entity.Activity{}).
+					Where("type = ?", from).
+					Find(&a).
+					Error
+				if err != nil {
+					slog.Error("migAutoActivity: query failed!",
+						"mig", migID, "from", from)
+					return err
+				}
+				for _, v := range a {
+					if v.Data == "" {
+						continue
+					}
+					var data map[string]any
+					if err := json.Unmarshal([]byte(v.Data), &data); err != nil {
+						slog.Error("migAutoActivity: Unmarshal failed!",
+							"mig", migID, "from", from, "activity", v)
+						return err
+					}
+
+					// Get reason, but avoid panic if it doesn't exist.
+					reason, _ := data["reason"].(string)
+
+					delete(data, "reason")
+					newData, err := json.Marshal(data)
+					if err != nil {
+						slog.Error("migAutoActivity: Re-marshal failed!",
+							"mig", migID, "from", from, "data", data, "activity_id", v.ID)
+						return err
+					}
+
+					res := tx.
+						Model(&entity.Activity{}).
+						Where("id = ?", v.ID).
+						Updates(map[string]any{
+							"reason":     reason,
+							"data":       string(newData),
+							"type":       entity.ActivityType(to),
+							"created_by": entity.ActivityCreatedByWatcharr,
+						})
+					if res.Error != nil {
+						slog.Error("migAutoActivity: Update query failed!",
+							"mig", migID, "from", from, "activity", v)
+						return res.Error
+					}
+					if res.RowsAffected == 0 {
+						slog.Error("migAutoActivity: Update query didnt affect any rows!",
+							"mig", migID, "from", from, "activity", v)
+						return errors.New("no rows affected")
+					}
+				}
+				return nil
+			}
+
+			// _AUTO
+			if err := migAutoActivity("STATUS_CHANGED_AUTO", "STATUS_CHANGED"); err != nil {
+				return err
+			}
+			if err := migAutoActivity("SEASON_ADDED_AUTO", "SEASON_ADDED"); err != nil {
+				return err
+			}
+			if err := migAutoActivity("SEASON_STATUS_CHANGED_AUTO", "SEASON_STATUS_CHANGED"); err != nil {
+				return err
+			}
+
+			// Migrate the other activities (where we are just changing type
+			// from -> to & createdBy).
+			migOtherActivity := func(from, to string, createdBy entity.ActivityCreatedBy) error {
+				var a []entity.Activity
+				err := tx.
+					Model(&entity.Activity{}).
+					Where("type = ?", from).
+					Find(&a).
+					Error
+				if err != nil {
+					slog.Error("migOtherActivity: query failed!",
+						"mig", migID, "from", from)
+					return err
+				}
+				for _, v := range a {
+					res := tx.
+						Model(&entity.Activity{}).
+						Where("id = ?", v.ID).
+						Updates(map[string]any{
+							"type":       entity.ActivityType(to),
+							"created_by": createdBy,
+						})
+					if res.Error != nil {
+						slog.Error("migOtherActivity: Update query failed!",
+							"mig", migID, "from", from, "activity", v)
+						return res.Error
+					}
+					if res.RowsAffected == 0 {
+						slog.Error("migOtherActivity: Update query didnt affect any rows!",
+							"mig", migID, "from", from, "activity", v)
+						return errors.New("no rows affected")
+					}
+				}
+				return nil
+			}
+
+			if err := migOtherActivity("IMPORTED_WATCHED", "ADDED_WATCHED", entity.ActivityCreatedByGenericImport); err != nil {
+				return err
+			}
+			if err := migOtherActivity("IMPORTED_WATCHED_JF", "ADDED_WATCHED", entity.ActivityCreatedByJellyfinImport); err != nil {
+				return err
+			}
+			if err := migOtherActivity("IMPORTED_WATCHED_PLEX", "ADDED_WATCHED", entity.ActivityCreatedByPlexImport); err != nil {
+				return err
+			}
+
+			if err := migOtherActivity("IMPORTED_ADDED_WATCHED_JF", "IMPORTED_ADDED_WATCHED", entity.ActivityCreatedByJellyfinImport); err != nil {
+				return err
+			}
+			if err := migOtherActivity("IMPORTED_ADDED_WATCHED_PLEX", "IMPORTED_ADDED_WATCHED", entity.ActivityCreatedByPlexImport); err != nil {
+				return err
+			}
+
+			if err := migOtherActivity("SEASON_ADDED_JF", "SEASON_ADDED", entity.ActivityCreatedByJellyfinImport); err != nil {
+				return err
+			}
+			if err := migOtherActivity("SEASON_ADDED_PLEX", "SEASON_ADDED", entity.ActivityCreatedByPlexImport); err != nil {
+				return err
+			}
+
+			if err := migOtherActivity("EPISODE_ADDED_JF", "EPISODE_ADDED", entity.ActivityCreatedByJellyfinImport); err != nil {
+				return err
+			}
+			if err := migOtherActivity("EPISODE_ADDED_PLEX", "EPISODE_ADDED", entity.ActivityCreatedByPlexImport); err != nil {
+				return err
+			}
+
+			slog.Info("Migration complete.", "mig", migID)
+			return nil
+		},
+	},
+	{
+		// Adding composite performance indexes for library filtering and sorting.
+		// Speeds up status filtering, rating ordering, date added sorting and activity subqueries.
+		ID: "202610151430_0007",
+		Up: func(tx *gorm.DB) error {
+			migID := "202610151430_0007"
+			slog.Info("Migration is starting.", "mig", migID)
+
+			queries := []string{
+				"CREATE INDEX IF NOT EXISTS idx_watcheds_user_status ON watcheds(user_id, status);",
+				"CREATE INDEX IF NOT EXISTS idx_watcheds_user_rating ON watcheds(user_id, rating);",
+				"CREATE INDEX IF NOT EXISTS idx_watcheds_user_created ON watcheds(user_id, created_at DESC);",
+				"CREATE INDEX IF NOT EXISTS idx_activities_watched_play ON activities(watched_id, count_as_play);",
+			}
+
+			for _, q := range queries {
+				if res := tx.Exec(q); res.Error != nil {
+					slog.Error("Creating performance index failed!", "mig", migID, "query", q, "error", res.Error)
+					return res.Error
+				}
+			}
+
+			slog.Info("Performance indexes created successfully.", "mig", migID)
+			return nil
+		},
+	},
+}

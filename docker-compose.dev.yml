@@ -1,0 +1,11 @@
+# To test prod
+services:
+  watcharr:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: watcharr-dev
+    ports:
+      - 3081:3080
+    volumes:
+      - ./container_data:/data

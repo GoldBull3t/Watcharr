@@ -1,0 +1,449 @@
+<script lang="ts">
+	import Activity from "@/lib/activity/Activity.svelte";
+	import Error from "@/lib/Error.svelte";
+	import HorizontalList from "@/lib/HorizontalList.svelte";
+	import Icon from "@/lib/Icon.svelte";
+	import PersonPoster from "@/lib/poster/PersonPoster.svelte";
+	import SeasonsList from "@/lib/season/SeasonsList.svelte";
+	import Spinner from "@/lib/Spinner.svelte";
+	import ProvidersList from "@/lib/content/ProvidersList.svelte";
+	import SimilarContent from "@/lib/content/SimilarContent.svelte";
+	import Title from "@/lib/content/Title.svelte";
+	import {
+		contentExistsOnJellyfin,
+		req,
+		updateWatched,
+		type UpdateWatchedOptions,
+	} from "@/lib/util/api";
+	import { getTopCrew } from "@/lib/util/helpers.js";
+	import { store } from "@/store.svelte.js";
+	import type {
+		Media,
+		TMDBContentCredits,
+		TMDBContentCreditsCrew,
+		WatchedStatus,
+	} from "@/types";
+	import RequestShow from "@/lib/request/RequestShow.svelte";
+	import FollowedThoughts from "@/lib/content/FollowedThoughts.svelte";
+	import ArrRequestButton from "@/lib/request/ArrRequestButton.svelte";
+	import tooltip from "@/lib/actions/tooltip.js";
+	import AddToTagButton from "@/lib/tag/AddToTagButton.svelte";
+	import PageBackdrop from "@/lib/generic/PageBackdrop.svelte";
+	import MyReview from "@/lib/content/MyReview.svelte";
+	import ViewTrailerButton from "@/lib/content/ViewTrailerButton.svelte";
+	import PosterImage from "@/lib/content/PosterImage.svelte";
+	import ExpandableText from "@/lib/content/ExpandableText.svelte";
+	import WatchedDeleteBtn from "@/lib/content/WatchedDeleteBtn.svelte";
+	import TopCrewList from "@/lib/content/TopCrewList.svelte";
+	import { activityRemovedHook } from "@/lib/activity/activity.js";
+	import CountAsPlayModal from "@/lib/watched/CountAsPlayModal.svelte";
+	import { createSignal, type Signal } from "@/lib/util/signal.js";
+	import Genres from "@/lib/content/Genres.svelte";
+	import { MediaStatusShow } from "@/lib/types/mediaStatus.js";
+	import SeriesProgress from "@/lib/season/SeriesProgress.svelte";
+	import NextEpisodeCard from "@/lib/season/NextEpisodeCard.svelte";
+
+	let { data } = $props();
+
+	let requestModalShown = $state(false);
+	let jellyfinUrl: string | undefined = $state();
+	let arrRequestButtonComp: ArrRequestButton | undefined = $state();
+	let show: Media | undefined = $state();
+	let pageError: unknown | undefined = $state();
+	let countAsPlayModalSignal: Signal<boolean> | undefined = $state();
+
+	$effect(() => {
+		(async () => {
+			try {
+				show = undefined;
+				pageError = undefined;
+				if (!data.tvId) {
+					return;
+				}
+				const resp = await req.get<Media>(`/content/tv/${data.tvId}`, {
+					params: { region: store.userSettings?.country },
+				});
+				if (resp) {
+					if (resp.name && resp.ids.tmdb) {
+						contentExistsOnJellyfin("tv", resp.name, resp.ids.tmdb).then(
+							(j) => {
+								if (j?.hasContent && j?.url !== "") {
+									jellyfinUrl = j.url;
+								}
+							},
+						);
+					}
+					show = resp;
+				} else {
+					show = undefined;
+				}
+			} catch (err) {
+				show = undefined;
+				pageError = err;
+			}
+		})();
+	});
+
+	async function getTvCredits() {
+		const credits = await req.get<
+			TMDBContentCredits & { topCrew: TMDBContentCreditsCrew[] }
+		>(`/content/tv/${data.tvId}/credits`);
+		if (credits.crew?.length > 0) {
+			credits.topCrew = getTopCrew(credits.crew);
+		}
+		return credits;
+	}
+
+	async function contentChanged(
+		newStatus?: WatchedStatus,
+		newRating?: number,
+		newThoughts?: string,
+		pinned?: boolean,
+	): Promise<boolean> {
+		try {
+			if (!data.tvId) {
+				console.error("contentChanged: no tvId");
+				return false;
+			}
+			if (!show) {
+				console.error("contentChanged: no show");
+				return false;
+			}
+			const reqOpts: UpdateWatchedOptions = {
+				contentId: data.tvId,
+				contentType: "tv",
+				status: newStatus,
+				rating: newRating,
+				thoughts: newThoughts,
+				pinned: pinned,
+			};
+			// Series differ from other media in that people are likely to go
+			// back out of the 'FINISHED' state when a new season releases
+			// while they watch it, then go back to 'FINISHED' after only
+			// watching the new season. Because of that use case, for series,
+			// we will ask the user if any 'FINISHED' statuses set when plays>1
+			// should count as a play..
+			if (show.watched?.plays && newStatus == "FINISHED") {
+				countAsPlayModalSignal = createSignal<boolean>();
+				const allow = await countAsPlayModalSignal.promise;
+				countAsPlayModalSignal = undefined;
+				if (!allow) {
+					reqOpts.letCountAsPlay = false;
+				}
+			}
+			show.watched = await updateWatched(show.watched, reqOpts);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+</script>
+
+<svelte:head>
+	<title>{show?.name ? `${show.name} - ` : ""}Show</title>
+</svelte:head>
+
+{#if pageError}
+	<Error pretty="Failed to load tv show!" error={pageError} />
+{:else if !show}
+	<Spinner />
+{:else if Object.keys(show).length > 0}
+	{#if show?.extBackdropPath}
+		<PageBackdrop
+			src={"https://www.themoviedb.org/t/p/w1920_and_h800_multi_faces" +
+				show.extBackdropPath}
+		/>
+	{/if}
+	<div>
+		<div class="content">
+			<div class="details-wrap">
+				<div class="details-container">
+					{#if show.extPosterPath}
+						<PosterImage
+							src={"https://image.tmdb.org/t/p/w500" + show.extPosterPath}
+						/>
+					{/if}
+
+					<div class="details">
+						<Title
+							title={show.name}
+							homepage={show.homepage}
+							releaseDate={show.releaseDate
+								? new Date(show.releaseDate)
+								: undefined}
+							endDate={(show.status === MediaStatusShow.Ended ||
+								show.status === MediaStatusShow.Canceled) &&
+							show.releaseDateLast
+								? new Date(show.releaseDateLast)
+								: undefined}
+							voteAverage={show.rating}
+							voteCount={show.ratingCount}
+						/>
+
+						<span class="quick-info">
+							{#if show.status}
+								<span class="series-status-tag">{show.status}</span>
+							{/if}
+							<Genres genres={show.genres} />
+						</span>
+
+						<ExpandableText text={show.summary} style="margin-bottom: 18px;" />
+
+						<div class="btns">
+							<ViewTrailerButton videos={show.videos} />
+							{#if jellyfinUrl}
+								<a
+									class="btn"
+									href={jellyfinUrl}
+									rel="external"
+									target="_blank"
+								>
+									{#if localStorage.getItem("useEmby")}
+										<Icon i="emby" wh={14} />Play On Emby
+									{:else}
+										<Icon i="jellyfin" wh={14} />Play On Jellyfin
+									{/if}
+								</a>
+							{/if}
+							{#if store.serverFeatures?.sonarr && data.tvId}
+								<ArrRequestButton
+									type="tv"
+									tmdbId={data.tvId}
+									openRequestModal={() =>
+										(requestModalShown = !requestModalShown)}
+									bind:this={arrRequestButtonComp}
+								/>
+							{/if}
+							{#if show.watched}
+								<div class="other-side">
+									<AddToTagButton watchedItem={show.watched} />
+									<button
+										onclick={() => {
+											if (show?.watched?.pinned) {
+												contentChanged(undefined, undefined, undefined, false);
+											} else {
+												contentChanged(undefined, undefined, undefined, true);
+											}
+										}}
+										use:tooltip={{
+											text: `${show.watched?.pinned ? "Unpin from" : "Pin to"} top of list`,
+											pos: "bot",
+										}}
+									>
+										<Icon i={show.watched?.pinned ? "unpin" : "pin"} wh={19} />
+									</button>
+									<WatchedDeleteBtn
+										watchedId={show.watched.id}
+										mediaName={show.name}
+										onDelete={() => {
+											if (show) {
+												show.watched = undefined;
+											}
+										}}
+									/>
+								</div>
+							{/if}
+						</div>
+
+						{#if show.providers}
+							<ProvidersList
+								providers={show.providers}
+								fullListLink={show.providersFullListLink}
+								fullListLinkText="JustWatch"
+							/>
+						{/if}
+					</div>
+				</div>
+			</div>
+
+			<MyReview
+				watched={show.watched}
+				contentTitle={show.name}
+				onRatingChanged={(n) => contentChanged(undefined, n)}
+				onStatusChanged={(n) => contentChanged(n)}
+				onThoughtsChanged={(newThoughts) => {
+					return contentChanged(undefined, undefined, newThoughts);
+				}}
+			/>
+		</div>
+
+		{#if countAsPlayModalSignal}
+			<CountAsPlayModal onDecision={countAsPlayModalSignal} />
+		{/if}
+
+		{#if requestModalShown}
+			<RequestShow
+				content={show}
+				onClose={(reqResp) => {
+					requestModalShown = false;
+					if (reqResp) {
+						arrRequestButtonComp?.setExistingRequest(reqResp);
+					}
+				}}
+			/>
+		{/if}
+
+		<div class="page">
+			{#if data.tvId}
+				<FollowedThoughts mediaType="tv" mediaId={data.tvId} />
+			{/if}
+
+			{#if show.seasons && show.seasons.length > 0}
+				{#if show.watched}
+					<SeriesProgress seasons={show.seasons} watchedItem={show.watched} />
+					{#if data?.tvId}
+						<NextEpisodeCard
+							tvId={data.tvId}
+							seasons={show.seasons}
+							watchedItem={show.watched}
+							onEpisodeWatched={() => {
+								if (show?.watched) {
+									show.watched = {
+										...show.watched,
+										watchedEpisodes: [...(show.watched.watchedEpisodes || [])],
+										watchedSeasons: [...(show.watched.watchedSeasons || [])],
+									};
+								}
+							}}
+						/>
+					{/if}
+				{/if}
+
+				{#if data?.tvId}
+					<SeasonsList
+						tvId={data.tvId}
+						seasons={show.seasons}
+						watchedItem={show.watched}
+						lastViewedSeason={show.watched?.lastViewedSeason}
+						lastViewedSeasonChanged={(wid, lvs) => {
+							if (show?.watched && show.watched.id === wid) {
+								show.watched.lastViewedSeason = lvs;
+							}
+						}}
+					/>
+				{/if}
+			{/if}
+
+			{#await getTvCredits()}
+				<Spinner />
+			{:then credits}
+				{#if credits.topCrew?.length > 0}
+					<TopCrewList topCrew={credits.topCrew} />
+				{/if}
+
+				{#if credits.cast?.length > 0}
+					<HorizontalList title="Cast">
+						{#each credits.cast?.slice(0, 50) as cast (cast.credit_id)}
+							<PersonPoster
+								id={cast.id}
+								name={cast.name}
+								path={cast.profile_path}
+								role={cast.character}
+								zoomOnHover={false}
+							/>
+						{/each}
+					</HorizontalList>
+				{/if}
+			{:catch err}
+				<Error error={err} pretty="Failed to load cast!" />
+			{/await}
+
+			{#if show.similar}
+				<SimilarContent similar={show.similar} />
+			{/if}
+
+			{#if show.watched}
+				<Activity
+					activity={show.watched.activity}
+					onRemoved={(a) => activityRemovedHook(show?.watched, a)}
+				/>
+			{/if}
+		</div>
+	</div>
+{:else}
+	Show not found
+{/if}
+
+<style lang="scss">
+	@use "../../../../lib/content/page.scss";
+
+	.content {
+		position: relative;
+		color: white;
+
+		.details-container .details {
+			.quick-info {
+				display: flex;
+				align-items: center;
+				flex-wrap: wrap;
+				gap: 10px;
+				margin-bottom: 8px;
+
+				.series-status-tag {
+					font-size: 12px;
+					font-weight: 700;
+					letter-spacing: 0.04em;
+					text-transform: uppercase;
+					padding: 3px 10px;
+					border-radius: 999px;
+					background: rgba(99, 102, 241, 0.15);
+					border: 1px solid rgba(99, 102, 241, 0.3);
+					color: #c7d2fe;
+				}
+			}
+
+			.btns {
+				display: flex;
+				flex-flow: row;
+				flex-wrap: wrap;
+				gap: 8px;
+				margin-top: auto;
+
+				a.btn,
+				button {
+					max-width: fit-content;
+					overflow: hidden;
+					animation: 50ms cubic-bezier(0.86, 0, 0.07, 1) forwards otherbtn;
+					white-space: nowrap;
+					gap: 6px;
+					justify-content: flex-start;
+					font-size: 14px;
+
+					@keyframes otherbtn {
+						from {
+							width: 0px;
+						}
+						to {
+							width: 100%;
+						}
+					}
+				}
+
+				.other-side {
+					display: flex;
+					flex-flow: row;
+					gap: 8px;
+
+					@media screen and (min-width: 900px) {
+						margin-left: auto;
+					}
+				}
+			}
+		}
+	}
+
+	.page {
+		display: flex;
+		flex-flow: column;
+		align-items: center;
+		margin-left: auto;
+		margin-right: auto;
+		gap: 30px;
+		padding: 20px 50px;
+		max-width: 1200px;
+
+		@media screen and (max-width: 500px) {
+			padding: 20px;
+		}
+	}
+</style>

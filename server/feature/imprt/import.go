@@ -1,0 +1,332 @@
+package imprt
+
+import (
+	"encoding/json"
+	"errors"
+	"log/slog"
+	"strconv"
+	"time"
+
+	"github.com/sbondCo/Watcharr/activity"
+	"github.com/sbondCo/Watcharr/database/entity"
+	"github.com/sbondCo/Watcharr/domain"
+	"github.com/sbondCo/Watcharr/feature/watched"
+	"github.com/sbondCo/Watcharr/media/tmdb"
+	"github.com/sbondCo/Watcharr/util"
+	"gorm.io/gorm"
+)
+
+type WatchedProvider interface {
+	AddWatched(userId uint, ar domain.WatchedAddRequest, extraProps domain.WatchedAddExtraProps) (entity.Watched, error)
+	GetWatchedItemByTmdbId(userId uint, tmdbId uint, contentType entity.ContentType) (entity.Watched, error)
+}
+
+type TagProvider interface {
+	AddTag(userId uint, tr domain.TagAddRequest) (entity.Tag, error)
+	GetTagByNameAndColor(userId uint, tagName string, tagColor string, tagBgColor string) (entity.Tag, error)
+}
+
+type SearchProvider interface {
+	Search(r domain.SearchRequest, pp util.PaginationParams, userId uint) (domain.SearchResponse, error)
+}
+
+type Service struct {
+	db             *gorm.DB
+	wp             WatchedProvider
+	wsp            domain.SetWatchedSeasonProvider
+	wep            domain.SetWatchedEpisodeProvider
+	tmdb           *tmdb.TMDB
+	tagProvider    TagProvider
+	searchProvider SearchProvider
+}
+
+func NewService(
+	db *gorm.DB,
+	wp WatchedProvider,
+	wsp domain.SetWatchedSeasonProvider,
+	wep domain.SetWatchedEpisodeProvider,
+	tmdb *tmdb.TMDB,
+	tagProvider TagProvider,
+	searchProvider SearchProvider,
+) *Service {
+	return &Service{
+		db,
+		wp,
+		wsp,
+		wep,
+		tmdb,
+		tagProvider,
+		searchProvider,
+	}
+}
+
+func (s *Service) ImportContent(
+	userId uint,
+	ar domain.ImportRequest,
+) (domain.ImportResponse, error) {
+	slog.Debug("import: Processing request:", "request", ar)
+
+	// If we have a TMDB ID given to us, we can go directly to
+	// `SuccessfulImport` and let AddWatched fail if it doesn't exist.
+	if ar.TmdbID != 0 {
+		switch ar.Type {
+		case domain.ImportContentTypeMovie:
+			return s.SuccessfulImport(userId, &ar, domain.SuccessfulImportProps{
+				TmdbID:      ar.TmdbID,
+				ContentType: util.SupportedMediaMovie,
+			}), nil
+		case domain.ImportContentTypeShow:
+			return s.SuccessfulImport(userId, &ar, domain.SuccessfulImportProps{
+				TmdbID:      ar.TmdbID,
+				ContentType: util.SupportedMediaShow,
+			}), nil
+		}
+		// Unsupported types will continue to below...
+	}
+
+	// If imdb id passed, attempt to get content with it
+	if ar.ImdbID != "" && (ar.Type == domain.ImportContentTypeMovie ||
+		ar.Type == domain.ImportContentTypeShow ||
+		ar.Type == domain.ImportContentTypeShowEpisode) {
+		// Try import with imdb id.
+		resp, err := s.importWithIMDBID(userId, &ar)
+		if err == nil || !errors.Is(err, ErrNoResult) {
+			return resp, err
+		}
+		// If ErrNoResult then we allow going below to search by name.
+	}
+
+	// If igdb provided, go straight to SuccessfulImport with it.
+	if ar.IgdbID != 0 && (ar.Type == domain.ImportContentTypeGame) {
+		return s.SuccessfulImport(userId, &ar, domain.SuccessfulImportProps{
+			IgdbID:      ar.IgdbID,
+			ContentType: util.SupportedMediaGame,
+		}), nil
+	}
+
+	// If we have no IDs, run importWithName, which searches for content
+	// by name.
+	return s.importWithName(userId, &ar)
+}
+
+func (s *Service) SuccessfulImport(
+	userId uint,
+	ar *domain.ImportRequest,
+	props domain.SuccessfulImportProps,
+) domain.ImportResponse {
+	status := entity.FINISHED
+	if ar.Status != "" {
+		status = ar.Status
+	}
+	// Get the latest date from DatesWatched if we have any.
+	var wDate time.Time
+	if len(ar.DatesWatched) > 0 {
+		for _, dw := range ar.DatesWatched {
+			if dw.After(wDate) {
+				wDate = dw
+			}
+		}
+	}
+	// Build WatchedAddRequest
+	wAddReq := domain.WatchedAddRequest{
+		ContentType: props.ContentType,
+		Status:      status,
+		Rating:      ar.Rating,
+		Thoughts:    ar.Thoughts,
+		WatchedDate: wDate,
+	}
+	switch props.ContentType {
+	case util.SupportedMediaMovie, util.SupportedMediaShow:
+		wAddReq.TMDBID = props.TmdbID
+	case util.SupportedMediaGame:
+		wAddReq.IGDBID = props.IgdbID
+	default:
+		slog.Error("successfulImport: Invalid contentType provided!",
+			"content_type", props.ContentType)
+		return domain.ImportResponse{Type: domain.IMPORT_FAILED}
+	}
+	// Running add watched
+	w, err := s.wp.AddWatched(
+		userId,
+		wAddReq,
+		domain.WatchedAddExtraProps{
+			ActivityCreatedBy: entity.ActivityCreatedByGenericImport,
+		})
+	if err != nil {
+		if errors.Is(err, domain.ErrWatchedExists) {
+			slog.Error("successfulImport: Must already be on watch list",
+				"error", err)
+			return domain.ImportResponse{Type: domain.IMPORT_EXISTS}
+		}
+		slog.Error("successfulImport: Failed to add content as watched",
+			"error", err)
+		return domain.ImportResponse{Type: domain.IMPORT_FAILED}
+	}
+	// Add activity of the original time the show was added to the users
+	// watchlist on whichever platform they are coming from.
+	if ar.RatingCustomDate != nil {
+		var addedActivity entity.Activity
+		if len(w.Activity) > 0 {
+			activityJson, _ := json.Marshal(map[string]any{
+				"rating":         ar.Rating,
+				"linkedActivity": w.Activity[0].ID,
+			})
+			addedActivity, _ = activity.
+				NewCreator(
+					s.db,
+					userId,
+					w.ID,
+					entity.IMPORTED_RATING,
+					false,
+					entity.ActivityCreatedByGenericImport,
+				).
+				SetData(string(activityJson)).
+				SetCustomDate(ar.RatingCustomDate).
+				Create()
+		} else {
+			addedActivity, _ = activity.
+				NewCreator(
+					s.db,
+					userId,
+					w.ID,
+					entity.IMPORTED_RATING,
+					false,
+					entity.ActivityCreatedByGenericImport,
+				).
+				SetData(strconv.Itoa(int(ar.Rating))).
+				SetCustomDate(ar.RatingCustomDate).
+				Create()
+		}
+		w.Activity = append(w.Activity, addedActivity)
+	}
+	// Add all dates watched as activity, if any
+	if len(ar.DatesWatched) > 0 {
+		for i, v := range ar.DatesWatched {
+			countAsPlay := true
+			if i == 0 && ar.Status == entity.FINISHED {
+				// If the watched status we are importing is of FINISHED
+				// then the first DatesWatched must not count as a play,
+				// since the import activity (set in AddWatched) will already.
+				// Any subsequent DatesWatched should count as a play though.
+				countAsPlay = false
+				slog.Info("successfulImport: Set countAsPlay=false for first" +
+					"DatesWatched to avoid duplicate play count with AddWatched activity.")
+			}
+			customDate := v
+			addedActivity, err := activity.
+				NewCreator(
+					s.db,
+					userId,
+					w.ID,
+					entity.IMPORTED_ADDED_WATCHED,
+					countAsPlay,
+					entity.ActivityCreatedByGenericImport,
+				).
+				SetCustomDate(&customDate).
+				Create()
+			if err == nil {
+				w.Activity = append(w.Activity, addedActivity)
+			} else {
+				slog.Error("successfulImport: Failed to add dateswatched activity.",
+					"date", v, "error", err)
+			}
+		}
+	}
+	// Add all activity passed in.
+	// Probably was is a Watcharr export being imported, so it'll have all it's activity too.
+	if len(ar.Activity) > 0 {
+		slog.Debug("successfulImport: Importing activity")
+		for i, v := range ar.Activity {
+			activityDate := ar.Activity[i].CustomDate
+			if activityDate == nil || activityDate.IsZero() {
+				activityDate = &ar.Activity[i].CreatedAt
+			}
+			addedActivity, err := activity.
+				NewCreator(s.db, userId, w.ID, v.Type, v.CountAsPlay, 0).
+				SetData(v.Data).
+				SetCustomDate(activityDate).
+				Create()
+			if err == nil {
+				w.Activity = append(w.Activity, addedActivity)
+			} else {
+				slog.Error("successfulImport: Failed to add imported activity.",
+					"full_object", v, "error", err)
+			}
+		}
+	}
+	// Import watched seasons, if any
+	if len(ar.WatchedSeason) > 0 {
+		slog.Debug("successfulImport: Importing watched seasons")
+		for _, v := range ar.WatchedSeason {
+			_, err := s.wsp.SetWatchedSeason(userId, domain.WatchedSeasonSetRequest{
+				WatchedID:       w.ID,
+				SeasonNumber:    v.SeasonNumber,
+				Status:          v.Status,
+				Rating:          v.Rating,
+				AddActivityDate: v.CreatedAt,
+			})
+			if err != nil {
+				slog.Error("successfulImport: Failed to add watched season.",
+					"error", err)
+				continue
+			}
+		}
+	}
+	// Import watched episodes, if any
+	if len(ar.WatchedEpisodes) > 0 {
+		slog.Debug("successfulImport: Importing watched episodes")
+		for _, v := range ar.WatchedEpisodes {
+			_, err := s.wep.SetWatchedEpisode(userId, domain.WatchedEpisodeSetRequest{
+				WatchedID:       w.ID,
+				SeasonNumber:    v.SeasonNumber,
+				EpisodeNumber:   v.EpisodeNumber,
+				Status:          v.Status,
+				Rating:          v.Rating,
+				AddActivityDate: v.CreatedAt,
+			})
+			if err != nil {
+				slog.Error("successfulImport: Failed to add watched episodes.",
+					"error", err)
+				continue
+			}
+		}
+	}
+	// Import tags, if any
+	if len(ar.Tags) > 0 {
+		// Create tags if they dont exist
+		slog.Debug("successfulImport: Importing tags")
+		for _, v := range ar.Tags {
+			// Check if tag exists
+			var t entity.Tag
+			t, err := s.tagProvider.GetTagByNameAndColor(userId, v.Name, v.Color, v.BgColor)
+			if err != nil && err.Error() != "tag does not exist" {
+				slog.Error("successfulImport: Failed to check for an existing tag",
+					"name", v.Name, "error", err)
+				continue
+			}
+			if t.ID == 0 {
+				tag, err := s.tagProvider.AddTag(userId, domain.TagAddRequest{
+					Name:    v.Name,
+					Color:   v.Color,
+					BgColor: v.BgColor,
+				})
+				if err != nil {
+					slog.Error("successfulImport: Failed to add a tag.",
+						"name", v.Name, "error", err)
+					continue
+				}
+				t = tag
+			}
+
+			// Associate the watched entry with the tag
+			err = watched.AddWatchedToTag(s.db, userId, t.ID, w.ID)
+			if err != nil {
+				slog.Error("successfulImport: Failed to associate watched entry with tag.",
+					"error", err)
+				continue
+			}
+			w.Tags = append(w.Tags, t)
+		}
+	}
+	return domain.ImportResponse{Type: domain.IMPORT_SUCCESS, WatchedEntry: w}
+}

@@ -1,0 +1,33 @@
+// NOTE: This file is a partial, it shouldn't include anything that will produce css on its own.
+
+@mixin nav-blur {
+	backdrop-filter: blur(14px) saturate(160%);
+	-webkit-backdrop-filter: blur(14px) saturate(160%);
+	background-color: var(--nav-color);
+}
+
+@mixin glass-surface {
+	background-color: var(--card-bg, #161b26);
+	border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+	backdrop-filter: blur(16px);
+	-webkit-backdrop-filter: blur(16px);
+}
+
+@mixin focus-ring {
+	outline: none;
+	box-shadow:
+		0 0 0 2px var(--bg-color),
+		0 0 0 4px var(--brand-color, #f59e0b);
+}
+
+@mixin mobile {
+	@media screen and (max-width: 768px) {
+		@content;
+	}
+}
+
+@mixin tablet {
+	@media screen and (max-width: 1024px) {
+		@content;
+	}
+}
