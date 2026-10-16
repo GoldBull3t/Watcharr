@@ -10,6 +10,7 @@
 	import Icon from "@/lib/Icon.svelte";
 	import { toRelativeDate } from "@/lib/util/helpers";
 	import Spinner from "@/lib/Spinner.svelte";
+	import RelativeDateBadge from "@/lib/content/RelativeDateBadge.svelte";
 
 	interface Props {
 		tvId: number;
@@ -217,14 +218,11 @@
 							</span>
 						{/if}
 						{#if airDate}
-							<span class="meta-item" class:unaired-tag={isUnaired}>
-								<Icon i="calendar" wh={13} />
-								{#if isUnaired}
-									Airs {toRelativeDate(airDate)}
-								{:else}
-									{toRelativeDate(airDate)}
-								{/if}
-							</span>
+							<RelativeDateBadge
+								date={airDate}
+								prefix={isUnaired ? "Estreia" : undefined}
+								size="sm"
+							/>
 						{/if}
 					</div>
 
@@ -453,10 +451,6 @@
 				display: inline-flex;
 				align-items: center;
 				gap: 5px;
-
-				&.unaired-tag {
-					color: #fbbf24;
-				}
 			}
 		}
 

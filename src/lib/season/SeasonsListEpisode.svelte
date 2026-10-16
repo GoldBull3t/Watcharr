@@ -12,6 +12,7 @@
 	import { removeWatchedEpisode, updateWatchedEpisode } from "./api";
 	import { onMount } from "svelte";
 	import { toRelativeDate } from "../util/helpers";
+	import RelativeDateBadge from "@/lib/content/RelativeDateBadge.svelte";
 
 	interface Props {
 		ep: TMDBSeasonDetailsEpisode;
@@ -136,16 +137,12 @@
 							{ep.runtime} min
 						</span>
 					{/if}
-					{#if !isUnaired && airDate}
-						<span class="ep-meta-tag">
-							<Icon i="calendar" wh={12} />
-							{toRelativeDate(airDate)}
-						</span>
-					{:else if isUnaired && airDate}
-						<span class="ep-meta-tag unaired">
-							<Icon i="calendar" wh={12} />
-							Airs {toRelativeDate(airDate)}
-						</span>
+					{#if airDate}
+						<RelativeDateBadge
+							date={airDate}
+							prefix={isUnaired ? "Estreia" : undefined}
+							size="sm"
+						/>
 					{/if}
 				</div>
 			</div>
@@ -328,10 +325,6 @@
 							display: inline-flex;
 							align-items: center;
 							gap: 4px;
-
-							&.unaired {
-								color: #fbbf24;
-							}
 						}
 					}
 				}

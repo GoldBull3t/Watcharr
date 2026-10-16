@@ -233,6 +233,172 @@ export function msToAmountsOfTime(ms: number) {
 	return { days, hours, minutes, seconds };
 }
 
+export type DateUrgency =
+	| "today"
+	| "tomorrow"
+	| "yesterday"
+	| "this-week"
+	| "upcoming"
+	| "past"
+	| "unknown";
+
+export interface RelativeDateInfo {
+	urgency: DateUrgency;
+	label: string;
+	daysDiff: number;
+	formattedDate: string;
+	isFuture: boolean;
+	isPast: boolean;
+	isToday: boolean;
+}
+
+export function getRelativeDateInfo(
+	d: Date | string | number | undefined | null,
+): RelativeDateInfo {
+	if (!d) {
+		return {
+			urgency: "unknown",
+			label: "Data desconhecida",
+			daysDiff: 0,
+			formattedDate: "",
+			isFuture: false,
+			isPast: false,
+			isToday: false,
+		};
+	}
+
+	const date = d instanceof Date ? d : new Date(d);
+	if (isNaN(date.getTime())) {
+		return {
+			urgency: "unknown",
+			label: "Data desconhecida",
+			daysDiff: 0,
+			formattedDate: "",
+			isFuture: false,
+			isPast: false,
+			isToday: false,
+		};
+	}
+
+	const now = new Date();
+	const targetMidnight = new Date(
+		date.getFullYear(),
+		date.getMonth(),
+		date.getDate(),
+	);
+	const nowMidnight = new Date(
+		now.getFullYear(),
+		now.getMonth(),
+		now.getDate(),
+	);
+
+	const msPerDay = 1000 * 60 * 60 * 24;
+	const daysDiff = Math.round(
+		(targetMidnight.getTime() - nowMidnight.getTime()) / msPerDay,
+	);
+
+	const formattedDate = date.toLocaleDateString(undefined, {
+		day: "numeric",
+		month: "short",
+		year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+	});
+
+	if (daysDiff === 0) {
+		return {
+			urgency: "today",
+			label: "Hoje",
+			daysDiff,
+			formattedDate,
+			isFuture: false,
+			isPast: false,
+			isToday: true,
+		};
+	}
+
+	if (daysDiff === 1) {
+		return {
+			urgency: "tomorrow",
+			label: "Amanhã",
+			daysDiff,
+			formattedDate,
+			isFuture: true,
+			isPast: false,
+			isToday: false,
+		};
+	}
+
+	if (daysDiff === -1) {
+		return {
+			urgency: "yesterday",
+			label: "Ontem",
+			daysDiff,
+			formattedDate,
+			isFuture: false,
+			isPast: true,
+			isToday: false,
+		};
+	}
+
+	if (daysDiff > 1 && daysDiff <= 7) {
+		return {
+			urgency: "this-week",
+			label: `Em ${daysDiff} dias`,
+			daysDiff,
+			formattedDate,
+			isFuture: true,
+			isPast: false,
+			isToday: false,
+		};
+	}
+
+	if (daysDiff > 7 && daysDiff <= 30) {
+		const weeks = Math.round(daysDiff / 7);
+		return {
+			urgency: "upcoming",
+			label: `Em ${weeks} ${weeks === 1 ? "semana" : "semanas"}`,
+			daysDiff,
+			formattedDate,
+			isFuture: true,
+			isPast: false,
+			isToday: false,
+		};
+	}
+
+	if (daysDiff > 30) {
+		return {
+			urgency: "upcoming",
+			label: formattedDate,
+			daysDiff,
+			formattedDate,
+			isFuture: true,
+			isPast: false,
+			isToday: false,
+		};
+	}
+
+	if (daysDiff < -1 && daysDiff >= -7) {
+		return {
+			urgency: "past",
+			label: `Há ${Math.abs(daysDiff)} dias`,
+			daysDiff,
+			formattedDate,
+			isFuture: false,
+			isPast: true,
+			isToday: false,
+		};
+	}
+
+	return {
+		urgency: "past",
+		label: formattedDate,
+		daysDiff,
+		formattedDate,
+		isFuture: false,
+		isPast: true,
+		isToday: false,
+	};
+}
+
 /** I'm no warden of time, this is as relative as it's getting. */
 export function toRelativeDate(d: Date | string | number | undefined | null): string {
 	if (!d) {

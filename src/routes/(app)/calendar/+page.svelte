@@ -10,6 +10,7 @@
 	import type { CalendarEvent, CalendarFilter, CalendarType } from "@/types";
 	import { toRelativeDate } from "@/lib/util/helpers";
 	import CalendarWebhookModal from "@/lib/calendar/CalendarWebhookModal.svelte";
+	import RelativeDateBadge from "@/lib/content/RelativeDateBadge.svelte";
 
 	type CalendarViewMode = "month" | "week" | "wall" | "agenda";
 
@@ -682,20 +683,14 @@
 							<section class="wall-day-section" class:is-today={group.isToday}>
 								<header class="wall-day-header">
 									<div class="day-header-left">
-										<span class="day-badge" class:today-badge={group.isToday}>
-											{#if group.isToday}
-												Hoje
-											{:else}
-												{group.date.toLocaleString(undefined, { weekday: "short" })}
-											{/if}
-										</span>
+										<RelativeDateBadge date={group.date} size="md" />
 										<h4 class="day-title">
 											{group.date.toLocaleString(undefined, {
+												weekday: "long",
 												day: "numeric",
 												month: "long",
 											})}
 										</h4>
-										<span class="day-rel">{toRelativeDate(group.date)}</span>
 									</div>
 									<span class="day-count-tag">
 										{group.events.length} {group.events.length === 1 ? "título" : "títulos"}
@@ -787,6 +782,7 @@
 					{#each agendaDates as group (group.dateStr)}
 						<div class="agenda-group">
 							<div class="agenda-date-header">
+								<RelativeDateBadge date={group.date} size="md" />
 								<span class="agenda-date-main">
 									{group.date.toLocaleString(undefined, {
 										weekday: "long",
@@ -794,9 +790,6 @@
 										day: "numeric",
 										year: "numeric",
 									})}
-								</span>
-								<span class="agenda-date-relative">
-									{toRelativeDate(group.date)}
 								</span>
 							</div>
 
@@ -1626,11 +1619,6 @@
 				font-weight: 700;
 				color: #ffffff;
 			}
-
-			.agenda-date-relative {
-				font-size: 13px;
-				color: rgba(255, 255, 255, 0.5);
-			}
 		}
 
 		.agenda-events-list {
@@ -1854,12 +1842,6 @@
 				box-shadow:
 					0 8px 32px rgba(0, 0, 0, 0.35),
 					0 0 24px rgba(99, 102, 241, 0.12);
-
-				.day-badge.today-badge {
-					background: linear-gradient(135deg, #6366f1, #818cf8);
-					color: #ffffff;
-					box-shadow: 0 2px 10px rgba(99, 102, 241, 0.4);
-				}
 			}
 
 			.wall-day-header {
@@ -1876,31 +1858,11 @@
 					gap: 12px;
 					flex-wrap: wrap;
 
-					.day-badge {
-						display: inline-flex;
-						align-items: center;
-						padding: 4px 10px;
-						border-radius: 8px;
-						background: rgba(255, 255, 255, 0.08);
-						border: 1px solid rgba(255, 255, 255, 0.1);
-						font-size: 12px;
-						font-weight: 700;
-						text-transform: uppercase;
-						letter-spacing: 0.5px;
-						color: #e2e8f0;
-					}
-
 					.day-title {
 						margin: 0;
 						font-size: 17px;
 						font-weight: 700;
 						color: #ffffff;
-					}
-
-					.day-rel {
-						font-size: 13px;
-						font-weight: 500;
-						color: rgba(255, 255, 255, 0.45);
 					}
 				}
 
