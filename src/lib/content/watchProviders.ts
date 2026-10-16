@@ -92,3 +92,4 @@ export async function getAllRegions(): Promise<RegionInfo[]> {
 
 	return pendingRegionsPromise;
 }
+

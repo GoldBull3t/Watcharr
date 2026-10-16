@@ -32,6 +32,7 @@
 	import { activityRemovedHook } from "@/lib/activity/activity.js";
 	import Genres from "@/lib/content/Genres.svelte";
 	import MovieCollection from "@/lib/content/MovieCollection.svelte";
+	import MediaLightbox from "@/lib/content/MediaLightbox.svelte";
 
 	let { data } = $props();
 
@@ -40,6 +41,7 @@
 	let arrRequestButtonComp: ArrRequestButton | undefined = $state();
 	let movie: Media | undefined = $state();
 	let pageError: unknown | undefined = $state();
+	let galleryOpen = $state(false);
 
 	$effect(() => {
 		const controller = new AbortController();
@@ -140,6 +142,8 @@
 					{#if movie.extPosterPath}
 						<PosterImage
 							src={"https://image.tmdb.org/t/p/w500" + movie.extPosterPath}
+							alt={movie.name}
+							onclick={() => (galleryOpen = true)}
 						/>
 					{/if}
 
@@ -168,7 +172,12 @@
 						<ExpandableText text={movie.summary} style="margin-bottom: 18px;" />
 
 						<div class="btns">
-							<ViewTrailerButton videos={movie.videos} />
+							<ViewTrailerButton
+								videos={movie.videos}
+								backdropPath={movie.extBackdropPath}
+								posterPath={movie.extPosterPath}
+								mediaTitle={movie.name}
+							/>
 							{#if jellyfinUrl}
 								<a
 									class="btn"
@@ -307,6 +316,17 @@
 			{/if}
 		</div>
 	</div>
+
+	{#if galleryOpen}
+		<MediaLightbox
+			videos={movie.videos}
+			backdropPath={movie.extBackdropPath}
+			posterPath={movie.extPosterPath}
+			mediaTitle={movie.name}
+			initialType="poster"
+			onclose={() => (galleryOpen = false)}
+		/>
+	{/if}
 {:else}
 	Movie not found
 {/if}

@@ -42,6 +42,7 @@
 	import { MediaStatusShow } from "@/lib/types/mediaStatus.js";
 	import SeriesProgress from "@/lib/season/SeriesProgress.svelte";
 	import NextEpisodeCard from "@/lib/season/NextEpisodeCard.svelte";
+	import MediaLightbox from "@/lib/content/MediaLightbox.svelte";
 
 	let { data } = $props();
 
@@ -51,6 +52,7 @@
 	let show: Media | undefined = $state();
 	let pageError: unknown | undefined = $state();
 	let countAsPlayModalSignal: Signal<boolean> | undefined = $state();
+	let galleryOpen = $state(false);
 
 	$effect(() => {
 		const controller = new AbortController();
@@ -166,6 +168,8 @@
 					{#if show.extPosterPath}
 						<PosterImage
 							src={"https://image.tmdb.org/t/p/w500" + show.extPosterPath}
+							alt={show.name}
+							onclick={() => (galleryOpen = true)}
 						/>
 					{/if}
 
@@ -207,7 +211,12 @@
 						<ExpandableText text={show.summary} style="margin-bottom: 18px;" />
 
 						<div class="btns">
-							<ViewTrailerButton videos={show.videos} />
+							<ViewTrailerButton
+								videos={show.videos}
+								backdropPath={show.extBackdropPath}
+								posterPath={show.extPosterPath}
+								mediaTitle={show.name}
+							/>
 							{#if jellyfinUrl}
 								<a
 									class="btn"
@@ -380,6 +389,17 @@
 			{/if}
 		</div>
 	</div>
+
+	{#if galleryOpen}
+		<MediaLightbox
+			videos={show.videos}
+			backdropPath={show.extBackdropPath}
+			posterPath={show.extPosterPath}
+			mediaTitle={show.name}
+			initialType="poster"
+			onclose={() => (galleryOpen = false)}
+		/>
+	{/if}
 {:else}
 	Show not found
 {/if}

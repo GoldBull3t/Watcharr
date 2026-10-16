@@ -1,37 +1,50 @@
 <script lang="ts">
 	import { MediaVideoType, type MediaVideo } from "@/types";
-	import VideoEmbedModal from "./VideoEmbedModal.svelte";
+	import MediaLightbox from "./MediaLightbox.svelte";
 	import Icon from "@/lib/Icon.svelte";
 
 	interface Props {
 		videos?: MediaVideo[];
+		backdropPath?: string;
+		posterPath?: string;
+		mediaTitle?: string;
 	}
 
-	let { videos }: Props = $props();
+	let { videos = [], backdropPath, posterPath, mediaTitle }: Props = $props();
 
-	let trailer: string | undefined = $derived.by(() => {
-		if (videos && videos?.length > 0) {
-			const t = videos
-				.filter((v) => v.type === MediaVideoType.trailer)
-				.sort((a, b) => {
-					if (a.best === b.best) return 0;
-					return a.best ? -1 : 1;
-				});
-			if (t[0]?.id) {
-				return `https://www.youtube-nocookie.com/embed/${t[0]?.id}`;
-			}
-		}
-	});
-	let trailerShown = $state(false);
+	let hasVideos = $derived(videos && videos.length > 0);
+	let trailersCount = $derived(
+		videos ? videos.filter((v) => v.type === MediaVideoType.trailer).length : 0,
+	);
+	let lightboxOpen = $state(false);
 </script>
 
-{#if trailer}
-	<button class="trailer-btn" onclick={() => (trailerShown = !trailerShown)}>
+{#if hasVideos}
+	<button
+		type="button"
+		class="trailer-btn"
+		onclick={() => (lightboxOpen = true)}
+		title="Reproduzir trailer e ver galeria de mídia"
+	>
 		<Icon i="play" wh={14} />
-		<span>Watch Trailer</span>
+		<span>
+			{#if trailersCount > 1}
+				Watch Trailers ({trailersCount})
+			{:else}
+				Watch Trailer
+			{/if}
+		</span>
 	</button>
-	{#if trailerShown}
-		<VideoEmbedModal embed={trailer} closed={() => (trailerShown = false)} />
+
+	{#if lightboxOpen}
+		<MediaLightbox
+			{videos}
+			{backdropPath}
+			{posterPath}
+			{mediaTitle}
+			initialType="video"
+			onclose={() => (lightboxOpen = false)}
+		/>
 	{/if}
 {/if}
 
@@ -41,5 +54,21 @@
 		align-items: center;
 		gap: 7px;
 		max-width: fit-content;
+		padding: 7px 16px;
+		border-radius: 10px;
+		background: rgba(99, 102, 241, 0.16);
+		border: 1px solid rgba(99, 102, 241, 0.35);
+		color: #ffffff;
+		font-size: 13px;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+
+		&:hover {
+			background: rgba(99, 102, 241, 0.28);
+			border-color: #818cf8;
+			box-shadow: 0 0 16px rgba(99, 102, 241, 0.35);
+			transform: translateY(-1px);
+		}
 	}
 </style>

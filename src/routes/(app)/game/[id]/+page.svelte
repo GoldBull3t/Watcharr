@@ -129,7 +129,10 @@
 						<ExpandableText text={game.summary} style="margin-bottom: 18px;" />
 
 						<div class="btns">
-							<ViewTrailerButton videos={game.videos} />
+							<ViewTrailerButton
+								videos={game.videos}
+								mediaTitle={game.name}
+							/>
 							{#if game.watched}
 								<div class="other-side">
 									<AddToTagButton watchedItem={game.watched} />
