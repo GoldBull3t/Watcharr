@@ -23,6 +23,7 @@
 	import { onMount } from "svelte";
 	import { SvelteURLSearchParams } from "svelte/reactivity";
 	import HandbookModal from "@/lib/handbook/HandbookModal.svelte";
+	import CommandPalette from "@/lib/nav/CommandPalette.svelte";
 
 	interface Props {
 		children?: import("svelte").Snippet;
@@ -36,6 +37,7 @@
 	let subMenuShown = $state(false);
 	let followingMenuShown = $state(false);
 	let tagMenuShown = $state(false);
+	let commandPaletteOpen = $state(false);
 	let isMac = $state(false);
 	let scroll = window.scrollY;
 
@@ -246,9 +248,9 @@
 	function handleGlobalKeybind(ev: KeyboardEvent) {
 		const isCmdOrCtrl = ev.ctrlKey || ev.metaKey;
 		const key = ev.key.toLowerCase();
-		if (isCmdOrCtrl && (key === "k" || key === "s")) {
+		if (isCmdOrCtrl && (key === "k" || key === "p")) {
 			ev.preventDefault();
-			focusSearch();
+			commandPaletteOpen = !commandPaletteOpen;
 		}
 	}
 
@@ -312,16 +314,26 @@
 				</a>
 			</div>
 		</div>
-		<div class="search">
+		<div
+			class="search clickable"
+			role="button"
+			tabindex="0"
+			onclick={() => (commandPaletteOpen = true)}
+			onkeydown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault();
+					commandPaletteOpen = true;
+				}
+			}}
+		>
 			<span class="search-icon">
 				<Icon i="search" wh={16} />
 			</span>
 			<input
-				bind:this={mainSearchEl}
 				type="text"
-				placeholder="Search movies, shows, games..."
-				bind:value={store.searchQuery}
-				onkeydown={searchBarKeyDown}
+				placeholder="Search or jump to... (Ctrl+K)"
+				readonly
+				tabindex="-1"
 			/>
 			<kbd class="search-kbd">{isMac ? "⌘K" : "Ctrl+K"}</kbd>
 		</div>
@@ -411,13 +423,22 @@
 			</div>
 		</div>
 	</div>
-	<input
-		class="small"
-		type="text"
-		placeholder="Search"
-		bind:value={store.searchQuery}
-		onkeydown={searchBarKeyDown}
-	/>
+	<div
+		class="search-small-bar"
+		role="button"
+		tabindex="0"
+		onclick={() => (commandPaletteOpen = true)}
+		onkeydown={(e) => {
+			if (e.key === "Enter" || e.key === " ") {
+				e.preventDefault();
+				commandPaletteOpen = true;
+			}
+		}}
+	>
+		<Icon i="search" wh={15} />
+		<span>Search or jump to...</span>
+		<kbd>{isMac ? "⌘K" : "Ctrl+K"}</kbd>
+	</div>
 </nav>
 
 {#await getInitialData()}
@@ -457,13 +478,14 @@
 		<Icon i="compass" wh={20} />
 		<span>Discover</span>
 	</a>
-	<a
-		href={resolve("/search")}
-		class="nav-tab {page.url?.pathname.startsWith('/search') ? 'active' : ''}"
+	<button
+		class="nav-tab plain {commandPaletteOpen ? 'active' : ''}"
+		onclick={() => (commandPaletteOpen = true)}
+		aria-label="Search and Commands"
 	>
 		<Icon i="search" wh={20} />
 		<span>Search</span>
-	</a>
+	</button>
 	<button
 		class="nav-tab plain {tagMenuShown ? 'active' : ''}"
 		onclick={() => {
@@ -500,6 +522,11 @@
 {#if page.state.handbook}
 	<HandbookModal onClose={() => history.back()} />
 {/if}
+
+<CommandPalette
+	bind:open={commandPaletteOpen}
+	onClose={() => (commandPaletteOpen = false)}
+/>
 
 <style lang="scss">
 	nav.top-nav {
@@ -649,6 +676,12 @@
 			position: relative;
 			display: flex;
 			align-items: center;
+			cursor: pointer;
+
+			&:hover input {
+				border-color: rgba(99, 102, 241, 0.35);
+				background-color: var(--input-bg, rgba(255, 255, 255, 0.07));
+			}
 
 			.search-icon {
 				position: absolute;
@@ -727,30 +760,43 @@
 				visibility: hidden;
 			}
 
-			input.small {
-				display: block;
+			.search-small-bar {
+				display: flex;
 			}
 		}
 
-		input.small {
+		.search-small-bar {
 			display: none;
+			align-items: center;
+			gap: 8px;
 			width: 100%;
-			max-width: 320px;
+			max-width: 340px;
 			margin: 4px auto 0 auto;
-			padding: 8px 16px;
+			padding: 7px 16px;
 			border-radius: 9999px;
 			border: 1px solid var(--input-border, rgba(255, 255, 255, 0.12));
 			background-color: var(--input-bg, rgba(255, 255, 255, 0.04));
-			color: $text-color;
+			color: $placeholder-color;
 			font-size: 13px;
 			font-weight: 500;
-			text-align: center;
-			box-shadow: none;
+			cursor: pointer;
+			user-select: none;
+			transition: all 140ms ease;
 
-			&:focus {
-				background-color: var(--card-bg, $bg-color);
-				border-color: $brand-color;
-				box-shadow: 0 0 0 3px $brand-glow;
+			kbd {
+				margin-left: auto;
+				padding: 1px 5px;
+				font-size: 10px;
+				border-radius: 4px;
+				background: rgba(255, 255, 255, 0.08);
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				color: $text-color-accent;
+			}
+
+			&:hover {
+				border-color: rgba(99, 102, 241, 0.4);
+				background-color: rgba(255, 255, 255, 0.08);
+				color: #ffffff;
 			}
 		}
 

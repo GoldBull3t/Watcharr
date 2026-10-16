@@ -5,6 +5,7 @@
 	import PosterList from "@/lib/poster/PosterList.svelte";
 	import Spinner from "@/lib/Spinner.svelte";
 	import DashboardControls from "@/lib/dashboard/DashboardControls.svelte";
+	import HeroSpotlightCarousel from "@/lib/dashboard/HeroSpotlightCarousel.svelte";
 	import ContinueWatchingRail from "@/lib/dashboard/ContinueWatchingRail.svelte";
 	import BulkActionBar from "@/lib/dashboard/BulkActionBar.svelte";
 	import MediaTable from "@/lib/dashboard/MediaTable.svelte";
@@ -288,8 +289,9 @@
 		}}
 	/>
 
-	<!-- Continue Watching Rail (Shown when items are currently in progress) -->
+	<!-- Hero Spotlight Carousel & Continue Watching Rail -->
 	{#if displayContinueWatching.length > 0 && activeTab === "all" && !store.hasActiveFilters}
+		<HeroSpotlightCarousel items={displayContinueWatching} onItemUpdated={loadContinueWatching} />
 		<ContinueWatchingRail items={displayContinueWatching} />
 	{/if}
 
