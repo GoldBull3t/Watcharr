@@ -138,10 +138,14 @@
 	});
 </script>
 
-<header
-	class="unified-command-bar"
+<div
+	class="sticky-subnav-wrapper"
 	class:has-open-menu={sortMenuShown || filterMenuShown || detailedMenuShown}
 >
+	<header
+		class="unified-command-bar"
+		class:has-open-menu={sortMenuShown || filterMenuShown || detailedMenuShown}
+	>
 	<!-- Left Side: Status Segmented Tabs -->
 	<nav class="status-tabs-container" aria-label="Media status tabs">
 		<div class="status-tabs-track" role="tablist">
@@ -411,8 +415,36 @@
 		</button>
 	</div>
 {/if}
+</div>
 
 <style lang="scss">
+	.sticky-subnav-wrapper {
+		position: sticky;
+		top: 76px;
+		z-index: 40;
+		margin-bottom: 22px;
+		transition:
+			top 200ms cubic-bezier(0.4, 0, 0.2, 1),
+			transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+
+		:global(body.scrolled-down) & {
+			top: 14px;
+		}
+
+		&.has-open-menu {
+			z-index: 100;
+		}
+
+		@media screen and (max-width: 768px) {
+			top: 66px;
+			margin-bottom: 16px;
+
+			:global(body.scrolled-down) & {
+				top: 8px;
+			}
+		}
+	}
+
 	.unified-command-bar {
 		position: relative;
 		z-index: 50;
@@ -421,14 +453,16 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 16px;
-		margin-bottom: 18px;
-		padding: 6px 10px;
+		margin-bottom: 0;
+		padding: 7px 12px;
 		border-radius: 14px;
-		background: rgba(14, 18, 26, 0.85);
-		border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
-		box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.45);
-		backdrop-filter: blur(20px);
-		-webkit-backdrop-filter: blur(20px);
+		background: rgba(13, 17, 26, 0.88);
+		border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));
+		box-shadow:
+			0 12px 36px -4px rgba(0, 0, 0, 0.6),
+			0 0 0 1px rgba(255, 255, 255, 0.05);
+		backdrop-filter: blur(24px) saturate(180%);
+		-webkit-backdrop-filter: blur(24px) saturate(180%);
 		box-sizing: border-box;
 		width: 100%;
 
@@ -718,11 +752,15 @@
 		flex-flow: row wrap;
 		align-items: center;
 		gap: 6px;
-		margin-bottom: 16px;
-		padding: 6px 10px;
+		margin-top: 6px;
+		margin-bottom: 0;
+		padding: 6px 12px;
 		border-radius: 10px;
-		background: rgba(14, 18, 26, 0.6);
-		border: 1px solid var(--card-border, rgba(255, 255, 255, 0.06));
+		background: rgba(13, 17, 26, 0.9);
+		border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+		backdrop-filter: blur(16px);
+		-webkit-backdrop-filter: blur(16px);
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 		font-size: 12px;
 
 		.chips-title {
