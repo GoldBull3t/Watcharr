@@ -17,6 +17,7 @@
 	import { clearActiveFilters, store } from "@/store.svelte.js";
 	import type { Media, PaginationResponse } from "@/types";
 	import { onDestroy, untrack } from "svelte";
+	import { splitTagEmoji, hexToRgba } from "@/lib/tag/tagUtil";
 
 	let meta = $derived.by(() => {
 		return {
@@ -24,6 +25,7 @@
 		};
 	});
 	let tag = $derived(store.tags.find((t) => t.id === meta.tagId));
+	let parsedTag = $derived(tag ? splitTagEmoji(tag.name) : undefined);
 	let tagEditModalShown = $state(false);
 	let tagDeleteModalShown = $state(false);
 	let tagSearchText = $state(store.activeFilters?.query || "");
@@ -174,17 +176,21 @@
 	<!-- Cinematic Tag Hero -->
 	<header
 		class="tag-hero"
-		style={`--tag-accent: ${tag.bgColor || "#36BA98"}; --tag-color: ${tag.color || "#ffffff"};`}
+		style={`--tag-accent: ${tag.bgColor || "#36BA98"}; --tag-color: ${tag.color || "#ffffff"}; --tag-glow: ${hexToRgba(tag.bgColor, 0.25)};`}
 	>
 		<div class="hero-ambient-glow"></div>
 		<div class="hero-content">
 			<div class="tag-badge-row">
 				<div
 					class="tag-pill-badge"
-					style={`background-color: ${tag.bgColor}; color: ${tag.color};`}
+					style={`background-color: ${tag.bgColor}; color: ${tag.color}; border: 1px solid ${hexToRgba(tag.bgColor, 0.45)}; box-shadow: 0 0 12px ${hexToRgba(tag.bgColor, 0.25)};`}
 				>
-					<Icon i="tag" wh={16} />
-					<span>{tag.name}</span>
+					{#if parsedTag?.emoji}
+						<span class="badge-emoji">{parsedTag.emoji}</span>
+					{:else}
+						<Icon i="tag" wh={16} />
+					{/if}
+					<span>{parsedTag?.label || tag.name}</span>
 				</div>
 				<span class="tag-count-chip">
 					{dataLoader.state.data?.length || 0}
@@ -192,7 +198,12 @@
 				</span>
 			</div>
 
-			<h1 class="tag-title">{tag.name}</h1>
+			<h1 class="tag-title">
+				{#if parsedTag?.emoji}
+					<span class="title-emoji">{parsedTag.emoji}</span>
+				{/if}
+				<span>{parsedTag?.label || tag.name}</span>
+			</h1>
 
 			{#if tag.description}
 				<p class="tag-description">{tag.description}</p>
@@ -520,6 +531,11 @@
 		font-size: 13px;
 		font-weight: 600;
 		letter-spacing: 0.3px;
+
+		.badge-emoji {
+			font-size: 15px;
+			line-height: 1;
+		}
 	}
 
 	.tag-count-chip {
@@ -531,11 +547,19 @@
 	}
 
 	.tag-title {
+		display: flex;
+		align-items: center;
+		gap: 12px;
 		font-size: 32px;
 		font-weight: 800;
 		letter-spacing: -0.5px;
 		margin: 0;
 		color: #ffffff;
+
+		.title-emoji {
+			font-size: 34px;
+			line-height: 1;
+		}
 	}
 
 	.tag-description {

@@ -42,7 +42,7 @@
 			if (!watchedItem.tags) {
 				watchedItem.tags = [tag];
 			} else {
-				watchedItem.tags.push(tag);
+				watchedItem.tags = [...watchedItem.tags, tag];
 			}
 		});
 	}

@@ -9,6 +9,9 @@
 	import tooltip from "@/lib/actions/tooltip.js";
 	import Icon from "@/lib/Icon.svelte";
 	import AddToTagButton from "@/lib/tag/AddToTagButton.svelte";
+	import Tag from "@/lib/tag/Tag.svelte";
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import PageBackdrop from "@/lib/generic/PageBackdrop.svelte";
 	import MyReview from "@/lib/content/MyReview.svelte";
 	import ViewTrailerButton from "@/lib/content/ViewTrailerButton.svelte";
@@ -170,6 +173,24 @@
 							{/if}
 						</div>
 
+						{#if game?.watched?.tags && game.watched.tags.length > 0}
+							<div class="applied-tags-row">
+								<span class="tags-label">
+									<Icon i="tag" wh={14} />
+									<span>Tags</span>
+								</span>
+								<div class="tags-list">
+									{#each game.watched.tags as t (t.id)}
+										<Tag
+											tag={t}
+											size="sm"
+											onClick={() => goto(resolve(`/tag/${t.id}`))}
+										/>
+									{/each}
+								</div>
+							</div>
+						{/if}
+
 						{#if game.providers}
 							<ProvidersList
 								providers={game.providers}
@@ -261,6 +282,36 @@
 					@media screen and (min-width: 900px) {
 						margin-left: auto;
 					}
+				}
+			}
+
+			.applied-tags-row {
+				display: flex;
+				align-items: center;
+				flex-wrap: wrap;
+				gap: 8px;
+				margin: 12px 0;
+				padding: 8px 12px;
+				background: rgba(255, 255, 255, 0.03);
+				border: 1px solid rgba(255, 255, 255, 0.07);
+				border-radius: 12px;
+
+				.tags-label {
+					display: inline-flex;
+					align-items: center;
+					gap: 5px;
+					font-size: 11px;
+					font-weight: 700;
+					color: rgba(255, 255, 255, 0.5);
+					text-transform: uppercase;
+					letter-spacing: 0.6px;
+				}
+
+				.tags-list {
+					display: inline-flex;
+					flex-wrap: wrap;
+					align-items: center;
+					gap: 6px;
 				}
 			}
 		}
