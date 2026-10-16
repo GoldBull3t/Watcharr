@@ -1,12 +1,15 @@
 <script lang="ts">
+	export type GridDensity = "compact" | "comfortable" | "editorial";
+
 	interface Props {
 		count?: number;
+		density?: GridDensity;
 	}
 
-	let { count = 12 }: Props = $props();
+	let { count = 12, density = "comfortable" }: Props = $props();
 </script>
 
-<div class="skeleton-grid" aria-hidden="true">
+<div class={`skeleton-grid density-${density}`} aria-hidden="true">
 	{#each Array(count) as _, i (i)}
 		<div class="skeleton-card">
 			<div class="skeleton-poster shimmer"></div>
@@ -21,23 +24,70 @@
 <style lang="scss">
 	.skeleton-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-		gap: 24px 18px;
 		width: 100%;
 		max-width: 1440px;
 		padding: 0 4px;
-		margin: 20px 0 36px 0;
+		transition: gap 200ms ease;
 
-		@media screen and (max-width: 640px) {
-			grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
-			gap: 16px 12px;
-			padding: 0;
+		&.density-compact {
+			grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+			gap: 14px 10px;
+			margin: 14px 0 30px 0;
+
+			@media screen and (max-width: 640px) {
+				grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+				gap: 10px 8px;
+				padding: 0;
+			}
+
+			.skeleton-card {
+				max-width: 155px;
+			}
 		}
 
-		@media screen and (max-width: 340px) {
-			grid-template-columns: repeat(2, 1fr);
-			gap: 12px 10px;
-			padding: 0;
+		&.density-comfortable,
+		&:not(.density-compact):not(.density-editorial) {
+			grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+			gap: 24px 18px;
+			margin: 20px 0 36px 0;
+
+			@media screen and (max-width: 640px) {
+				grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+				gap: 16px 12px;
+				padding: 0;
+			}
+
+			@media screen and (max-width: 340px) {
+				grid-template-columns: repeat(2, 1fr);
+				gap: 12px 10px;
+				padding: 0;
+			}
+
+			.skeleton-card {
+				max-width: 220px;
+			}
+		}
+
+		&.density-editorial {
+			grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+			gap: 32px 24px;
+			margin: 24px 0 44px 0;
+
+			@media screen and (max-width: 768px) {
+				grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+				gap: 22px 16px;
+				padding: 0;
+			}
+
+			@media screen and (max-width: 440px) {
+				grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+				gap: 16px 12px;
+				padding: 0;
+			}
+
+			.skeleton-card {
+				max-width: 320px;
+			}
 		}
 	}
 
@@ -45,7 +95,6 @@
 		display: flex;
 		flex-flow: column;
 		width: 100%;
-		max-width: 220px;
 		margin: 0 auto;
 		gap: 8px;
 	}

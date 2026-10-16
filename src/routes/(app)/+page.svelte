@@ -2,7 +2,7 @@
 	import Error from "@/lib/Error.svelte";
 	import Icon from "@/lib/Icon.svelte";
 	import Poster from "@/lib/poster/Poster.svelte";
-	import PosterList from "@/lib/poster/PosterList.svelte";
+	import PosterList, { type GridDensity } from "@/lib/poster/PosterList.svelte";
 	import Spinner from "@/lib/Spinner.svelte";
 	import DashboardControls from "@/lib/dashboard/DashboardControls.svelte";
 	import HeroSpotlightCarousel from "@/lib/dashboard/HeroSpotlightCarousel.svelte";
@@ -29,6 +29,9 @@
 
 	// View mode: 'grid' (cinematic cards) vs 'list' (compact table/rows)
 	let viewMode: "grid" | "list" = $state("grid");
+
+	// Grid density: 'compact' (dense wall) vs 'comfortable' (standard) vs 'editorial' (large cards)
+	let gridDensity: GridDensity = $state("comfortable");
 
 	// Bulk actions mode
 	let bulkMode: boolean = $state(false);
@@ -259,12 +262,26 @@
 		if (savedViewMode === "grid" || savedViewMode === "list") {
 			viewMode = savedViewMode;
 		}
+		const savedDensity = localStorage.getItem("watcharr_grid_density") as
+			GridDensity;
+		if (
+			savedDensity === "compact" ||
+			savedDensity === "comfortable" ||
+			savedDensity === "editorial"
+		) {
+			gridDensity = savedDensity;
+		}
 		loadContinueWatching();
 	});
 
 	function toggleViewMode(mode: "grid" | "list") {
 		viewMode = mode;
 		localStorage.setItem("watcharr_view_mode", mode);
+	}
+
+	function changeDensity(newDensity: GridDensity) {
+		gridDensity = newDensity;
+		localStorage.setItem("watcharr_grid_density", newDensity);
 	}
 
 	onDestroy(() => {
@@ -278,11 +295,13 @@
 </svelte:head>
 
 <div class="dashboard-container">
-	<!-- Top Controls: View Options, Sort & Bulk Mode -->
+	<!-- Top Controls: View Options, Density, Sort & Bulk Mode -->
 	<DashboardControls
 		{viewMode}
+		density={gridDensity}
 		{bulkMode}
 		onViewModeChange={toggleViewMode}
+		onDensityChange={changeDensity}
 		onToggleBulkMode={() => {
 			bulkMode = !bulkMode;
 			if (!bulkMode) selectedIds = [];
@@ -297,9 +316,12 @@
 
 	<!-- Main Content Area: Grid View or List View -->
 	{#if isInitialLoad && dataLoader.state.reqLoading && (!dataLoader.state.data || dataLoader.state.data.length === 0)}
-		<PosterGridSkeleton count={12} />
+		<PosterGridSkeleton
+			count={gridDensity === "compact" ? 18 : gridDensity === "editorial" ? 8 : 12}
+			density={gridDensity}
+		/>
 	{:else if viewMode === "grid"}
-		<PosterList>
+		<PosterList density={gridDensity}>
 			{#if dataLoader.state.data?.length > 0}
 				{#each dataLoader.state.data as w, i (w ? `${w.type}-${w.watched?.id || w.ids?.tmdb || w.ids?.igdb || i}` : i)}
 					{#if w}

@@ -10,15 +10,25 @@
 	} from "@/store.svelte";
 	import { onDestroy, onMount } from "svelte";
 
+	export type GridDensity = "compact" | "comfortable" | "editorial";
+
 	interface Props {
 		viewMode: "grid" | "list";
+		density?: GridDensity;
 		bulkMode: boolean;
 		onViewModeChange: (mode: "grid" | "list") => void;
+		onDensityChange?: (density: GridDensity) => void;
 		onToggleBulkMode: () => void;
 	}
 
-	let { viewMode, bulkMode, onViewModeChange, onToggleBulkMode }: Props =
-		$props();
+	let {
+		viewMode,
+		density = "comfortable",
+		bulkMode,
+		onViewModeChange,
+		onDensityChange,
+		onToggleBulkMode,
+	}: Props = $props();
 
 	let detailedMenuShown = $state(false);
 	let sortMenuShown = $state(false);
@@ -280,30 +290,81 @@
 
 		<div class="toolbar-separator"></div>
 
-		<!-- View Switcher (Grid / List) -->
-		<div class="view-mode-group" role="group" aria-label="View mode">
+		<!-- View Switcher & Grid Density (Compact / Comfortable / Editorial / List) -->
+		<div
+			class="view-mode-group"
+			role="group"
+			aria-label="Visual density and layout mode"
+		>
 			<button
 				type="button"
 				class="view-btn"
-				class:active={viewMode === "grid"}
-				onclick={() => onViewModeChange("grid")}
-				title="Grid View"
-				aria-label="Grid view"
+				class:active={viewMode === "grid" && density === "compact"}
+				onclick={() => {
+					onDensityChange?.("compact");
+					if (viewMode !== "grid") onViewModeChange("grid");
+				}}
+				title="Compact Grid (Dense Wall)"
+				aria-label="Compact grid (dense wall)"
+				aria-pressed={viewMode === "grid" && density === "compact"}
 			>
 				<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-					<rect x="1" y="1" width="6" height="6" rx="1.5" />
-					<rect x="9" y="1" width="6" height="6" rx="1.5" />
-					<rect x="1" y="9" width="6" height="6" rx="1.5" />
-					<rect x="9" y="9" width="6" height="6" rx="1.5" />
+					<rect x="1" y="1" width="3.6" height="3.6" rx="0.8" />
+					<rect x="6.2" y="1" width="3.6" height="3.6" rx="0.8" />
+					<rect x="11.4" y="1" width="3.6" height="3.6" rx="0.8" />
+					<rect x="1" y="6.2" width="3.6" height="3.6" rx="0.8" />
+					<rect x="6.2" y="6.2" width="3.6" height="3.6" rx="0.8" />
+					<rect x="11.4" y="6.2" width="3.6" height="3.6" rx="0.8" />
+					<rect x="1" y="11.4" width="3.6" height="3.6" rx="0.8" />
+					<rect x="6.2" y="11.4" width="3.6" height="3.6" rx="0.8" />
+					<rect x="11.4" y="11.4" width="3.6" height="3.6" rx="0.8" />
 				</svg>
 			</button>
 			<button
 				type="button"
 				class="view-btn"
+				class:active={viewMode === "grid" && density === "comfortable"}
+				onclick={() => {
+					onDensityChange?.("comfortable");
+					if (viewMode !== "grid") onViewModeChange("grid");
+				}}
+				title="Comfortable Grid (Standard)"
+				aria-label="Comfortable grid (standard)"
+				aria-pressed={viewMode === "grid" && density === "comfortable"}
+			>
+				<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+					<rect x="1" y="1" width="6" height="6" rx="1.2" />
+					<rect x="9" y="1" width="6" height="6" rx="1.2" />
+					<rect x="1" y="9" width="6" height="6" rx="1.2" />
+					<rect x="9" y="9" width="6" height="6" rx="1.2" />
+				</svg>
+			</button>
+			<button
+				type="button"
+				class="view-btn"
+				class:active={viewMode === "grid" && density === "editorial"}
+				onclick={() => {
+					onDensityChange?.("editorial");
+					if (viewMode !== "grid") onViewModeChange("grid");
+				}}
+				title="Editorial Grid (Large Showcase)"
+				aria-label="Editorial grid (large showcase)"
+				aria-pressed={viewMode === "grid" && density === "editorial"}
+			>
+				<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+					<rect x="1" y="1" width="6.2" height="14" rx="1.5" />
+					<rect x="8.8" y="1" width="6.2" height="14" rx="1.5" />
+				</svg>
+			</button>
+			<div class="inner-divider"></div>
+			<button
+				type="button"
+				class="view-btn"
 				class:active={viewMode === "list"}
 				onclick={() => onViewModeChange("list")}
-				title="List View"
-				aria-label="List view"
+				title="Table / List View"
+				aria-label="Table / list view"
+				aria-pressed={viewMode === "list"}
 			>
 				<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
 					<rect x="1" y="2" width="14" height="2.5" rx="1" />
@@ -705,7 +766,7 @@
 				}
 			}
 
-			/* View Mode Switcher */
+			/* View Mode & Density Switcher */
 			.view-mode-group {
 				display: inline-flex;
 				align-items: center;
@@ -715,13 +776,22 @@
 				background-color: rgba(0, 0, 0, 0.35);
 				border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
 				flex-shrink: 0;
+				gap: 1px;
+
+				.inner-divider {
+					width: 1px;
+					height: 16px;
+					background-color: var(--card-border, rgba(255, 255, 255, 0.12));
+					margin: 0 2px;
+					flex-shrink: 0;
+				}
 
 				.view-btn {
 					display: flex;
 					align-items: center;
 					justify-content: center;
 					height: 28px;
-					padding: 0 8px;
+					padding: 0 7px;
 					border-radius: 6px;
 					border: none;
 					background: transparent;
@@ -732,12 +802,14 @@
 
 					&:hover {
 						color: #ffffff;
+						background-color: rgba(255, 255, 255, 0.06);
 					}
 
 					&.active {
-						color: #ffffff;
-						background-color: rgba(255, 255, 255, 0.12);
-						box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+						color: #fbbf24;
+						background-color: rgba(245, 158, 11, 0.16);
+						border: 1px solid rgba(245, 158, 11, 0.3);
+						box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 					}
 				}
 			}
