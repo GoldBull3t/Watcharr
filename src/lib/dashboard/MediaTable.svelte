@@ -14,7 +14,7 @@
 		data: Media[];
 		bulkMode: boolean;
 		selectedIds: number[];
-		onToggleSelect: (id: number) => void;
+		onToggleSelect: (id: number, e?: MouseEvent, index?: number) => void;
 	}
 
 	let { data, bulkMode, selectedIds, onToggleSelect }: Props = $props();
@@ -40,17 +40,32 @@
 				<tbody>
 					{#each data as w, i (w?.watched?.id ?? `${i}-${w?.name ?? "item"}`)}
 						{#if w}
+							{@const isSelected = w.watched?.id ? selectedIds.includes(w.watched.id) : false}
 							{@const img = getPosterImage(w)}
 							{@const year = getReleaseYear(w)}
 							{@const link = getMediaLink(w)}
-							<tr class="media-row">
+							<tr
+								class="media-row"
+								class:is-selected={isSelected}
+								onclick={(e) => {
+									if (bulkMode && w.watched?.id) {
+										const target = e.target as HTMLElement;
+										if (!target.closest("a, button, input")) {
+											onToggleSelect(w.watched.id, e, i);
+										}
+									}
+								}}
+							>
 								{#if bulkMode}
 									<td class="col-check">
 										{#if w.watched?.id}
 											<input
 												type="checkbox"
-												checked={selectedIds.includes(w.watched.id)}
-												onchange={() => onToggleSelect(w.watched!.id)}
+												checked={isSelected}
+												onclick={(e) => {
+													e.stopPropagation();
+													onToggleSelect(w.watched!.id, e, i);
+												}}
 											/>
 										{/if}
 									</td>
@@ -194,6 +209,10 @@
 
 				&:hover {
 					background-color: var(--accent-color);
+				}
+
+				&.is-selected {
+					background-color: rgba(99, 102, 241, 0.16) !important;
 				}
 			}
 

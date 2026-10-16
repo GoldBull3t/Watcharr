@@ -45,11 +45,12 @@
 		 */
 		hideIfNotOnList?: boolean;
 		// When provided, default click handlers will instead run this callback.
-		onClick?: (() => void) | undefined;
+		onClick?: ((e?: MouseEvent) => void) | undefined;
 		/**
 		 * Ran when watched item is updated via poster.
 		 */
 		onUpdated?: (() => void) | undefined;
+		selected?: boolean;
 		children?: import("svelte").Snippet;
 	}
 
@@ -68,6 +69,7 @@
 		hideIfNotOnList = false,
 		onClick = undefined,
 		onUpdated = undefined,
+		selected = false,
 		children,
 	}: Props = $props();
 
@@ -364,6 +366,8 @@
 <!-- HACK: disabled this issue for now, it should probably be fixed properly -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <li
+	data-watched-id={watched?.id}
+	class:is-selected={selected}
 	onmouseenter={() => {
 		mouseOverPoster = true;
 		if (!isTouch()) {
@@ -452,7 +456,7 @@
 		<div
 			onclick={(e) => {
 				if (typeof onClick !== "undefined") {
-					onClick();
+					onClick(e);
 					// Prevent the link inside this div from being clicked in this case.
 					e.preventDefault();
 					return;
@@ -545,6 +549,18 @@
 
 	li.just-deleted:not(.active) {
 		filter: grayscale(0.8) blur(1px);
+	}
+
+	li.is-selected {
+		.container {
+			outline: 2.5px solid #818cf8;
+			outline-offset: 3px;
+			box-shadow:
+				0 0 24px rgba(99, 102, 241, 0.45),
+				0 12px 30px rgba(0, 0, 0, 0.6);
+			border-color: rgba(129, 140, 248, 0.6);
+			transform: translateY(-3px) scale(1.015);
+		}
 	}
 
 	.container {

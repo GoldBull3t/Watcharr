@@ -23,6 +23,9 @@
 	} from "@/types";
 	import { notify, notifyUndo } from "@/lib/util/notify";
 	import { onDestroy, onMount, untrack } from "svelte";
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
+	import { getMediaLink } from "@/lib/dashboard/mediaHelpers";
 
 	const scroll = infScroll({ callback: onScrollToBottom });
 	const dataLoader = paginatedLoader<Media, undefined>(load);
@@ -33,9 +36,25 @@
 	// Grid density: 'compact' (dense wall) vs 'comfortable' (standard) vs 'editorial' (large cards)
 	let gridDensity: GridDensity = $state("comfortable");
 
-	// Bulk actions mode
+	// Bulk actions mode & selection
 	let bulkMode: boolean = $state(false);
 	let selectedIds: number[] = $state([]);
+	let lastClickedIndex: number | undefined = $state();
+
+	// Lasso (Marquee Drag) selection state
+	let isLassoing = $state(false);
+	let lassoStartX = $state(0);
+	let lassoStartY = $state(0);
+	let lassoCurrentX = $state(0);
+	let lassoCurrentY = $state(0);
+	let initialSelectedIds: number[] = [];
+
+	let lassoBox = $derived({
+		left: Math.min(lassoStartX, lassoCurrentX),
+		top: Math.min(lassoStartY, lassoCurrentY),
+		width: Math.abs(lassoCurrentX - lassoStartX),
+		height: Math.abs(lassoCurrentY - lassoStartY),
+	});
 
 	// Dedicated continue watching state
 	let continueWatchingList: Media[] = $state([]);
@@ -131,6 +150,159 @@
 
 	function clearSelection() {
 		selectedIds = [];
+		lastClickedIndex = undefined;
+	}
+
+	function handlePosterClick(
+		watchedId: number | undefined,
+		index: number,
+		e?: MouseEvent,
+	) {
+		if (!watchedId) return;
+
+		// 1. Shift + Click -> Range selection
+		if (e?.shiftKey && lastClickedIndex !== undefined) {
+			e.preventDefault();
+			const start = Math.min(lastClickedIndex, index);
+			const end = Math.max(lastClickedIndex, index);
+			const rangeItems = (dataLoader.state.data ?? []).slice(start, end + 1);
+			const rangeIds: number[] = [];
+			for (const item of rangeItems) {
+				if (item?.watched?.id) {
+					rangeIds.push(item.watched.id);
+				}
+			}
+
+			const merged = new Set(selectedIds);
+			for (const id of rangeIds) {
+				merged.add(id);
+			}
+			selectedIds = Array.from(merged);
+			bulkMode = true;
+			lastClickedIndex = index;
+			return;
+		}
+
+		// 2. Ctrl / Cmd + Click or active bulkMode -> Toggle selection
+		if (bulkMode || e?.ctrlKey || e?.metaKey) {
+			e?.preventDefault();
+			if (selectedIds.includes(watchedId)) {
+				selectedIds = selectedIds.filter((id) => id !== watchedId);
+			} else {
+				selectedIds = [...selectedIds, watchedId];
+			}
+			lastClickedIndex = index;
+			bulkMode = selectedIds.length > 0;
+			return;
+		}
+
+		// 3. Normal Click -> Navigation
+		const link = getMediaLink(dataLoader.state.data[index]);
+		if (link) {
+			goto(resolve(link));
+		}
+	}
+
+	function handleLassoPointerDown(e: PointerEvent) {
+		if (e.button !== 0) return;
+		const target = e.target as HTMLElement;
+		if (
+			target.closest(
+				"button, a, input, select, textarea, .buttons, .dock-shell, .rating-wrap, .ratings-dropdown, .dashboard-controls, .hero-carousel-container, .cw-rail-wrap",
+			)
+		) {
+			return;
+		}
+
+		const onPoster = target.closest(".poster-body");
+		if (onPoster && !e.shiftKey) {
+			return;
+		}
+
+		lassoStartX = e.clientX;
+		lassoStartY = e.clientY;
+		lassoCurrentX = e.clientX;
+		lassoCurrentY = e.clientY;
+		isLassoing = true;
+		try {
+			(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+		} catch {}
+
+		if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !bulkMode) {
+			initialSelectedIds = [];
+		} else {
+			initialSelectedIds = [...selectedIds];
+		}
+	}
+
+	function handleLassoPointerMove(e: PointerEvent) {
+		if (!isLassoing) return;
+		lassoCurrentX = e.clientX;
+		lassoCurrentY = e.clientY;
+
+		const box = lassoBox;
+		if (box.width < 6 && box.height < 6) return;
+
+		const posterEls = document.querySelectorAll<HTMLElement>("li[data-watched-id]");
+		const touchedIds = new Set<number>(initialSelectedIds);
+
+		for (const el of posterEls) {
+			const idStr = el.dataset.watchedId;
+			if (!idStr) continue;
+			const id = Number(idStr);
+			if (!id) continue;
+
+			const rect = el.getBoundingClientRect();
+			const intersects = !(
+				rect.right < box.left ||
+				rect.left > box.left + box.width ||
+				rect.bottom < box.top ||
+				rect.top > box.top + box.height
+			);
+
+			if (intersects) {
+				touchedIds.add(id);
+			}
+		}
+
+		selectedIds = Array.from(touchedIds);
+		if (selectedIds.length > 0) {
+			bulkMode = true;
+		}
+	}
+
+	function handleLassoPointerUp(e: PointerEvent) {
+		if (isLassoing) {
+			isLassoing = false;
+			try {
+				(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+			} catch {}
+		}
+	}
+
+	function handleWindowKeyDown(e: KeyboardEvent) {
+		if (e.key === "Escape") {
+			if (selectedIds.length > 0 || bulkMode) {
+				selectedIds = [];
+				bulkMode = false;
+				lastClickedIndex = undefined;
+			}
+		} else if ((e.ctrlKey || e.metaKey) && (e.key === "a" || e.key === "A")) {
+			const activeEl = document.activeElement;
+			if (
+				activeEl &&
+				(activeEl.tagName === "INPUT" ||
+					activeEl.tagName === "TEXTAREA" ||
+					(activeEl as HTMLElement).isContentEditable)
+			) {
+				return;
+			}
+			if (dataLoader.state.data?.length > 0) {
+				e.preventDefault();
+				selectAllLoaded();
+				bulkMode = true;
+			}
+		}
 	}
 
 	async function bulkUpdateStatus(newStatus: WatchedStatus) {
@@ -290,7 +462,16 @@
 	<title>Watched List - Watcharr</title>
 </svelte:head>
 
-<div class="dashboard-container">
+<svelte:window onkeydown={handleWindowKeyDown} />
+
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+	class="dashboard-container"
+	onpointerdown={handleLassoPointerDown}
+	onpointermove={handleLassoPointerMove}
+	onpointerup={handleLassoPointerUp}
+	onpointercancel={handleLassoPointerUp}
+>
 	<!-- Top Controls: View Options, Density, Sort & Bulk Mode -->
 	<DashboardControls
 		{viewMode}
@@ -325,12 +506,11 @@
 							bind:watched={dataLoader.state.data[i].watched}
 							media={w}
 							fluidSize={true}
+							selected={w.watched?.id ? selectedIds.includes(w.watched.id) : false}
 							onUpdated={() => loadContinueWatching()}
-							onClick={bulkMode && w.watched?.id
-								? () => toggleSelectItem(w.watched!.id)
-								: undefined}
+							onClick={(e) => handlePosterClick(w.watched?.id, i, e)}
 						>
-							{#if bulkMode && w.watched?.id}
+							{#if (bulkMode || selectedIds.length > 0) && w.watched?.id}
 								{@const isSelected = selectedIds.includes(w.watched.id)}
 								<button
 									type="button"
@@ -338,7 +518,7 @@
 									class:selected={isSelected}
 									onclick={(e) => {
 										e.stopPropagation();
-										toggleSelectItem(w.watched!.id);
+										handlePosterClick(w.watched!.id, i, e);
 									}}
 									aria-pressed={isSelected}
 									aria-label="Toggle selection"
@@ -362,7 +542,7 @@
 				data={dataLoader.state.data}
 				{bulkMode}
 				{selectedIds}
-				onToggleSelect={toggleSelectItem}
+				onToggleSelect={(id, e, idx) => handlePosterClick(id, idx ?? 0, e)}
 			/>
 		{:else if !dataLoader.state.reqLoading && !dataLoader.state.reqLoadError}
 			<EmptyLibrary />
@@ -389,7 +569,7 @@
 	{/if}
 
 	<!-- Bulk Selection Action Dock (Fixed at bottom center when items are selected) -->
-	{#if bulkMode}
+	{#if bulkMode || selectedIds.length > 0}
 		<BulkActionBar
 			selectedCount={selectedIds.length}
 			onSelectAll={selectAllLoaded}
@@ -400,8 +580,17 @@
 			onClose={() => {
 				bulkMode = false;
 				selectedIds = [];
+				lastClickedIndex = undefined;
 			}}
 		/>
+	{/if}
+
+	<!-- Floating Marquee Lasso Box -->
+	{#if isLassoing && lassoBox.width > 5 && lassoBox.height > 5}
+		<div
+			class="lasso-box"
+			style="left: {lassoBox.left}px; top: {lassoBox.top}px; width: {lassoBox.width}px; height: {lassoBox.height}px;"
+		></div>
 	{/if}
 </div>
 
@@ -413,6 +602,22 @@
 		max-width: 1440px;
 		margin: 0 auto;
 		padding: 0 16px 120px 16px;
+		position: relative;
+		user-select: none;
+	}
+
+	.lasso-box {
+		position: fixed;
+		pointer-events: none;
+		z-index: 99998;
+		background: rgba(99, 102, 241, 0.16);
+		border: 1.5px solid rgba(129, 140, 248, 0.85);
+		border-radius: 6px;
+		box-shadow:
+			0 0 16px rgba(99, 102, 241, 0.3),
+			inset 0 0 12px rgba(99, 102, 241, 0.1);
+		backdrop-filter: blur(1.5px);
+		-webkit-backdrop-filter: blur(1.5px);
 	}
 
 	:global(.poster-list-wrapper) {
