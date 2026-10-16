@@ -30,6 +30,26 @@
 	let typeFilter: CalendarType = $state("all");
 	let webhookModalOpen: boolean = $state(false);
 
+	// Quick filter: only show series currently being watched (Watching)
+	let activeOnly: boolean = $state(
+		(typeof localStorage !== "undefined" &&
+			localStorage.getItem("watcharr_calendar_active_only") === "true") ||
+			false,
+	);
+
+	function toggleActiveOnly() {
+		activeOnly = !activeOnly;
+		if (typeof localStorage !== "undefined") {
+			localStorage.setItem(
+				"watcharr_calendar_active_only",
+				activeOnly ? "true" : "false",
+			);
+		}
+		if (activeOnly && scopeFilter !== "library") {
+			scopeFilter = "library";
+		}
+	}
+
 	// Current reference date (defaults to today)
 	const currentDate = new SvelteDate();
 
@@ -267,10 +287,20 @@
 		return days;
 	});
 
+	let watchingEventsCount = $derived(
+		events.filter((e) => e.status?.toUpperCase() === "WATCHING").length,
+	);
+
+	// Filter events based on activeOnly toggle
+	const displayedEvents = $derived.by(() => {
+		if (!activeOnly) return events;
+		return events.filter((ev) => ev.status?.toUpperCase() === "WATCHING");
+	});
+
 	// Group events by date string
 	const eventsByDate = $derived.by(() => {
 		const map: Record<string, CalendarEvent[]> = {};
-		for (const ev of events) {
+		for (const ev of displayedEvents) {
 			if (!ev.releaseDate) continue;
 			if (!map[ev.releaseDate]) {
 				map[ev.releaseDate] = [];
@@ -373,6 +403,21 @@
 					All Releases
 				</button>
 			</div>
+
+			<!-- Quick Filter: Active Watching Only -->
+			<button
+				type="button"
+				class="pill-btn active-watching-toggle"
+				class:active={activeOnly}
+				onclick={toggleActiveOnly}
+				title="Filtrar calendário para exibir apenas séries com status 'A Ver' (Watching)"
+			>
+				<span class="active-dot" class:is-on={activeOnly}></span>
+				<span class="toggle-label">Apenas Ativas</span>
+				{#if watchingEventsCount > 0}
+					<span class="watching-count">{watchingEventsCount}</span>
+				{/if}
+			</button>
 
 			<!-- Media Type: All / Movies / TV -->
 			<div class="pill-group">
@@ -628,7 +673,7 @@
 					<div class="wall-header-summary">
 						<span class="total-releases-pill">
 							<Icon i="film" wh={14} />
-							<span>{events.length} {events.length === 1 ? "estreia" : "estreias"} em {dateRange.title}</span>
+							<span>{displayedEvents.length} {displayedEvents.length === 1 ? "estreia" : "estreias"} em {dateRange.title}</span>
 						</span>
 					</div>
 
@@ -1037,6 +1082,61 @@
 				background: #6366f1;
 				color: #ffffff;
 				box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+			}
+		}
+	}
+
+	.active-watching-toggle {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		padding: 7px 14px;
+		border-radius: 10px;
+		background: rgba(14, 18, 28, 0.85);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		color: rgba(255, 255, 255, 0.7);
+		font-size: 13px;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 140ms ease;
+
+		.active-dot {
+			width: 7px;
+			height: 7px;
+			border-radius: 50%;
+			background: rgba(255, 255, 255, 0.3);
+			transition: all 140ms ease;
+
+			&.is-on {
+				background: #34d399;
+				box-shadow: 0 0 8px #34d399;
+			}
+		}
+
+		.watching-count {
+			padding: 1px 6px;
+			border-radius: 999px;
+			background: rgba(255, 255, 255, 0.1);
+			font-size: 11px;
+			font-weight: 700;
+			color: #e2e8f0;
+		}
+
+		&:hover {
+			background: rgba(255, 255, 255, 0.08);
+			border-color: rgba(255, 255, 255, 0.2);
+			color: #ffffff;
+		}
+
+		&.active {
+			background: rgba(16, 185, 129, 0.16);
+			border-color: rgba(52, 211, 153, 0.45);
+			color: #6ee7b7;
+			box-shadow: 0 0 14px rgba(52, 211, 153, 0.2);
+
+			.watching-count {
+				background: rgba(52, 211, 153, 0.28);
+				color: #ffffff;
 			}
 		}
 	}
