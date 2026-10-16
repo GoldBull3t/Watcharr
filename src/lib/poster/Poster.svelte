@@ -13,7 +13,7 @@
 	import { goto } from "$app/navigation";
 	import { baseURL, removeWatched, updateWatched } from "../util/api";
 	import { notify } from "../util/notify";
-	import { onMount } from "svelte";
+	import { onMount, onDestroy } from "svelte";
 	import PosterStatus from "./PosterStatus.svelte";
 	import PosterRating from "./PosterRating.svelte";
 	import ExtraDetails from "./ExtraDetails.svelte";
@@ -245,9 +245,59 @@
 		}, 100);
 	}
 
+	// 3D Parallax Tilt & Specular Light Sheen
+	let tiltX = $state(0);
+	let tiltY = $state(0);
+	let sheenX = $state(50);
+	let sheenY = $state(50);
+	let sheenOpacity = $state(0);
+	let isTilting = $state(false);
+	let tiltRaf: number | undefined;
+
+	function handleMouseMove(e: MouseEvent) {
+		if (isTouch() || disableInteraction || !containerEl) return;
+		if (
+			typeof window !== "undefined" &&
+			window.matchMedia("(prefers-reduced-motion: reduce)").matches
+		) {
+			return;
+		}
+
+		if (tiltRaf) cancelAnimationFrame(tiltRaf);
+		tiltRaf = requestAnimationFrame(() => {
+			if (!containerEl) return;
+			const rect = containerEl.getBoundingClientRect();
+			if (!rect.width || !rect.height) return;
+
+			const x = (e.clientX - rect.left) / rect.width;
+			const y = (e.clientY - rect.top) / rect.height;
+
+			const clampedX = Math.max(0, Math.min(1, x));
+			const clampedY = Math.max(0, Math.min(1, y));
+
+			// Subtle 10-12 deg maximum tilt for high-end feel
+			tiltY = Number(((clampedX - 0.5) * 12).toFixed(2));
+			tiltX = Number(((0.5 - clampedY) * 12).toFixed(2));
+
+			sheenX = Number((clampedX * 100).toFixed(1));
+			sheenY = Number((clampedY * 100).toFixed(1));
+			sheenOpacity = 1;
+			isTilting = true;
+		});
+	}
+
+	function resetTilt() {
+		if (tiltRaf) cancelAnimationFrame(tiltRaf);
+		tiltX = 0;
+		tiltY = 0;
+		sheenOpacity = 0;
+		isTilting = false;
+	}
+
 	function posterOnMouseLeave() {
 		mouseOverPoster = false;
 		posterActive = false;
+		resetTilt();
 		const ae = document.activeElement;
 		if (
 			ae &&
@@ -296,6 +346,10 @@
 			});
 		}
 	});
+
+	onDestroy(() => {
+		if (tiltRaf) cancelAnimationFrame(tiltRaf);
+	});
 </script>
 
 <!-- HACK: disabled this issue for now, it should probably be fixed properly -->
@@ -307,6 +361,7 @@
 			posterActive = true;
 		}
 	}}
+	onmousemove={handleMouseMove}
 	onfocusin={() => {
 		if (!isTouch()) {
 			posterActive = true;
@@ -318,6 +373,7 @@
 			// and only if mouse isn't still over the poster, fixes focusout on click of rating/status
 			// poster buttons causing poster to shrink until refocused with click/mouse out & in again.
 			posterActive = false;
+			resetTilt();
 		}
 	}}
 	onmouseleave={posterOnMouseLeave}
@@ -333,9 +389,20 @@
 >
 	<div
 		class={`container${!poster || posterImgLoaded == -1 ? " details-shown" : ""}`}
+		class:is-tilting={isTilting}
+		style={posterActive && (tiltX !== 0 || tiltY !== 0)
+			? `transform: perspective(800px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) translateY(-5px) scale3d(1.025, 1.025, 1.025);`
+			: undefined}
 		bind:this={containerEl}
 	>
 		{@render children?.()}
+
+		<!-- 3D Specular Sheen (Dynamic Glare/Reflection) -->
+		<div
+			class="specular-sheen"
+			style="--sheen-x: {sheenX}%; --sheen-y: {sheenY}%; --sheen-opacity: {sheenOpacity};"
+			aria-hidden="true"
+		></div>
 		{#if poster}
 			<canvas
 				width="32"
@@ -477,6 +544,8 @@
 	}
 
 	li {
+		perspective: 900px;
+
 		&:not(.active) {
 			.container .inner,
 			.container .inner .buttons {
@@ -502,9 +571,33 @@
 		aspect-ratio: 170000/256367;
 		border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
 		box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+		transform-style: preserve-3d;
 		transition:
-			transform 160ms cubic-bezier(0.4, 0, 0.2, 1),
-			box-shadow 160ms cubic-bezier(0.4, 0, 0.2, 1);
+			transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
+			box-shadow 240ms cubic-bezier(0.16, 1, 0.3, 1);
+
+		&.is-tilting {
+			transition:
+				transform 60ms linear,
+				box-shadow 180ms ease;
+		}
+
+		.specular-sheen {
+			position: absolute;
+			inset: 0;
+			pointer-events: none;
+			border-radius: inherit;
+			background: radial-gradient(
+				circle 220px at var(--sheen-x, 50%) var(--sheen-y, 50%),
+				rgba(255, 255, 255, 0.24) 0%,
+				rgba(255, 255, 255, 0.07) 45%,
+				transparent 85%
+			);
+			opacity: var(--sheen-opacity, 0);
+			mix-blend-mode: overlay;
+			transition: opacity 220ms ease;
+			z-index: 5;
+		}
 
 		&.fluid-size {
 			height: 100%;
@@ -573,6 +666,8 @@
 			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
 			backdrop-filter: blur(8px);
 			-webkit-backdrop-filter: blur(8px);
+			transform: translateZ(16px);
+			backface-visibility: hidden;
 			z-index: 2;
 			pointer-events: none;
 			user-select: none;
@@ -609,6 +704,8 @@
 			);
 			backdrop-filter: blur(6px);
 			-webkit-backdrop-filter: blur(6px);
+			transform: translateZ(12px);
+			backface-visibility: hidden;
 			transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1);
 
 			& > a {
@@ -753,6 +850,15 @@
 			.inner {
 				color: white;
 				opacity: 1;
+			}
+		}
+
+		@media (prefers-reduced-motion: reduce) {
+			transform: none !important;
+			transition: none !important;
+
+			.specular-sheen {
+				display: none !important;
 			}
 		}
 	}
