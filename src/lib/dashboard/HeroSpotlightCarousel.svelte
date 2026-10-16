@@ -4,6 +4,7 @@
 	import { MediaTypeE, type Media } from "@/types";
 	import { getMediaLink, getPosterImage, getReleaseYear } from "./mediaHelpers";
 	import { formatPublicRating, formatVoteCount } from "@/lib/rating/helpers";
+	import { viewTransition } from "@/lib/util/viewTransition.svelte";
 	import { onDestroy, onMount } from "svelte";
 
 	interface Props {
@@ -89,6 +90,21 @@
 		}
 		// Fallback to poster if backdrop doesn't exist
 		return getPosterImage(m);
+	}
+
+	function onNavigateToItem(m: Media) {
+		let type = "movie";
+		let id: number | undefined = m.ids?.tmdb;
+		if (m.type === MediaTypeE.tmdbShow) {
+			type = "tv";
+			id = m.ids?.tmdb;
+		} else if (m.type === MediaTypeE.igdbGame) {
+			type = "game";
+			id = m.ids?.igdb;
+		}
+		if (type && id) {
+			viewTransition.setActive(type, id);
+		}
 	}
 </script>
 
@@ -193,7 +209,7 @@
 					</div>
 
 					<h2 class="spotlight-title">
-						<a href={resolve(link)}>{current.name}</a>
+						<a href={resolve(link)} onclick={() => onNavigateToItem(current)}>{current.name}</a>
 					</h2>
 
 					{#if current.summary}
@@ -202,11 +218,11 @@
 
 					<!-- Call to Action Buttons -->
 					<div class="spotlight-actions">
-						<a href={resolve(link)} class="btn-primary">
+						<a href={resolve(link)} class="btn-primary" onclick={() => onNavigateToItem(current)}>
 							<Icon i="play" wh={16} />
 							<span>Continuar a Ver</span>
 						</a>
-						<a href={resolve(link)} class="btn-secondary">
+						<a href={resolve(link)} class="btn-secondary" onclick={() => onNavigateToItem(current)}>
 							<Icon i="arrow" wh={14} />
 							<span>Ver Detalhes</span>
 						</a>

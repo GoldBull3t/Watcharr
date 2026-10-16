@@ -530,6 +530,7 @@
 
 <style lang="scss">
 	nav.top-nav {
+		view-transition-name: app-header;
 		display: flex;
 		flex-flow: column;
 		margin-bottom: 24px;
@@ -903,6 +904,7 @@
 	}
 
 	.mobile-bottom-bar {
+		view-transition-name: app-bottom-nav;
 		display: none;
 
 		@media screen and (max-width: 768px) {

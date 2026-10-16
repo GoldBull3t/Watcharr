@@ -1,5 +1,6 @@
 @use "./mixins.scss" as *;
 @use "./vars.scss" as *;
+@use "./view_transitions.scss";
 
 :root {
 	--bg-color: #f8fafc;
