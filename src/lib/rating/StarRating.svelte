@@ -148,6 +148,30 @@
 		}
 	}
 
+	let isDragging = $state(false);
+
+	function handlePointerDown(ev: PointerEvent & { currentTarget: HTMLDivElement }) {
+		if (isTouch()) return;
+		try {
+			ev.currentTarget.setPointerCapture(ev.pointerId);
+		} catch {}
+		isDragging = true;
+		scrollLocAtStart = window.scrollY;
+		handleMouseOver(ev as any, true);
+	}
+
+	async function handlePointerUp(ev: PointerEvent & { currentTarget: HTMLDivElement }) {
+		if (isTouch()) return;
+		if (isDragging) {
+			isDragging = false;
+			try {
+				ev.currentTarget.releasePointerCapture(ev.pointerId);
+			} catch {}
+			await saveSelectedRating();
+			handleRatingHoverEnd();
+		}
+	}
+
 	function handleKeyDown(
 		ev: KeyboardEvent & {
 			currentTarget: EventTarget & HTMLDivElement;
@@ -157,11 +181,29 @@
 		if (ev.code === "ArrowRight") {
 			console.debug("handleKeyDown: Increasing selected rating.");
 			setHoveredRatingFromPerc((shownPerc ?? 0) + starStep);
+			moveRatingText();
 		} else if (ev.code === "ArrowLeft") {
 			console.debug("handleKeyDown: Decreasing selected rating.");
 			setHoveredRatingFromPerc(shownPerc ? shownPerc - starStep : 0);
+			moveRatingText();
 		} else if (ev.key === "Enter") {
 			console.debug("handleKeyDown: Enter pressed.. saving rating.");
+			saveSelectedRating();
+		} else if (ev.key >= "1" && ev.key <= "9") {
+			ev.preventDefault();
+			const n = Number(ev.key);
+			const isOutOf5 = store.userSettings?.ratingSystem === RatingSystem.OutOf5;
+			if (isOutOf5 && n <= 5) {
+				setHoveredRatingFromPerc(n * 20);
+			} else if (!isOutOf5) {
+				setHoveredRatingFromPerc(n * 10);
+			}
+			moveRatingText();
+			saveSelectedRating();
+		} else if (ev.key === "0") {
+			ev.preventDefault();
+			setHoveredRatingFromPerc(100);
+			moveRatingText();
 			saveSelectedRating();
 		}
 	}
@@ -327,6 +369,8 @@ shownPerc: {shownPerc}<br /> -->
 	<div
 		class="rating-wrap"
 		bind:this={ratingWrapEl}
+		onpointerdown={handlePointerDown}
+		onpointerup={handlePointerUp}
 		onpointermove={(ev) => handleMouseOver(ev)}
 		ontouchmove={(ev) => handleMouseOver(ev)}
 		ontouchstart={(ev) => {
@@ -349,7 +393,9 @@ shownPerc: {shownPerc}<br /> -->
 				return;
 			}
 			console.debug("rating-wrap: mouseleave");
-			handleRatingHoverEnd();
+			if (!isDragging) {
+				handleRatingHoverEnd();
+			}
 		}}
 		ontouchend={async () => {
 			console.debug("rating-wrap: touchend");
@@ -404,7 +450,7 @@ shownPerc: {shownPerc}<br /> -->
 		</div>
 	</div>
 	<span class="keyboard-tip"
-		>Left/Right Arrows to change rating, Enter to save.</span
+		>Left/Right Arrows to step, Keys 1-9 & 0 to select, Enter to save.</span
 	>
 </div>
 
