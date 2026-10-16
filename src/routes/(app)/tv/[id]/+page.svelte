@@ -273,6 +273,24 @@
 				</div>
 			</div>
 
+			<!-- Item 7: Prominent Highlight Action Card "Up Next" -->
+			{#if show.watched && show.seasons && show.seasons.length > 0 && data.tvId}
+				<NextEpisodeCard
+					tvId={data.tvId}
+					seasons={show.seasons}
+					watchedItem={show.watched}
+					onEpisodeWatched={() => {
+						if (show?.watched) {
+							show.watched = {
+								...show.watched,
+								watchedEpisodes: [...(show.watched.watchedEpisodes || [])],
+								watchedSeasons: [...(show.watched.watchedSeasons || [])],
+							};
+						}
+					}}
+				/>
+			{/if}
+
 			<MyReview
 				watched={show.watched}
 				contentTitle={show.name}
@@ -308,22 +326,6 @@
 			{#if show.seasons && show.seasons.length > 0}
 				{#if show.watched}
 					<SeriesProgress seasons={show.seasons} watchedItem={show.watched} />
-					{#if data?.tvId}
-						<NextEpisodeCard
-							tvId={data.tvId}
-							seasons={show.seasons}
-							watchedItem={show.watched}
-							onEpisodeWatched={() => {
-								if (show?.watched) {
-									show.watched = {
-										...show.watched,
-										watchedEpisodes: [...(show.watched.watchedEpisodes || [])],
-										watchedSeasons: [...(show.watched.watchedSeasons || [])],
-									};
-								}
-							}}
-						/>
-					{/if}
 				{/if}
 
 				{#if data?.tvId}
