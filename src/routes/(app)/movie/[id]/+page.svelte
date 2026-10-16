@@ -221,10 +221,16 @@
 									</button>
 									<WatchedDeleteBtn
 										watchedId={movie.watched.id}
+										watchedEntry={movie.watched}
 										mediaName={movie.name}
 										onDelete={() => {
 											if (movie) {
 												movie.watched = undefined;
+											}
+										}}
+										onRestore={(restored) => {
+											if (movie) {
+												movie.watched = restored;
 											}
 										}}
 									/>

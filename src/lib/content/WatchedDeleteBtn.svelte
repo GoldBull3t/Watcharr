@@ -2,29 +2,46 @@
 	import tooltip from "../actions/tooltip";
 	import Icon from "../Icon.svelte";
 	import { removeWatched } from "../util/api";
-	import { notify } from "../util/notify";
-	import WatchedDeleteModal from "../watched/WatchedDeleteModal.svelte";
+	import { notifyUndo } from "../util/notify";
+	import type { Watched } from "@/types";
 
 	interface Props {
 		watchedId: number;
+		watchedEntry?: Watched;
 		mediaName?: string;
 		onDelete: () => void;
+		onRestore?: (w: Watched) => void;
 	}
 
-	let { watchedId, mediaName, onDelete }: Props = $props();
-
-	// If confirm delete modal should be shown, then this will be
-	// set to a callback.
-	let showConfirmDeleteModalCallback: (() => void) | undefined = $state();
+	let {
+		watchedId,
+		watchedEntry,
+		mediaName,
+		onDelete,
+		onRestore,
+	}: Props = $props();
 
 	function onDeleteClicked() {
-		showConfirmDeleteModalCallback = () => {
-			removeWatched(watchedId).then((removed) => {
-				if (removed) {
-					onDelete();
+		const targetId = watchedId;
+		const entry = watchedEntry;
+		const name = mediaName ?? "Item";
+		onDelete();
+
+		notifyUndo({
+			text: `<b>${name}</b> removido da lista`,
+			undoLabel: "Desfazer",
+			time: 6000,
+			onUndo: () => {
+				if (onRestore && entry) {
+					onRestore(entry);
+				} else {
+					window.location.reload();
 				}
-			});
-		};
+			},
+			onDismiss: () => {
+				removeWatched(targetId);
+			},
+		});
 	}
 </script>
 
@@ -32,29 +49,10 @@
 	class="delete-btn"
 	onclick={() => onDeleteClicked()}
 	use:tooltip={{ text: "Delete", pos: "bot" }}
+	aria-label="Delete from list"
 >
 	<Icon i="trash" wh={19} />
 </button>
-
-{#if showConfirmDeleteModalCallback !== undefined}
-	<WatchedDeleteModal
-		{mediaName}
-		onClose={(confirmed) => {
-			if (!showConfirmDeleteModalCallback) {
-				notify({
-					type: "error",
-					text: "Somehow the deletion callback doesn't exist anymore so we couldn't delete! Please try again",
-					time: 5000,
-				});
-				return;
-			}
-			if (confirmed) {
-				showConfirmDeleteModalCallback();
-			}
-			showConfirmDeleteModalCallback = undefined;
-		}}
-	/>
-{/if}
 
 <style lang="scss">
 	.delete-btn {

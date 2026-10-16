@@ -12,14 +12,13 @@
 	} from "@/lib/util/helpers";
 	import { goto } from "$app/navigation";
 	import { baseURL, removeWatched, updateWatched } from "../util/api";
-	import { notify } from "../util/notify";
+	import { notify, notifyUndo } from "../util/notify";
 	import { onMount, onDestroy } from "svelte";
 	import PosterStatus from "./PosterStatus.svelte";
 	import PosterRating from "./PosterRating.svelte";
 	import ExtraDetails from "./ExtraDetails.svelte";
 	import { buildExtraDetails } from "./lib";
 	import { decode } from "blurhash";
-	import WatchedDeleteModal from "../watched/WatchedDeleteModal.svelte";
 	import { resolve } from "$app/paths";
 	import Icon from "../Icon.svelte";
 	import { formatPublicRating, formatVoteCount } from "../rating/helpers";
@@ -81,10 +80,6 @@
 
 	let containerEl: HTMLDivElement | undefined = $state();
 	let bhCanvas: HTMLCanvasElement | undefined = $state();
-
-	// If confirm delete modal should be shown, then this will be
-	// set to a callback.
-	let showConfirmDeleteModalCallback: (() => void) | undefined = $state();
 
 	// If the item was just deleted from watched list (via this poster.)
 	let justDeletedFromWatcheds = $state(false);
@@ -189,14 +184,28 @@
 				});
 				return;
 			}
-			showConfirmDeleteModalCallback = () => {
-				if (!watched) return;
-				removeWatched(watched.id).then((removed) => {
-					if (removed) {
-						updateWatchedVar(undefined);
+			const prevWatched = watched;
+			const mediaTitle = media.name;
+			updateWatchedVar(undefined);
+			if (typeof onUpdated === "function") {
+				onUpdated();
+				runPosterMouseLeaveIfNeeded();
+			}
+
+			notifyUndo({
+				text: `<b>${mediaTitle}</b> removido da lista`,
+				undoLabel: "Desfazer",
+				time: 6000,
+				onUndo: () => {
+					updateWatchedVar(prevWatched);
+					if (typeof onUpdated === "function") {
+						onUpdated();
 					}
-				});
-			};
+				},
+				onDismiss: () => {
+					removeWatched(prevWatched.id);
+				},
+			});
 			return;
 		}
 		if (type == watched?.status || !meta?.id) return;
@@ -507,26 +516,6 @@
 		</div>
 	</div>
 </li>
-
-{#if showConfirmDeleteModalCallback !== undefined}
-	<WatchedDeleteModal
-		mediaName={media.name}
-		onClose={(confirmed) => {
-			if (!showConfirmDeleteModalCallback) {
-				notify({
-					type: "error",
-					text: "Somehow the deletion callback doesn't exist anymore so we couldn't delete! Please try again",
-					time: 5000,
-				});
-				return;
-			}
-			if (confirmed) {
-				showConfirmDeleteModalCallback();
-			}
-			showConfirmDeleteModalCallback = undefined;
-		}}
-	/>
-{/if}
 
 <style lang="scss">
 	li.hidden {

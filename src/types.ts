@@ -49,6 +49,7 @@ export type Icon =
 	| "themoviedb"
 	| "imdb"
 	| "refresh"
+	| "undo"
 	| "gamepad"
 	| "film"
 	| "tv"

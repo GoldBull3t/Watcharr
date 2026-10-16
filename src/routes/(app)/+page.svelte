@@ -21,7 +21,7 @@
 		type PaginationResponse,
 		type WatchedStatus,
 	} from "@/types";
-	import { notify } from "@/lib/util/notify";
+	import { notify, notifyUndo } from "@/lib/util/notify";
 	import { onDestroy, onMount, untrack } from "svelte";
 
 	const scroll = infScroll({ callback: onScrollToBottom });
@@ -217,34 +217,30 @@
 
 	async function bulkDeleteItems() {
 		if (selectedIds.length === 0) return;
-		if (
-			!confirm(
-				`Are you sure you want to remove ${selectedIds.length} selected items from your watched list?`,
-			)
-		) {
-			return;
-		}
-		const nid = notify({
-			text: `Removing ${selectedIds.length} items...`,
-			type: "loading",
-		});
-		const promises = selectedIds.map(async (id) => {
-			const ok = await removeWatched(id);
-			return Boolean(ok);
-		});
-		const results = await Promise.allSettled(promises);
-		const successCount = results.filter(
-			(r) => r.status === "fulfilled" && r.value === true,
-		).length;
-		notify({
-			id: nid,
-			text: `Removed ${successCount} items from your list`,
-			type: "success",
-		});
+		const idsToRemove = [...selectedIds];
 		selectedIds = [];
-		dataLoader.reset();
-		dataLoader.runFn();
-		loadContinueWatching();
+		const count = idsToRemove.length;
+
+		notifyUndo({
+			text: `<b>${count} ${count === 1 ? "item" : "itens"}</b> removido(s) da lista`,
+			undoLabel: "Desfazer",
+			time: 6000,
+			onUndo: () => {
+				dataLoader.reset();
+				dataLoader.runFn();
+				loadContinueWatching();
+			},
+			onDismiss: async () => {
+				const promises = idsToRemove.map(async (id) => {
+					const ok = await removeWatched(id);
+					return Boolean(ok);
+				});
+				await Promise.allSettled(promises);
+				dataLoader.reset();
+				dataLoader.runFn();
+				loadContinueWatching();
+			},
+		});
 	}
 
 	$effect(() => {
