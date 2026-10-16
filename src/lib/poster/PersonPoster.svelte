@@ -4,7 +4,10 @@
 	import {
 		addClassToParent,
 		calculateTransformOrigin,
+		isTouch,
 	} from "@/lib/util/helpers";
+	import PersonSmartPopover from "./PersonSmartPopover.svelte";
+	import { onDestroy } from "svelte";
 
 	interface Props {
 		id: number | undefined;
@@ -22,6 +25,31 @@
 		zoomOnHover = true,
 	}: Props = $props();
 
+	let popoverVisible = $state(false);
+	let hoverTimeout: number | undefined;
+
+	function handleMouseEnter(
+		e: MouseEvent & {
+			currentTarget: EventTarget & HTMLLIElement;
+		},
+	) {
+		calculateTransformOrigin(e);
+		if (isTouch() || !id) return;
+		clearTimeout(hoverTimeout);
+		hoverTimeout = window.setTimeout(() => {
+			popoverVisible = true;
+		}, 320);
+	}
+
+	function handleMouseLeave() {
+		clearTimeout(hoverTimeout);
+		popoverVisible = false;
+	}
+
+	onDestroy(() => {
+		clearTimeout(hoverTimeout);
+	});
+
 	const poster = $derived(
 		path ? `https://image.tmdb.org/t/p/w300_and_h450_bestv2${path}` : undefined,
 	);
@@ -33,13 +61,17 @@
 <!-- Quick fix to ignore error, should be fixed -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <li
-	onmouseenter={(e) => calculateTransformOrigin(e)}
+	onmouseenter={handleMouseEnter}
+	onmouseleave={handleMouseLeave}
 	onfocusin={(e) => calculateTransformOrigin(e)}
 	onclick={() => {
 		if (link) goto(resolve(link));
 	}}
 	onkeypress={() => console.log("on kpress")}
 >
+	{#if popoverVisible && id}
+		<PersonSmartPopover personId={id} personName={name} {role} />
+	{/if}
 	<div
 		class={`container${!poster ? " details-shown" : ""}${!zoomOnHover ? " no-zoom" : ""}`}
 	>
@@ -76,6 +108,16 @@
 </li>
 
 <style lang="scss">
+	li {
+		position: relative;
+		list-style: none;
+
+		&:hover,
+		&:focus-within {
+			z-index: 200;
+		}
+	}
+
 	.container {
 		display: flex;
 		flex-flow: column;
