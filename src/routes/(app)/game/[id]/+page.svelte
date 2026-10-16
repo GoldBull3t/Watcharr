@@ -162,7 +162,11 @@
 						</div>
 
 						{#if game.providers}
-							<ProvidersList providers={game.providers} />
+							<ProvidersList
+								providers={game.providers}
+								mediaType="game"
+								mediaTitle={game.name}
+							/>
 						{/if}
 					</div>
 				</div>

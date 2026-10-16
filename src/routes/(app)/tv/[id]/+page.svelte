@@ -262,13 +262,14 @@
 							{/if}
 						</div>
 
-						{#if show.providers}
-							<ProvidersList
-								providers={show.providers}
-								fullListLink={show.providersFullListLink}
-								fullListLinkText="JustWatch"
-							/>
-						{/if}
+						<ProvidersList
+							providers={show.providers}
+							fullListLink={show.providersFullListLink}
+							fullListLinkText="JustWatch"
+							mediaType="tv"
+							mediaId={show.ids.tmdb}
+							mediaTitle={show.name}
+						/>
 					</div>
 				</div>
 			</div>
