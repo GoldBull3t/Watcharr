@@ -11,9 +11,21 @@
 	import { toRelativeDate } from "@/lib/util/helpers";
 	import CalendarWebhookModal from "@/lib/calendar/CalendarWebhookModal.svelte";
 
-	type CalendarViewMode = "month" | "week" | "agenda";
+	type CalendarViewMode = "month" | "week" | "wall" | "agenda";
 
-	let viewMode: CalendarViewMode = $state("month");
+	let viewMode: CalendarViewMode = $state(
+		(typeof localStorage !== "undefined" &&
+			(localStorage.getItem("watcharr_calendar_view") as CalendarViewMode)) ||
+			"month",
+	);
+
+	function setViewMode(mode: CalendarViewMode) {
+		viewMode = mode;
+		if (typeof localStorage !== "undefined") {
+			localStorage.setItem("watcharr_calendar_view", mode);
+		}
+	}
+
 	let scopeFilter: CalendarFilter = $state("library");
 	let typeFilter: CalendarType = $state("all");
 	let webhookModalOpen: boolean = $state(false);
@@ -52,7 +64,7 @@
 		const y = currentDate.getFullYear();
 		const m = currentDate.getMonth();
 
-		if (viewMode === "month") {
+		if (viewMode === "month" || viewMode === "wall") {
 			// Month start and end
 			const firstDayOfMonth = new SvelteDate(y, m, 1);
 			const lastDayOfMonth = new SvelteDate(y, m + 1, 0);
@@ -169,7 +181,7 @@
 
 	// Period navigation
 	function prevPeriod() {
-		if (viewMode === "month") {
+		if (viewMode === "month" || viewMode === "wall") {
 			currentDate.setDate(1);
 			currentDate.setMonth(currentDate.getMonth() - 1);
 		} else if (viewMode === "week") {
@@ -180,7 +192,7 @@
 	}
 
 	function nextPeriod() {
-		if (viewMode === "month") {
+		if (viewMode === "month" || viewMode === "wall") {
 			currentDate.setDate(1);
 			currentDate.setMonth(currentDate.getMonth() + 1);
 		} else if (viewMode === "week") {
@@ -279,6 +291,22 @@
 		}));
 	});
 
+	// Grouped releases for Wall Grid view
+	const wallGroups = $derived.by(() => {
+		if (viewMode !== "wall") return [];
+		const sortedDates = Object.keys(eventsByDate).sort();
+		const todayStr = formatLocalDate(new Date());
+		return sortedDates.map((dateStr) => {
+			const d = new SvelteDate(dateStr + "T00:00:00");
+			return {
+				dateStr,
+				date: d,
+				isToday: dateStr === todayStr,
+				events: eventsByDate[dateStr] || [],
+			};
+		});
+	});
+
 	function getMediaHref(
 		ev: CalendarEvent,
 	): `${`/${"movie" | "tv"}/${string}`}` {
@@ -371,26 +399,37 @@
 				</button>
 			</div>
 
-			<!-- View Mode: Month / Week / Agenda -->
+			<!-- View Mode: Month / Week / Wall / Agenda -->
 			<div class="pill-group view-switcher">
 				<button
 					class="pill-btn"
 					class:active={viewMode === "month"}
-					onclick={() => (viewMode = "month")}
+					onclick={() => setViewMode("month")}
+					title="Vista de Calendário Mensal"
 				>
-					Month
+					Mês
 				</button>
 				<button
 					class="pill-btn"
 					class:active={viewMode === "week"}
-					onclick={() => (viewMode = "week")}
+					onclick={() => setViewMode("week")}
+					title="Vista Semanal em Colunas"
 				>
-					Week
+					Semana
+				</button>
+				<button
+					class="pill-btn"
+					class:active={viewMode === "wall"}
+					onclick={() => setViewMode("wall")}
+					title="Vista Poster Wall (Galeria Visual de Estreias)"
+				>
+					Poster Wall
 				</button>
 				<button
 					class="pill-btn"
 					class:active={viewMode === "agenda"}
-					onclick={() => (viewMode = "agenda")}
+					onclick={() => setViewMode("agenda")}
+					title="Vista de Agenda Cronológica"
 				>
 					Agenda
 				</button>
@@ -566,6 +605,120 @@
 						</div>
 					{/each}
 				</div>
+			</div>
+
+			<!-- POSTER WALL GRID VIEW -->
+		{:else if viewMode === "wall"}
+			<div class="wall-container">
+				{#if wallGroups.length === 0}
+					<div class="empty-state">
+						<Icon i="film" wh={48} />
+						<h3>Nenhuma estreia encontrada neste mês</h3>
+						<p>Não foram encontrados lançamentos de filmes ou episódios para este período.</p>
+						{#if scopeFilter === "library"}
+							<button
+								class="pill-btn primary"
+								onclick={() => (scopeFilter = "all")}
+							>
+								Ver Todos os Lançamentos TMDB
+							</button>
+						{/if}
+					</div>
+				{:else}
+					<div class="wall-header-summary">
+						<span class="total-releases-pill">
+							<Icon i="film" wh={14} />
+							<span>{events.length} {events.length === 1 ? "estreia" : "estreias"} em {dateRange.title}</span>
+						</span>
+					</div>
+
+					<div class="wall-days-stack">
+						{#each wallGroups as group (group.dateStr)}
+							<section class="wall-day-section" class:is-today={group.isToday}>
+								<header class="wall-day-header">
+									<div class="day-header-left">
+										<span class="day-badge" class:today-badge={group.isToday}>
+											{#if group.isToday}
+												Hoje
+											{:else}
+												{group.date.toLocaleString(undefined, { weekday: "short" })}
+											{/if}
+										</span>
+										<h4 class="day-title">
+											{group.date.toLocaleString(undefined, {
+												day: "numeric",
+												month: "long",
+											})}
+										</h4>
+										<span class="day-rel">{toRelativeDate(group.date)}</span>
+									</div>
+									<span class="day-count-tag">
+										{group.events.length} {group.events.length === 1 ? "título" : "títulos"}
+									</span>
+								</header>
+
+								<div class="wall-grid">
+									{#each group.events as ev (ev.id)}
+										{@const poster = getPosterSrc(ev)}
+										<a
+											href={resolve(getMediaHref(ev))}
+											class="wall-card"
+											class:is-tv={ev.mediaType === "tv"}
+										>
+											<div class="poster-container">
+												{#if poster}
+													<img
+														src={poster}
+														alt={ev.title}
+														loading="lazy"
+														decoding="async"
+													/>
+												{:else}
+													<div class="poster-fallback">
+														<Icon
+															i={ev.mediaType === "movie" ? "film" : "tv"}
+															wh={32}
+														/>
+													</div>
+												{/if}
+
+												<!-- Overlays -->
+												<div class="top-overlays">
+													<span class="media-type-badge">
+														{ev.mediaType === "movie" ? "Filme" : "Série"}
+													</span>
+													{#if ev.episodeNumber}
+														<span class="ep-code-badge">
+															S{ev.seasonNumber} • E{ev.episodeNumber}
+														</span>
+													{/if}
+												</div>
+
+												{#if ev.inLibrary && ev.status}
+													<div class="bottom-overlays">
+														<span class="status-badge status-{ev.status.toLowerCase()}">
+															<span class="status-dot"></span>
+															<span>{ev.status}</span>
+														</span>
+													</div>
+												{/if}
+											</div>
+
+											<div class="card-meta">
+												<span class="title" title={ev.title}>{ev.title}</span>
+												{#if ev.episodeName}
+													<span class="ep-name" title={ev.episodeName}>
+														{ev.episodeName}
+													</span>
+												{/if}
+											</div>
+										</a>
+									{/each}
+								</div>
+							</section>
+						{/each}
+					</div>
+				{/if}
 			</div>
 
 			<!-- AGENDA VIEW -->
@@ -1545,6 +1698,303 @@
 
 			&:hover {
 				background: #4f46e5;
+			}
+		}
+	}
+
+	/* WALL GRID VIEW STYLES */
+	.wall-container {
+		display: flex;
+		flex-direction: column;
+		gap: 24px;
+		width: 100%;
+
+		.wall-header-summary {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+
+			.total-releases-pill {
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				padding: 6px 14px;
+				border-radius: 999px;
+				background: rgba(255, 255, 255, 0.06);
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				font-size: 13px;
+				font-weight: 600;
+				color: #e2e8f0;
+				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+			}
+		}
+
+		.wall-days-stack {
+			display: flex;
+			flex-direction: column;
+			gap: 28px;
+		}
+
+		.wall-day-section {
+			display: flex;
+			flex-direction: column;
+			gap: 14px;
+			padding: 16px 20px 22px;
+			border-radius: 20px;
+			background: rgba(18, 22, 34, 0.55);
+			border: 1px solid rgba(255, 255, 255, 0.07);
+			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+			backdrop-filter: blur(14px);
+			-webkit-backdrop-filter: blur(14px);
+			transition: border-color 200ms ease;
+
+			&.is-today {
+				background: rgba(22, 28, 48, 0.7);
+				border-color: rgba(99, 102, 241, 0.35);
+				box-shadow:
+					0 8px 32px rgba(0, 0, 0, 0.35),
+					0 0 24px rgba(99, 102, 241, 0.12);
+
+				.day-badge.today-badge {
+					background: linear-gradient(135deg, #6366f1, #818cf8);
+					color: #ffffff;
+					box-shadow: 0 2px 10px rgba(99, 102, 241, 0.4);
+				}
+			}
+
+			.wall-day-header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				padding-bottom: 10px;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+				.day-header-left {
+					display: flex;
+					align-items: center;
+					gap: 12px;
+					flex-wrap: wrap;
+
+					.day-badge {
+						display: inline-flex;
+						align-items: center;
+						padding: 4px 10px;
+						border-radius: 8px;
+						background: rgba(255, 255, 255, 0.08);
+						border: 1px solid rgba(255, 255, 255, 0.1);
+						font-size: 12px;
+						font-weight: 700;
+						text-transform: uppercase;
+						letter-spacing: 0.5px;
+						color: #e2e8f0;
+					}
+
+					.day-title {
+						margin: 0;
+						font-size: 17px;
+						font-weight: 700;
+						color: #ffffff;
+					}
+
+					.day-rel {
+						font-size: 13px;
+						font-weight: 500;
+						color: rgba(255, 255, 255, 0.45);
+					}
+				}
+
+				.day-count-tag {
+					font-size: 12px;
+					font-weight: 600;
+					color: rgba(255, 255, 255, 0.5);
+				}
+			}
+
+			.wall-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+				gap: 16px;
+
+				@media screen and (max-width: 600px) {
+					grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+					gap: 12px;
+				}
+			}
+
+			.wall-card {
+				position: relative;
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+				text-decoration: none;
+				border-radius: 14px;
+				overflow: hidden;
+				transition:
+					transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+					box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1);
+
+				&:hover {
+					transform: translateY(-4px) scale(1.02);
+
+					.poster-container {
+						box-shadow:
+							0 12px 30px rgba(0, 0, 0, 0.6),
+							0 0 20px rgba(99, 102, 241, 0.25);
+						border-color: rgba(255, 255, 255, 0.25);
+
+						img {
+							transform: scale(1.04);
+						}
+					}
+
+					.card-meta .title {
+						color: #a5b4fc;
+					}
+				}
+
+				.poster-container {
+					position: relative;
+					width: 100%;
+					aspect-ratio: 2 / 3;
+					border-radius: 12px;
+					overflow: hidden;
+					background: #0d111a;
+					border: 1px solid rgba(255, 255, 255, 0.1);
+					box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+					transition:
+						box-shadow 200ms ease,
+						border-color 200ms ease;
+
+					img {
+						width: 100%;
+						height: 100%;
+						object-fit: cover;
+						display: block;
+						transition: transform 300ms ease;
+					}
+
+					.poster-fallback {
+						width: 100%;
+						height: 100%;
+						display: flex;
+						align-items: center;
+						justify-content: center;
+						color: rgba(255, 255, 255, 0.25);
+						background: rgba(255, 255, 255, 0.03);
+					}
+
+					.top-overlays {
+						position: absolute;
+						top: 6px;
+						left: 6px;
+						right: 6px;
+						display: flex;
+						align-items: center;
+						justify-content: space-between;
+						gap: 4px;
+						pointer-events: none;
+
+						.media-type-badge {
+							padding: 2px 6px;
+							border-radius: 4px;
+							background: rgba(0, 0, 0, 0.65);
+							border: 1px solid rgba(255, 255, 255, 0.15);
+							font-size: 9.5px;
+							font-weight: 700;
+							color: #e2e8f0;
+							text-transform: uppercase;
+							letter-spacing: 0.4px;
+							backdrop-filter: blur(4px);
+						}
+
+						.ep-code-badge {
+							padding: 2px 6px;
+							border-radius: 4px;
+							background: rgba(99, 102, 241, 0.85);
+							font-size: 9.5px;
+							font-weight: 700;
+							color: #ffffff;
+							letter-spacing: 0.4px;
+							box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+						}
+					}
+
+					.bottom-overlays {
+						position: absolute;
+						bottom: 6px;
+						left: 6px;
+						right: 6px;
+						display: flex;
+						align-items: center;
+						gap: 4px;
+						pointer-events: none;
+
+						.status-badge {
+							display: inline-flex;
+							align-items: center;
+							gap: 4px;
+							padding: 2px 7px;
+							border-radius: 4px;
+							background: rgba(15, 23, 42, 0.88);
+							border: 1px solid rgba(255, 255, 255, 0.15);
+							font-size: 10px;
+							font-weight: 600;
+							color: #f1f5f9;
+							backdrop-filter: blur(4px);
+
+							.status-dot {
+								width: 6px;
+								height: 6px;
+								border-radius: 50%;
+								background: #a5b4fc;
+							}
+
+							&.status-watching .status-dot {
+								background: #60a5fa;
+							}
+							&.status-finished .status-dot {
+								background: #34d399;
+							}
+							&.status-planned .status-dot {
+								background: #fbbf24;
+							}
+							&.status-hold .status-dot {
+								background: #fb923c;
+							}
+							&.status-dropped .status-dot {
+								background: #f87171;
+							}
+						}
+					}
+				}
+
+				.card-meta {
+					display: flex;
+					flex-direction: column;
+					gap: 2px;
+					padding: 0 2px;
+
+					.title {
+						font-size: 13px;
+						font-weight: 700;
+						color: #ffffff;
+						line-height: 1.3;
+						white-space: nowrap;
+						overflow: hidden;
+						text-overflow: ellipsis;
+						transition: color 140ms ease;
+					}
+
+					.ep-name {
+						font-size: 11.5px;
+						font-weight: 500;
+						color: rgba(255, 255, 255, 0.5);
+						white-space: nowrap;
+						overflow: hidden;
+						text-overflow: ellipsis;
+					}
+				}
 			}
 		}
 	}
