@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"log/slog"
 
 	"github.com/sbondCo/Watcharr/database/entity"
@@ -68,11 +69,14 @@ func getServerStats(db *gorm.DB) ServerStats {
 		Preload("Content").
 		First(&w)
 	if resp.Error != nil {
-		slog.Error("getServerStats - MostWatchedShow query failed", "error", resp.Error)
-	} else {
+		if !errors.Is(resp.Error, gorm.ErrRecordNotFound) {
+			slog.Error("getServerStats - MostWatchedShow query failed", "error", resp.Error)
+		}
+	} else if w.Content != nil {
 		stats.MostWatchedShow = *w.Content
 	}
 	// Most watched movie.
+	var wm entity.Watched
 	resp = db.
 		Model(&entity.Watched{}).
 		Select("content_id, COUNT(*) AS mag").
@@ -80,11 +84,13 @@ func getServerStats(db *gorm.DB) ServerStats {
 		Group("content_id").
 		Order("mag DESC").
 		Preload("Content").
-		First(&w)
+		First(&wm)
 	if resp.Error != nil {
-		slog.Error("getServerStats - MostWatchedMovie query failed", "error", resp.Error)
-	} else {
-		stats.MostWatchedMovie = *w.Content
+		if !errors.Is(resp.Error, gorm.ErrRecordNotFound) {
+			slog.Error("getServerStats - MostWatchedMovie query failed", "error", resp.Error)
+		}
+	} else if wm.Content != nil {
+		stats.MostWatchedMovie = *wm.Content
 	}
 	return stats
 }

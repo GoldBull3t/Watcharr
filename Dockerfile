@@ -5,15 +5,15 @@ FROM golang:1.27-alpine AS server
 
 WORKDIR /server
 
-# We can copy the whole server folder, since our .dockerignore file
-# will filter out stuff we don't want in the final image.
+# Cache Go modules layer
+COPY server/go.mod server/go.sum ./
+RUN go mod download
+
+# Copy server source code
 COPY server/ ./
 
-# Required so we can build with cgo
-RUN apk update && apk add --no-cache musl-dev gcc build-base
-
-# CGO_CFLAGS: https://github.com/mattn/go-sqlite3/issues/1164#issuecomment-1635253695
-RUN go mod download && GOOS=linux CGO_ENABLED=1 CGO_CFLAGS="-D_LARGEFILE64_SOURCE" go build -o ./watcharr
+# Build optimized binary
+RUN GOOS=linux CGO_ENABLED=0 go build -ldflags="-s -w" -o ./watcharr .
 
 #
 # Frontend
@@ -21,11 +21,17 @@ RUN go mod download && GOOS=linux CGO_ENABLED=1 CGO_CFLAGS="-D_LARGEFILE64_SOURC
 FROM node:24-alpine AS ui
 
 WORKDIR /app
-COPY package*.json vite.config.ts svelte.config.js tsconfig.json ./
+
+# Cache package dependencies layer
+COPY package*.json ./
+RUN npm ci
+
+# Copy source and build
 COPY ./src ./src
 COPY ./static ./static
+COPY vite.config.ts svelte.config.js tsconfig.json ./
 
-RUN npm install && npm run build
+RUN npm run build
 
 #
 # Production
@@ -44,3 +50,4 @@ RUN cd /ui && npm ci --omit=dev --ignore-scripts=true
 EXPOSE 3080
 
 CMD ["/watcharr"]
+

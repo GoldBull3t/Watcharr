@@ -25,6 +25,8 @@
 
 <style lang="scss">
 	.poster-list-wrapper {
+		position: relative;
+		z-index: 1;
 		display: flex;
 		justify-content: center;
 		width: 100%;

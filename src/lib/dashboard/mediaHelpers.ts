@@ -4,19 +4,21 @@ import { MediaTypeE, type Media } from "@/types";
 export function getMediaLink(
 	w: Media,
 ): "/" | `/movie/${string}` | `/tv/${string}` | `/game/${string}` {
+	if (!w || !w.ids) return "/";
 	switch (w.type) {
 		case MediaTypeE.tmdbMovie:
-			return `/movie/${w.ids.tmdb}`;
+			return w.ids.tmdb ? `/movie/${w.ids.tmdb}` : "/";
 		case MediaTypeE.tmdbShow:
-			return `/tv/${w.ids.tmdb}`;
+			return w.ids.tmdb ? `/tv/${w.ids.tmdb}` : "/";
 		case MediaTypeE.igdbGame:
-			return `/game/${w.ids.igdb}`;
+			return w.ids.igdb ? `/game/${w.ids.igdb}` : "/";
 		default:
 			return "/";
 	}
 }
 
 export function getPosterImage(w: Media): string | undefined {
+	if (!w) return undefined;
 	if (w.poster?.path) {
 		return `${baseURL}/${w.poster.path}`;
 	}
@@ -33,7 +35,9 @@ export function getPosterImage(w: Media): string | undefined {
 }
 
 export function getReleaseYear(w: Media): string {
+	if (!w) return "";
 	const rawDate =
+		w.releaseDate ||
 		(
 			w as unknown as {
 				release_date?: string;

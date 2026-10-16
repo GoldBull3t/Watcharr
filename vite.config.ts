@@ -42,10 +42,22 @@ export default defineConfig({
 				],
 			},
 			devOptions: {
-				enabled: true,
+				enabled: false,
 			},
 		}),
 	],
+	server: {
+		port: 5173,
+		watch: {
+			ignored: [
+				"**/server/data/**",
+				"**/server/**/*.log",
+				"**/server/**/*.db*",
+				"**/build/**",
+				"**/.svelte-kit/**",
+			],
+		},
+	},
 	define: {
 		__WATCHARR_VERSION__: JSON.stringify(pkg.version),
 	},

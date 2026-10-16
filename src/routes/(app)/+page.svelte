@@ -38,7 +38,7 @@
 
 	// Active status tab pill
 	let activeTab:
-		"all" | "watching" | "planned" | "finished" | "hold" | "dropped" =
+		"all" | "watching" | "planned" | "finished" | "hold" | "dropped" | "cancelled" =
 		$derived.by(() => {
 			const statuses = store.activeFilters?.status;
 			if (!statuses || statuses.length === 0) return "all";
@@ -47,6 +47,7 @@
 			if (statuses.includes("finished")) return "finished";
 			if (statuses.includes("hold")) return "hold";
 			if (statuses.includes("dropped")) return "dropped";
+			if (statuses.includes("cancelled") || statuses.includes("canceled")) return "cancelled";
 			return "all";
 		});
 
@@ -67,18 +68,24 @@
 		...store.sortAndFiltersForQueryParams,
 	});
 
+	let isInitialLoad = $state(true);
+
 	async function load(signal: AbortSignal) {
 		console.debug("load: loadParams:", nextLoadParams);
 		if (nextLoadParams.page === dataLoader.state.page) {
 			console.warn("load: Already on this page, not loading it again!");
 			return;
 		}
-		const r = await req.get<PaginationResponse<Media, undefined>>(`/watched`, {
-			params: nextLoadParams,
-			signal,
-		});
-		scroll.dataLoaded();
-		return r;
+		try {
+			const r = await req.get<PaginationResponse<Media, undefined>>(`/watched`, {
+				params: nextLoadParams,
+				signal,
+			});
+			scroll.dataLoaded();
+			return r;
+		} finally {
+			isInitialLoad = false;
+		}
 	}
 
 	async function loadContinueWatching() {
@@ -128,30 +135,30 @@
 			text: `Updating ${selectedIds.length} items...`,
 			type: "loading",
 		});
-		let successCount = 0;
-		for (const id of selectedIds) {
+		const promises = selectedIds.map(async (id) => {
 			const item = dataLoader.state.data?.find((w) => w?.watched?.id === id);
 			if (item?.watched) {
-				try {
-					const cType =
-						item.type === MediaTypeE.tmdbMovie
-							? "movie"
-							: item.type === MediaTypeE.tmdbShow
-								? "tv"
-								: "game";
-					const cId = item.ids.tmdb || item.ids.igdb || 0;
-					await updateWatched(item.watched, {
-						contentId: cId,
-						contentType: cType,
-						status: newStatus,
-					});
-					item.watched.status = newStatus;
-					successCount++;
-				} catch (err) {
-					console.error(`Failed to bulk update item ${id}:`, err);
-				}
+				const cType =
+					item.type === MediaTypeE.tmdbMovie
+						? "movie"
+						: item.type === MediaTypeE.tmdbShow
+							? "tv"
+							: "game";
+				const cId = item.ids?.tmdb || item.ids?.igdb || 0;
+				await updateWatched(item.watched, {
+					contentId: cId,
+					contentType: cType,
+					status: newStatus,
+				});
+				item.watched.status = newStatus;
+				return true;
 			}
-		}
+			return false;
+		});
+		const results = await Promise.allSettled(promises);
+		const successCount = results.filter(
+			(r) => r.status === "fulfilled" && r.value === true,
+		).length;
 		notify({
 			id: nid,
 			text: `Updated ${successCount} items to ${newStatus}`,
@@ -169,30 +176,30 @@
 			text: `Rating ${selectedIds.length} items...`,
 			type: "loading",
 		});
-		let successCount = 0;
-		for (const id of selectedIds) {
+		const promises = selectedIds.map(async (id) => {
 			const item = dataLoader.state.data?.find((w) => w?.watched?.id === id);
 			if (item?.watched) {
-				try {
-					const cType =
-						item.type === MediaTypeE.tmdbMovie
-							? "movie"
-							: item.type === MediaTypeE.tmdbShow
-								? "tv"
-								: "game";
-					const cId = item.ids.tmdb || item.ids.igdb || 0;
-					await updateWatched(item.watched, {
-						contentId: cId,
-						contentType: cType,
-						rating: newRating,
-					});
-					item.watched.rating = newRating;
-					successCount++;
-				} catch (err) {
-					console.error(`Failed to bulk rate item ${id}:`, err);
-				}
+				const cType =
+					item.type === MediaTypeE.tmdbMovie
+						? "movie"
+						: item.type === MediaTypeE.tmdbShow
+							? "tv"
+							: "game";
+				const cId = item.ids?.tmdb || item.ids?.igdb || 0;
+				await updateWatched(item.watched, {
+					contentId: cId,
+					contentType: cType,
+					rating: newRating,
+				});
+				item.watched.rating = newRating;
+				return true;
 			}
-		}
+			return false;
+		});
+		const results = await Promise.allSettled(promises);
+		const successCount = results.filter(
+			(r) => r.status === "fulfilled" && r.value === true,
+		).length;
 		notify({
 			id: nid,
 			text: `Rated ${successCount} items`,
@@ -217,15 +224,14 @@
 			text: `Removing ${selectedIds.length} items...`,
 			type: "loading",
 		});
-		let successCount = 0;
-		for (const id of selectedIds) {
-			try {
-				const ok = await removeWatched(id);
-				if (ok) successCount++;
-			} catch (err) {
-				console.error(`Failed to bulk remove item ${id}:`, err);
-			}
-		}
+		const promises = selectedIds.map(async (id) => {
+			const ok = await removeWatched(id);
+			return Boolean(ok);
+		});
+		const results = await Promise.allSettled(promises);
+		const successCount = results.filter(
+			(r) => r.status === "fulfilled" && r.value === true,
+		).length;
 		notify({
 			id: nid,
 			text: `Removed ${successCount} items from your list`,
@@ -288,12 +294,12 @@
 	{/if}
 
 	<!-- Main Content Area: Grid View or List View -->
-	{#if dataLoader.state.reqLoading && (!dataLoader.state.data || dataLoader.state.data.length === 0)}
+	{#if isInitialLoad && dataLoader.state.reqLoading && (!dataLoader.state.data || dataLoader.state.data.length === 0)}
 		<PosterGridSkeleton count={12} />
 	{:else if viewMode === "grid"}
 		<PosterList>
 			{#if dataLoader.state.data?.length > 0}
-				{#each dataLoader.state.data as w, i (`${i}-${w.type}`)}
+				{#each dataLoader.state.data as w, i (w ? `${w.type}-${w.watched?.id || w.ids?.tmdb || w.ids?.igdb || i}` : i)}
 					{#if w}
 						<Poster
 							bind:watched={dataLoader.state.data[i].watched}

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
-	"strconv"
 	"time"
 
 	"github.com/sbondCo/Watcharr/activity"
@@ -184,6 +183,9 @@ func (s *Service) SuccessfulImport(
 				SetCustomDate(ar.RatingCustomDate).
 				Create()
 		} else {
+			activityJson, _ := json.Marshal(map[string]any{
+				"rating": ar.Rating,
+			})
 			addedActivity, _ = activity.
 				NewCreator(
 					s.db,
@@ -193,7 +195,7 @@ func (s *Service) SuccessfulImport(
 					false,
 					entity.ActivityCreatedByGenericImport,
 				).
-				SetData(strconv.Itoa(int(ar.Rating))).
+				SetData(string(activityJson)).
 				SetCustomDate(ar.RatingCustomDate).
 				Create()
 		}

@@ -191,6 +191,7 @@ func NewMediaFromContent(c *entity.Content) Media {
 		Rating:        uint(math.Round(float64(c.VoteAverage * 10))),
 		RatingCount:   uint(c.VoteCount),
 		Runtime:       uint(c.Runtime),
+		Status:        c.Status,
 	}
 	switch c.Type {
 	case entity.MOVIE:

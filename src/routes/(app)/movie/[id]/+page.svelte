@@ -42,6 +42,7 @@
 	let pageError: unknown | undefined = $state();
 
 	$effect(() => {
+		const controller = new AbortController();
 		(async () => {
 			try {
 				movie = undefined;
@@ -51,12 +52,14 @@
 				}
 				const resp = await req.get<Media>(`/content/movie/${data.movieId}`, {
 					params: { region: store.userSettings?.country },
+					signal: controller.signal,
 				});
+				if (controller.signal.aborted) return;
 				if (resp) {
 					if (resp.name && resp.ids.tmdb) {
 						contentExistsOnJellyfin("movie", resp.name, resp.ids.tmdb).then(
 							(j) => {
-								if (j?.hasContent && j?.url !== "") {
+								if (!controller.signal.aborted && j?.hasContent && j?.url !== "") {
 									jellyfinUrl = j.url;
 								}
 							},
@@ -66,11 +69,13 @@
 				} else {
 					movie = undefined;
 				}
-			} catch (err) {
+			} catch (err: unknown) {
+				if (controller.signal.aborted) return;
 				movie = undefined;
 				pageError = err;
 			}
 		})();
+		return () => controller.abort();
 	});
 
 	async function getMovieCredits() {

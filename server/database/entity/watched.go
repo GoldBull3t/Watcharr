@@ -8,8 +8,9 @@ const (
 	FINISHED WatchedStatus = "FINISHED"
 	WATCHING WatchedStatus = "WATCHING"
 	PLANNED  WatchedStatus = "PLANNED"
-	HOLD     WatchedStatus = "HOLD"
-	DROPPED  WatchedStatus = "DROPPED"
+	HOLD      WatchedStatus = "HOLD"
+	DROPPED   WatchedStatus = "DROPPED"
+	CANCELLED WatchedStatus = "CANCELLED"
 )
 
 func (r WatchedStatus) IsValid() bool {
@@ -18,7 +19,8 @@ func (r WatchedStatus) IsValid() bool {
 		WATCHING,
 		PLANNED,
 		HOLD,
-		DROPPED:
+		DROPPED,
+		CANCELLED:
 		return true
 	}
 	return false

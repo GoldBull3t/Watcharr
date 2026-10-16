@@ -51,12 +51,17 @@ func refineFilterStatus(
 	fIncludesFinished := false
 	for i := range f {
 		// Ensure string **case** is valid WatchedStatus by converting to uppercase.
-		f[i] = entity.WatchedStatus(strings.ToUpper(string(f[i])))
+		normalized := entity.WatchedStatus(strings.ToUpper(string(f[i])))
+		if normalized == "CANCELED" {
+			normalized = entity.CANCELLED
+		}
+		f[i] = normalized
 		if f[i] == entity.FINISHED {
 			fIncludesFinished = true
 			slog.Debug("refineFilterStatus: f includes FINISHED")
 		}
 	}
+
 	// Apply the query.
 	if fIncludesFinished &&
 		userSettings != nil && util.Deref(userSettings.IncludePreviouslyWatched, false) {
@@ -165,7 +170,9 @@ func watchedRefineFilter(
 		refineFilterStatus(db, wr.FilterStatus, userSettings)
 		if wr.Year > 0 {
 			yrStr := strconv.Itoa(wr.Year)
-			db.Where("(strftime('%Y', `Content`.`release_date`) = ? OR strftime('%Y', datetime(`Game`.`first_release_date`, 'unixepoch')) = ?)", yrStr, yrStr)
+			startDate := yrStr + "-01-01"
+			endDate := yrStr + "-12-31 23:59:59"
+			db.Where("((`Content`.`release_date` >= ? AND `Content`.`release_date` <= ?) OR (`Game`.`release_date` >= ? AND `Game`.`release_date` <= ?))", startDate, endDate, startDate, endDate)
 		}
 		if wr.MinRating > 0 {
 			db.Where("`watcheds`.`rating` >= ?", wr.MinRating)
@@ -180,6 +187,16 @@ func watchedRefineFilter(
 		if wr.Genre != "" {
 			g := "%" + wr.Genre + "%"
 			db.Where("(`Content`.`genres` LIKE ? OR `Game`.`genres` LIKE ?)", g, g)
+		}
+		if wr.ProductionStatus != "" {
+			switch strings.ToLower(wr.ProductionStatus) {
+			case "canceled":
+				db.Where("`Content`.`status` = ?", "Canceled")
+			case "returning":
+				db.Where("`Content`.`status` = ?", "Returning Series")
+			case "ended":
+				db.Where("`Content`.`status` = ?", "Ended")
+			}
 		}
 		return db
 	}

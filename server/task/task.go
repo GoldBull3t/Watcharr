@@ -46,8 +46,12 @@ var taskScheduler gocron.Scheduler
 // related code lives so it's kept tidy.
 var taskFuncs map[string]TaskFunc
 
+type CalendarNotifier interface {
+	CheckAndNotifyAllUsers() error
+}
+
 // Setup recurring tasks (eg cleanup every x mins)
-func SetupTasks(cfg *config.ServerConfig, db *gorm.DB) {
+func SetupTasks(cfg *config.ServerConfig, db *gorm.DB, notifiers ...CalendarNotifier) {
 	ts, err := gocron.NewScheduler()
 	if err != nil {
 		slog.Error("SetupTasks: Failed to create new scheduler!", "error", err)
@@ -81,6 +85,17 @@ func SetupTasks(cfg *config.ServerConfig, db *gorm.DB) {
 			},
 			dd: 24 * time.Hour,
 		},
+	}
+
+	if len(notifiers) > 0 && notifiers[0] != nil {
+		cn := notifiers[0]
+		taskFuncs["Calendar Release Notifications"] = TaskFunc{
+			f: func() {
+				slog.Debug("Running Calendar Release Notifications recurring task")
+				_ = cn.CheckAndNotifyAllUsers()
+			},
+			dd: 6 * time.Hour,
+		}
 	}
 
 	// Add all jobs to scheduler.

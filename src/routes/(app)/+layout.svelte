@@ -149,10 +149,22 @@
 		}
 		const [u, s, f, fo, ts] = await Promise.all([
 			req.get<PrivateUser>("/user"),
-			req.get<UserSettings>("/user/settings"),
-			req.get<ServerFeatures>("/features"),
-			req.get<Follow[]>("/follow"),
-			req.get<Tag[]>("/tag"),
+			req.get<UserSettings>("/user/settings").catch((e) => {
+				console.warn("Failed to load user settings:", e);
+				return undefined;
+			}),
+			req.get<ServerFeatures>("/features").catch((e) => {
+				console.warn("Failed to load features:", e);
+				return undefined;
+			}),
+			req.get<Follow[]>("/follow").catch((e) => {
+				console.warn("Failed to load follows:", e);
+				return [];
+			}),
+			req.get<Tag[]>("/tag").catch((e) => {
+				console.warn("Failed to load tags:", e);
+				return [];
+			}),
 		]);
 		if (u) {
 			store.userInfo = u;
@@ -203,15 +215,16 @@
 	}
 
 	function docOnScroll() {
-		if (scroll > window.scrollY) {
+		const currentScrollY = window.scrollY;
+		if (currentScrollY <= 20 || scroll > currentScrollY) {
 			navEl?.classList.remove("scrolled-down");
 			document.body.classList.add("nav-shown");
-		} else {
+		} else if (currentScrollY > 80 && scroll < currentScrollY) {
 			navEl?.classList.add("scrolled-down");
 			document.body.classList.remove("nav-shown");
 			closeAllSubMenus();
 		}
-		scroll = window.scrollY;
+		scroll = Math.max(0, currentScrollY);
 	}
 
 	function focusSearch() {

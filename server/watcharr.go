@@ -335,7 +335,7 @@ func main() {
 			"error", uresp.Error)
 	}
 
-	go taskl.SetupTasks(cfg, db)
+	go taskl.SetupTasks(cfg, db, calendarService)
 
 	gine.Run("0.0.0.0:3080")
 }
@@ -351,6 +351,9 @@ func runUI() {
 	go func() {
 		for scanner.Scan() {
 			fmt.Println(scanner.Text())
+		}
+		if err := scanner.Err(); err != nil {
+			slog.Error("runUI: scanner error", "error", err)
 		}
 	}()
 	if err := cmd.Start(); err != nil {

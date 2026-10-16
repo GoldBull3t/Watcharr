@@ -43,6 +43,13 @@
 		};
 	}
 
+	function setProductionStatusFilter(ps: string | undefined) {
+		store.activeFilters = {
+			...store.activeFilters,
+			productionStatus: ps,
+		};
+	}
+
 	const years = [
 		2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015,
 		2010, 2005, 2000, 1990, 1980,
@@ -201,6 +208,26 @@
 						<option value={gg}>{gg}</option>
 					{/each}
 				{/if}
+			</select>
+		</div>
+
+		<!-- Production Status (Canceladas pela produtora, etc.) -->
+		<div class="filter-group">
+			<label class="group-label" for="filter-production-status">Production Status</label>
+			<select
+				id="filter-production-status"
+				class="filter-select"
+				value={store.activeFilters?.productionStatus || "all"}
+				onchange={(e) => {
+					const val = (e.target as HTMLSelectElement).value;
+					setProductionStatusFilter(val === "all" ? undefined : val);
+				}}
+				aria-label="Filter by production status"
+			>
+				<option value="all">All Production Statuses</option>
+				<option value="canceled">❌ Cancelada pelos Produtores</option>
+				<option value="returning">📺 Em Exibição (Novas Temporadas)</option>
+				<option value="ended">✅ Terminada (Com Final)</option>
 			</select>
 		</div>
 	</div>

@@ -96,12 +96,15 @@
 	async function follow() {
 		followBtnDisabled = true;
 		console.log(isFollowing);
-		if (isFollowing) {
-			await unfollowUser(Number(meta.id));
-		} else {
-			await followUser(Number(meta.id));
+		try {
+			if (isFollowing) {
+				await unfollowUser(Number(meta.id));
+			} else {
+				await followUser(Number(meta.id));
+			}
+		} finally {
+			followBtnDisabled = false;
 		}
-		followBtnDisabled = false;
 	}
 
 	$effect(() => {

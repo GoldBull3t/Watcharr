@@ -11,9 +11,13 @@ func transformProviders(c *any, country string) WatchProviders {
 	slog.Debug("transformProviders called", "country", country)
 	resp := WatchProviders{}
 
+	if c == nil || *c == nil {
+		return resp
+	}
+
 	cmap, ok := (*c).(map[string]any)
 	if !ok {
-		slog.Error("transformProviders: Assertion failed")
+		slog.Warn("transformProviders: WatchProviders object assertion failed")
 		return WatchProviders{}
 	}
 

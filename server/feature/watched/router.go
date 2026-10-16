@@ -29,6 +29,7 @@ func (r *Router) AddRoutes() {
 
 	watched.GET("", router.PaginatedRequest(false), r.GetWatchedList)
 	watched.GET("/continue", r.GetContinueWatching)
+	watched.GET("/export", r.ExportWatchedList)
 	watched.GET(":id/:username", router.PaginatedRequest(true), r.GetPublicWatchedList)
 	watched.POST("", r.AddWatched)
 	watched.PUT(":id", r.UpdateWatched)

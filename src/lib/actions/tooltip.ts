@@ -30,7 +30,7 @@ export default function tooltip(node: HTMLElement, opts: ToolTipOptions) {
 		if (!trimmedText) {
 			return;
 		}
-		tooltip.innerHTML = trimmedText;
+		tooltip.textContent = trimmedText;
 
 		const nrect = node.getBoundingClientRect();
 		const trect = tooltip.getBoundingClientRect();

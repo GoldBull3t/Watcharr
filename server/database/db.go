@@ -97,6 +97,13 @@ func configure(db *gorm.DB) error {
 	}
 	slog.Info("configure: Configured foreign_keys to ON.")
 
+	// Journal Mode: Ensure SQLite WAL mode is active for concurrency between readers and writer
+	if res := db.Exec("PRAGMA journal_mode = WAL"); res.Error != nil {
+		slog.Warn("configure: Configuring journal_mode to WAL failed!", "error", res.Error)
+	} else {
+		slog.Info("configure: Configured journal_mode to WAL.")
+	}
+
 	// Synchronous: https://sqlite.org/pragma.html#pragma_synchronous
 	// In WAL mode, `NORMAL` (1) is the official recommended setting.
 	// It guarantees full database integrity against OS and app crashes, while

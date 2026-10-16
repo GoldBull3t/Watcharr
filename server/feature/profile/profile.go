@@ -124,17 +124,18 @@ func (s *Service) getProfile(userId uint) (Profile, error) {
 	)
 
 	statusDist := map[string]int{
-		"FINISHED": 0,
-		"WATCHING": 0,
-		"PLANNED":  0,
-		"HOLD":     0,
-		"DROPPED":  0,
+		"FINISHED":  0,
+		"WATCHING":  0,
+		"PLANNED":   0,
+		"HOLD":      0,
+		"DROPPED":   0,
+		"CANCELLED": 0,
 	}
 
 	statusDistType := map[string]map[string]int{
-		"movie": {"FINISHED": 0, "WATCHING": 0, "PLANNED": 0, "HOLD": 0, "DROPPED": 0},
-		"tv":    {"FINISHED": 0, "WATCHING": 0, "PLANNED": 0, "HOLD": 0, "DROPPED": 0},
-		"game":  {"FINISHED": 0, "WATCHING": 0, "PLANNED": 0, "HOLD": 0, "DROPPED": 0},
+		"movie": {"FINISHED": 0, "WATCHING": 0, "PLANNED": 0, "HOLD": 0, "DROPPED": 0, "CANCELLED": 0},
+		"tv":    {"FINISHED": 0, "WATCHING": 0, "PLANNED": 0, "HOLD": 0, "DROPPED": 0, "CANCELLED": 0},
+		"game":  {"FINISHED": 0, "WATCHING": 0, "PLANNED": 0, "HOLD": 0, "DROPPED": 0, "CANCELLED": 0},
 	}
 
 	ratingDist := map[string]int{

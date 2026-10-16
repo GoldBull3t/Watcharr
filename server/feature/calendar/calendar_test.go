@@ -1,6 +1,7 @@
 package calendar_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 )
 
 func TestCalendarGetEvents_Library(t *testing.T) {
+	calendar.CalendarStore.Flush()
 	db := testutil.SetupDB(t)
 	cfg := &config.ServerConfig{}
 	svc := calendar.NewService(db, cfg, nil)
@@ -111,3 +113,122 @@ func TestCalendarGetEvents_Library(t *testing.T) {
 	}
 }
 
+func TestCalendarGetEvents_Pruning(t *testing.T) {
+	calendar.CalendarStore.Flush()
+	db := testutil.SetupDB(t)
+	cfg := &config.ServerConfig{}
+	svc := calendar.NewService(db, cfg, nil)
+
+	user := entity.User{
+		Username: "pruneuser",
+		Type:     entity.WATCHARR_USER,
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	// 1. Ended show marked FINISHED
+	oldDate := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	showEnded := entity.Content{
+		TmdbID:      201,
+		Title:       "Ended Show",
+		Type:        entity.SHOW,
+		Status:      "Ended",
+		ReleaseDate: &oldDate,
+	}
+	db.Create(&showEnded)
+	db.Create(&entity.Watched{
+		UserID:    user.ID,
+		ContentID: &showEnded.ID,
+		Status:    entity.FINISHED,
+	})
+
+	// 2. Dropped show
+	showDropped := entity.Content{
+		TmdbID:      202,
+		Title:       "Dropped Show",
+		Type:        entity.SHOW,
+		Status:      "Returning Series",
+		ReleaseDate: &oldDate,
+	}
+	db.Create(&showDropped)
+	db.Create(&entity.Watched{
+		UserID:    user.ID,
+		ContentID: &showDropped.ID,
+		Status:    entity.DROPPED,
+	})
+
+	events, err := svc.GetEvents(user.ID, domain.CalendarRequest{
+		Start:  "2026-10-01",
+		End:    "2026-10-31",
+		Filter: domain.CalendarFilterLibrary,
+		Type:   domain.CalendarTypeAll,
+	})
+	if err != nil {
+		t.Fatalf("GetEvents failed: %v", err)
+	}
+
+	// Both should be excluded / produce 0 events
+	if len(events) != 0 {
+		t.Errorf("expected 0 events, got %d", len(events))
+	}
+}
+
+func BenchmarkCalendarGetEvents_LargeLibrary(b *testing.B) {
+	db := testutil.SetupDB(&testing.T{})
+	cfg := &config.ServerConfig{}
+	svc := calendar.NewService(db, cfg, nil)
+
+	user := entity.User{
+		Username: "benchuser",
+		Type:     entity.WATCHARR_USER,
+	}
+	db.Create(&user)
+
+	oldDate := time.Date(2021, 5, 1, 0, 0, 0, 0, time.UTC)
+	for i := 1; i <= 100; i++ {
+		c := entity.Content{
+			TmdbID:      1000 + i,
+			Title:       fmt.Sprintf("Ended Show %d", i),
+			Type:        entity.SHOW,
+			Status:      "Ended",
+			ReleaseDate: &oldDate,
+		}
+		db.Create(&c)
+		db.Create(&entity.Watched{
+			UserID:    user.ID,
+			ContentID: &c.ID,
+			Status:    entity.FINISHED,
+		})
+	}
+
+	for i := 1; i <= 50; i++ {
+		rel := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
+		c := entity.Content{
+			TmdbID:      2000 + i,
+			Title:       fmt.Sprintf("October Movie %d", i),
+			Type:        entity.MOVIE,
+			ReleaseDate: &rel,
+		}
+		db.Create(&c)
+		db.Create(&entity.Watched{
+			UserID:    user.ID,
+			ContentID: &c.ID,
+			Status:    entity.WATCHING,
+		})
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		calendar.CalendarStore.Flush()
+		_, err := svc.GetEvents(user.ID, domain.CalendarRequest{
+			Start:  "2026-10-01",
+			End:    "2026-10-31",
+			Filter: domain.CalendarFilterLibrary,
+			Type:   domain.CalendarTypeAll,
+		})
+		if err != nil {
+			b.Fatalf("GetEvents failed: %v", err)
+		}
+	}
+}

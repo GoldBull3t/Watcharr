@@ -53,6 +53,7 @@
 	let countAsPlayModalSignal: Signal<boolean> | undefined = $state();
 
 	$effect(() => {
+		const controller = new AbortController();
 		(async () => {
 			try {
 				show = undefined;
@@ -62,12 +63,14 @@
 				}
 				const resp = await req.get<Media>(`/content/tv/${data.tvId}`, {
 					params: { region: store.userSettings?.country },
+					signal: controller.signal,
 				});
+				if (controller.signal.aborted) return;
 				if (resp) {
 					if (resp.name && resp.ids.tmdb) {
 						contentExistsOnJellyfin("tv", resp.name, resp.ids.tmdb).then(
 							(j) => {
-								if (j?.hasContent && j?.url !== "") {
+								if (!controller.signal.aborted && j?.hasContent && j?.url !== "") {
 									jellyfinUrl = j.url;
 								}
 							},
@@ -77,11 +80,13 @@
 				} else {
 					show = undefined;
 				}
-			} catch (err) {
+			} catch (err: unknown) {
+				if (controller.signal.aborted) return;
 				show = undefined;
 				pageError = err;
 			}
 		})();
+		return () => controller.abort();
 	});
 
 	async function getTvCredits() {
@@ -182,10 +187,22 @@
 
 						<span class="quick-info">
 							{#if show.status}
-								<span class="series-status-tag">{show.status}</span>
+								<span
+									class="series-status-tag"
+									class:canceled={show.status === MediaStatusShow.Canceled || show.status === "Canceled"}
+								>
+									{show.status === MediaStatusShow.Canceled || show.status === "Canceled" ? "Cancelada" : show.status}
+								</span>
 							{/if}
 							<Genres genres={show.genres} />
 						</span>
+
+						{#if show.status === MediaStatusShow.Canceled || show.status === "Canceled"}
+							<div class="production-canceled-banner">
+								<Icon i="close-circle" wh={15} />
+								<span>Esta série foi cancelada pela emissora / produtora.</span>
+							</div>
+						{/if}
 
 						<ExpandableText text={show.summary} style="margin-bottom: 18px;" />
 
@@ -389,6 +406,32 @@
 					background: rgba(99, 102, 241, 0.15);
 					border: 1px solid rgba(99, 102, 241, 0.3);
 					color: #c7d2fe;
+
+					&.canceled {
+						background: rgba(225, 29, 72, 0.2);
+						border-color: rgba(225, 29, 72, 0.45);
+						color: #fb7185;
+					}
+				}
+			}
+
+			.production-canceled-banner {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 8px 12px;
+				margin-bottom: 14px;
+				border-radius: 8px;
+				background: rgba(225, 29, 72, 0.14);
+				border: 1px solid rgba(225, 29, 72, 0.35);
+				color: #fecdd3;
+				font-size: 13px;
+				font-weight: 500;
+				width: fit-content;
+
+				:global(svg) {
+					color: #fb7185;
+					flex-shrink: 0;
 				}
 			}
 

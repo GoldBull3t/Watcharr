@@ -201,9 +201,12 @@
 		}
 	}
 
-	onMount(() => {
-		if (rating) showRating(Math.round((rating * 100) / 10));
-	});
+	function getRatingDescription(value: number | undefined): string {
+		if (value === undefined || value <= 0) return "";
+		const idx = Math.max(0, Math.min(ratingDesc.length - 1, Math.ceil(value) - 1));
+		return ratingDesc[idx] ?? "";
+	}
+
 	let stars = $derived(
 		store.userSettings?.ratingSystem == RatingSystem.OutOf5
 			? [5, 4, 3, 2, 1]
@@ -297,9 +300,9 @@ shownPerc: {shownPerc}<br /> -->
 	<span bind:this={ratingText}>
 		{#if hoveredRating}
 			{#if store.userSettings?.ratingSystem === RatingSystem.OutOf5 && shownPerc}
-				{ratingDesc[Math.ceil(shownPerc / 10) - 1]}
+				{getRatingDescription(shownPerc / 10)}
 			{:else}
-				{ratingDesc[Math.ceil(hoveredRating) - 1]}
+				{getRatingDescription(hoveredRating)}
 			{/if}
 			{#if store.userSettings?.ratingSystem === RatingSystem.OutOf100}
 				({shownPerc})
@@ -307,7 +310,7 @@ shownPerc: {shownPerc}<br /> -->
 				({hoveredRating})
 			{/if}
 		{:else if typeof rating === "number" && rating > 0}
-			{ratingDesc[Math.ceil(rating) - 1]}
+			{getRatingDescription(rating)}
 			{#if shownPerc}
 				{#if store.userSettings?.ratingSystem === RatingSystem.OutOf100}
 					({shownPerc})

@@ -1,6 +1,7 @@
 package jellyfin
 
 import (
+	"crypto/subtle"
 	"log/slog"
 	"net/http"
 	"uuid"
@@ -123,11 +124,9 @@ func (r *Router) PostWebhook(c *gin.Context) {
 		return
 	}
 
-	if uuidKey != r.br.Cfg.JELLYFIN_WEBHOOK_KEY {
+	expectedKey := r.br.Cfg.JELLYFIN_WEBHOOK_KEY
+	if subtle.ConstantTimeCompare(uuidKey[:], expectedKey[:]) != 1 {
 		slog.Warn("PostWebhook: Wrong key given.")
-		// A user trying to debug why this is failing may appreciate this log.
-		// Only in Debug log, since it is a credential.
-		slog.Debug("PostWebhook: Wrong key given.", "key_given", uuidParam)
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}

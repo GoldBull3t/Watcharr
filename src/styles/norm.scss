@@ -20,6 +20,9 @@
 	--placeholder-color: #94a3b8;
 	--poster-rating-color: #d97706;
 	--img-blend-multiply-bg-col: rgba(0, 0, 0, 0.85);
+	--glass-surface-bg: rgba(255, 255, 255, 0.85);
+	--glass-card-bg: rgba(255, 255, 255, 0.92);
+	--glass-modal-bg: rgba(255, 255, 255, 0.97);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -42,6 +45,9 @@
 		--placeholder-color: #64748b;
 		--poster-rating-color: #0b0e14;
 		--img-blend-multiply-bg-col: rgba(255, 255, 255, 0.03);
+		--glass-surface-bg: rgba(18, 23, 33, 0.75);
+		--glass-card-bg: rgba(20, 25, 36, 0.85);
+		--glass-modal-bg: rgba(14, 18, 26, 0.94);
 	}
 }
 
@@ -64,6 +70,9 @@
 	--placeholder-color: #64748b;
 	--poster-rating-color: #0b0e14;
 	--img-blend-multiply-bg-col: rgba(255, 255, 255, 0.03);
+	--glass-surface-bg: rgba(18, 23, 33, 0.75);
+	--glass-card-bg: rgba(20, 25, 36, 0.85);
+	--glass-modal-bg: rgba(14, 18, 26, 0.94);
 }
 
 @font-face {
@@ -393,24 +402,24 @@
 
 	/* Cinematic Glassmorphism Utilities */
 	.glass-surface {
-		background: rgba(18, 23, 33, 0.75);
+		background: var(--glass-surface-bg, rgba(18, 23, 33, 0.75));
 		border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
 		backdrop-filter: blur(14px);
 		-webkit-backdrop-filter: blur(14px);
 	}
 
 	.glass-card {
-		background: rgba(20, 25, 36, 0.85);
+		background: var(--glass-card-bg, rgba(20, 25, 36, 0.85));
 		border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
-		box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.45);
+		box-shadow: var(--card-shadow, 0 8px 32px -4px rgba(0, 0, 0, 0.45));
 		backdrop-filter: blur(16px);
 		-webkit-backdrop-filter: blur(16px);
 		border-radius: 12px;
 	}
 
 	.glass-modal {
-		background: rgba(14, 18, 26, 0.94);
-		border: 1px solid rgba(255, 255, 255, 0.1);
+		background: var(--glass-modal-bg, rgba(14, 18, 26, 0.94));
+		border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));
 		box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.75);
 		backdrop-filter: blur(24px);
 		-webkit-backdrop-filter: blur(24px);

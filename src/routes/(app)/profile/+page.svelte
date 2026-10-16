@@ -29,6 +29,7 @@
 	import ExportListModal from "./modals/ExportListModal.svelte";
 	import { ReqerError } from "@/lib/util/fetch";
 	import Icon from "@/lib/Icon.svelte";
+	import CalendarWebhookModal from "@/lib/calendar/CalendarWebhookModal.svelte";
 
 	let user = $derived(store.userInfo);
 	let settings = $derived(store.userSettings);
@@ -46,6 +47,7 @@
 	let getProfilePromise = $state(getProfile());
 	let jellyfinSyncModalOpen = $state(false);
 	let plexSyncModalOpen = $state(false);
+	let calendarWebhookModalOpen = $state(false);
 
 	let statusTab: "all" | "movie" | "tv" | "game" = $state("all");
 	let activityPeriodTab: "month" | "year" = $state("month");
@@ -54,10 +56,13 @@
 		return await req.get<Profile>(`/profile`);
 	}
 
-	function formatDate(d: Date) {
-		return `${d.getDate()}${getOrdinalSuffix(d.getDate())} ${
-			monthsShort[d.getMonth()]
-		} ${d.getFullYear()}`;
+	function formatDate(d: Date | string | undefined | null) {
+		if (!d) return "Unknown";
+		const date = d instanceof Date ? d : new Date(d);
+		if (isNaN(date.getTime())) return "Unknown";
+		return `${date.getDate()}${getOrdinalSuffix(date.getDate())} ${
+			monthsShort[date.getMonth()]
+		} ${date.getFullYear()}`;
 	}
 
 	function updateBio(
@@ -169,10 +174,28 @@
 
 	function formatActivityLabel(item: RecentActivityItem): string {
 		switch (item.type) {
-			case "STATUS_CHANGED":
-				return `Status changed to ${item.data}`;
+			case "STATUS_CHANGED": {
+				let status = item.data;
+				if (status?.startsWith("{")) {
+					try {
+						const parsed = JSON.parse(status);
+						if (parsed.status) status = parsed.status;
+					} catch {}
+				}
+				return `Status changed to ${status || "unknown"}`;
+			}
 			case "RATING_CHANGED":
 				return `Rated ${item.data}/10`;
+			case "IMPORTED_RATING": {
+				let rating = item.data;
+				if (rating?.startsWith("{")) {
+					try {
+						const parsed = JSON.parse(rating);
+						if (parsed.rating) rating = parsed.rating;
+					} catch {}
+				}
+				return `Rated ${rating}/10`;
+			}
 			case "ADDED_WATCHED":
 				return "Added to library";
 			case "IMPORTED_ADDED_WATCHED":
@@ -180,7 +203,7 @@
 			case "EPISODE_STATUS_CHANGED":
 				return `Watched episode`;
 			default:
-				return item.type.replace(/_/g, " ").toLowerCase();
+				return item.type?.replace(/_/g, " ").toLowerCase() || "activity";
 		}
 	}
 </script>
@@ -843,6 +866,24 @@
 				<RatingSetting />
 			</div>
 
+			<!-- Calendar Webhook Notifications Setting -->
+			<div class="settings-card">
+				<div class="webhook-settings-header">
+					<div>
+						<h4 class="card-title">Calendar & Release Webhooks</h4>
+						<p class="card-desc">
+							Recebe alertas matinais automáticos no Discord, Slack ou Ntfy quando estrearem episódios ou filmes da tua biblioteca.
+						</p>
+					</div>
+					<button
+						class="btn-action primary-accent"
+						onclick={() => (calendarWebhookModalOpen = true)}
+					>
+						<Icon i="notifications" wh={16} /> Configurar Webhook
+					</button>
+				</div>
+			</div>
+
 			<!-- Data & Integrations Actions -->
 			<div class="settings-card">
 				<h4 class="card-title">Data & Integrations</h4>
@@ -906,6 +947,7 @@
 			{#if plexSyncModalOpen}
 				<SyncModal type="plex" onClose={() => (plexSyncModalOpen = false)} />
 			{/if}
+			<CalendarWebhookModal bind:open={calendarWebhookModalOpen} />
 		</section>
 	</div>
 </div>
@@ -1696,6 +1738,32 @@
 
 		@media screen and (max-width: 500px) {
 			grid-template-columns: 1fr;
+		}
+	}
+
+	.webhook-settings-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 20px;
+		flex-wrap: wrap;
+
+		.card-desc {
+			margin: 0;
+		}
+
+		.btn-action.primary-accent {
+			background: rgba(54, 186, 152, 0.12);
+			border-color: rgba(54, 186, 152, 0.35);
+			color: #36ba98;
+			fill: #36ba98;
+			font-weight: 600;
+
+			&:hover {
+				background: rgba(54, 186, 152, 0.22);
+				border-color: rgba(54, 186, 152, 0.55);
+				transform: translateY(-1px);
+			}
 		}
 	}
 

@@ -185,7 +185,7 @@ func (t *TraktService) startTraktImport(jobId string, userId uint, req TraktImpo
 		for _, v := range history {
 			rProc(v)
 		}
-		for i := range pageCountNum {
+		for i := 2; i <= pageCountNum; i++ {
 			slog.Debug("startTraktImport: Getting history page", "page_num", i)
 			_, err := t.traktAPIRequest(
 				"users/"+userSlug+"/history",
@@ -414,16 +414,22 @@ func (t *TraktService) processTraktHistoryItem(v TraktHistory, toImport map[stri
 	}
 	mapKey := t.makeTraktMapKey(contentType, tmdbId)
 	if e, ok := toImport[mapKey]; ok {
-		e.WatchedEpisodes = append(toImport[mapKey].WatchedEpisodes, watchedEpisode)
+		if v.Type == "episode" {
+			e.WatchedEpisodes = append(e.WatchedEpisodes, watchedEpisode)
+		}
+		e.DatesWatched = append(e.DatesWatched, v.WatchedAt)
 		toImport[mapKey] = e
 	} else {
-		toImport[mapKey] = domain.ImportRequest{
-			Type:            contentType,
-			TmdbID:          tmdbId,
-			Status:          entity.FINISHED,
-			DatesWatched:    []time.Time{v.WatchedAt},
-			WatchedEpisodes: []entity.WatchedEpisode{watchedEpisode},
+		req := domain.ImportRequest{
+			Type:         contentType,
+			TmdbID:       tmdbId,
+			Status:       entity.FINISHED,
+			DatesWatched: []time.Time{v.WatchedAt},
 		}
+		if v.Type == "episode" {
+			req.WatchedEpisodes = []entity.WatchedEpisode{watchedEpisode}
+		}
+		toImport[mapKey] = req
 	}
 	return nil
 }

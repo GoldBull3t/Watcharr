@@ -47,8 +47,9 @@ type WatchedGetPageRequest struct {
 	Year         int                    `form:"year"`
 	MinRating    float64                `form:"minRating"`
 	MaxRating    float64                `form:"maxRating"`
-	Genre        string                 `form:"genre"`
-	Query        string                 `form:"query"`
+	Genre            string                 `form:"genre"`
+	Query            string                 `form:"query"`
+	ProductionStatus string                 `form:"productionStatus"`
 }
 
 type WatchedGetPageExtraProps struct {

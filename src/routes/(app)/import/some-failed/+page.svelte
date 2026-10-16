@@ -22,19 +22,21 @@
 
 	onMount(() => {
 		if (store.parsedImportedList) {
+			const failedItems: ImportedList[] = [];
+			let successes = 0;
 			for (let i = 0; i < store.parsedImportedList.length; i++) {
 				const item = store.parsedImportedList[i];
-				$state.snapshot(item);
 				if (
 					item.state === ImportResponseType.IMPORT_FAILED ||
 					item.state === ImportResponseType.IMPORT_NOTFOUND
 				) {
-					failed.push(item);
-					failed = failed;
+					failedItems.push(item);
 				} else {
-					successCount++;
+					successes++;
 				}
 			}
+			failed = failedItems;
+			successCount = successes;
 			console.log("failedlen", failed.length);
 		} else {
 			goto(resolve("/import"));
@@ -50,11 +52,9 @@
 		</h5>
 		<h4 class="norm">{successCount} succeeded and {failed.length} failed.</h4>
 
-		{#if failed}
+		{#if failed && failed.length > 0}
 			<ul>
-				<!-- TODO: Fix this to use a keyed each somehow (need unique id for key) -->
-				<!-- eslint-disable-next-line svelte/require-each-key -->
-				{#each failed as l}
+				{#each failed as l, idx (`${idx}-${l.tmdbId ?? l.imdbId ?? l.name}`)}
 					<li>
 						<span>{l.name}</span>
 					</li>

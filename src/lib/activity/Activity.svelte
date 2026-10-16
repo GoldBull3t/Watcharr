@@ -21,11 +21,20 @@
 	);
 	let count = $derived(activity ? activity.length : 0);
 
+	function safeJsonParse<T = any>(str: string | undefined): T | undefined {
+		if (!str) return undefined;
+		try {
+			return JSON.parse(str);
+		} catch {
+			return undefined;
+		}
+	}
+
 	function getMsg(a: Activity) {
 		switch (a?.type) {
 			case "ADDED_WATCHED":
 				if (a.data) {
-					const data = JSON.parse(a.data);
+					const data = safeJsonParse(a.data);
 					return `Added to Watched List${data?.status ? ` as ${toFullTitleCase(data.status)}` : ""}${
 						data?.rating ? ` with ${data.rating} Stars` : ""
 					}`;
@@ -42,8 +51,8 @@
 				if (a.data) {
 					let status = a.data;
 					if (a.data.startsWith("{")) {
-						const data = JSON.parse(a.data);
-						status = data.status;
+						const data = safeJsonParse(a.data);
+						if (data?.status) status = data.status;
 					}
 					return `Status Changed to ${toFullTitleCase(status)}`;
 				}
@@ -54,89 +63,122 @@
 				return "Thoughts Removed";
 			case "IMPORTED_RATING":
 				if (a.data) {
-					const data = JSON.parse(a.data);
-					if (data.rating) {
-						return `Rating Changed to ${data.rating}`;
-					} else {
-						return "Added to Watchlist with No Rating";
+					const data = safeJsonParse(a.data);
+					if (typeof data === "number") {
+						return `Rating Changed to ${data}`;
 					}
+					if (data && typeof data === "object" && typeof data.rating !== "undefined") {
+						return `Rating Changed to ${data.rating}`;
+					}
+					if (!isNaN(Number(a.data))) {
+						return `Rating Changed to ${a.data}`;
+					}
+					return "Added to Watchlist with No Rating";
 				}
 				return "Imported Rating";
 			case "IMPORTED_ADDED_WATCHED":
 				return "Imported Watch Date";
 			case "SEASON_ADDED":
 				if (a.data) {
-					const data = JSON.parse(a.data);
-					return `Season ${data.season} Added as ${toFullTitleCase(data.status)}`;
+					const data = safeJsonParse(a.data);
+					if (data?.season) {
+						return `Season ${data.season} Added as ${toFullTitleCase(data.status)}`;
+					}
 				}
 				return "Season Added";
 			case "SEASON_RATING_CHANGED":
 				if (a.data) {
-					const data = JSON.parse(a.data);
-					return `Changed Season ${data.season} Rating to ${data.rating}`;
+					const data = safeJsonParse(a.data);
+					if (data?.season) {
+						return `Changed Season ${data.season} Rating to ${data.rating}`;
+					}
 				}
 				return "Season Rating Changed";
 			case "SEASON_STATUS_CHANGED":
 				if (a.data) {
-					const data = JSON.parse(a.data);
-					return `Changed Season ${data.season} Status to ${toFullTitleCase(data.status)}`;
+					const data = safeJsonParse(a.data);
+					if (data?.season) {
+						return `Changed Season ${data.season} Status to ${toFullTitleCase(data.status)}`;
+					}
 				}
 				return "Season Status Changed";
 			case "SEASON_REMOVED":
 				if (a.data) {
-					const data = JSON.parse(a.data);
-					return `Season ${data.season} Status Removed`;
+					const data = safeJsonParse(a.data);
+					if (data?.season) {
+						return `Season ${data.season} Status Removed`;
+					}
 				}
 				return "Season Removed";
 			case "EPISODE_ADDED":
 				if (a.data) {
-					const data = JSON.parse(a.data);
-					return `${seasonAndEpToReadable(data.season, data.episode)} Added ${data.status ? `as ${toFullTitleCase(data.status)}` : data.rating ? `with Rating ${data.rating}` : ""}`;
+					const data = safeJsonParse(a.data);
+					if (data) {
+						return `${seasonAndEpToReadable(data.season, data.episode)} Added ${data.status ? `as ${toFullTitleCase(data.status)}` : data.rating ? `with Rating ${data.rating}` : ""}`;
+					}
 				}
 				return "Episode Added";
 			case "EPISODE_RATING_CHANGED":
 				if (a.data) {
-					const data = JSON.parse(a.data);
-					return `${seasonAndEpToReadable(data.season, data.episode)} Rating Changed to ${data.rating}`;
+					const data = safeJsonParse(a.data);
+					if (data) {
+						return `${seasonAndEpToReadable(data.season, data.episode)} Rating Changed to ${data.rating}`;
+					}
 				}
 				return "Episode Rating Changed";
 			case "EPISODE_STATUS_CHANGED":
 				if (a.data) {
-					const data = JSON.parse(a.data);
-					return `${seasonAndEpToReadable(data.season, data.episode)} Status Changed to ${toFullTitleCase(data.status)}`;
+					const data = safeJsonParse(a.data);
+					if (data) {
+						return `${seasonAndEpToReadable(data.season, data.episode)} Status Changed to ${toFullTitleCase(data.status)}`;
+					}
 				}
 				return "Episode Status Changed";
 			case "EPISODE_REMOVED":
 				if (a.data) {
-					const data = JSON.parse(a.data);
-					return `${seasonAndEpToReadable(data.season, data.episode)} Removed`;
+					const data = safeJsonParse(a.data);
+					if (data) {
+						return `${seasonAndEpToReadable(data.season, data.episode)} Removed`;
+					}
 				}
 				return "Episode Removed";
 			default:
-				return a.type;
+				return a?.type || "Activity";
 		}
 	}
 
 	function toFullTitleCase(text: string | undefined) {
 		if (text) {
+			if (text.toUpperCase() === "DROPPED") {
+				return "Stopped Watching";
+			}
+			if (text.toUpperCase() === "CANCELLED" || text.toUpperCase() === "CANCELED") {
+				return "Cancelled";
+			}
 			return text
 				.split(" ")
-				.map((l) => l[0].toUpperCase() + l.substring(1).toLowerCase())
+				.map((l) => (l[0] ? l[0].toUpperCase() + l.substring(1).toLowerCase() : l))
 				.join(" ");
 		}
 		return "Unknown";
 	}
 
-	function toDayTime(d: Date) {
-		return `${d.getDate()}${getOrdinalSuffix(d.getDate())} at ${d.toLocaleTimeString()}`;
+	function toDayTime(d: Date | string | undefined | null) {
+		if (!d) return "Unknown";
+		const date = d instanceof Date ? d : new Date(d);
+		if (isNaN(date.getTime())) return "Unknown";
+		return `${date.getDate()}${getOrdinalSuffix(date.getDate())} at ${date.toLocaleTimeString()}`;
 	}
 
 	/**
 	 * Get what will be the visible date the activity was 'created'.
-	 * @returns customDate if defined or createdAt if not.
+	 * @returns timestamp in milliseconds, or 0 if invalid.
 	 */
-	function getCreatedAtVis(a: Activity) {
-		return Date.parse(a.customDate ?? a.createdAt);
+	function getCreatedAtVis(a: Activity): number {
+		const raw: unknown = a.customDate ?? a.createdAt;
+		if (!raw) return 0;
+		const parsed = raw instanceof Date ? raw.getTime() : Date.parse(String(raw));
+		return isNaN(parsed) ? 0 : parsed;
 	}
 
 	function getGroupedActivity(activities?: Activity[]) {
@@ -148,8 +190,11 @@
 		if (a) {
 			for (let i = 0; i < a.length; i++) {
 				const activity = a[i];
-				const date = new Date(getCreatedAtVis(activity));
-				const key = `${months[date.getMonth()]} ${date.getFullYear()}`;
+				const ts = getCreatedAtVis(activity);
+				const date = new Date(ts);
+				const key = isNaN(date.getTime()) || ts === 0
+					? "Unknown Date"
+					: `${months[date.getMonth()] ?? "Unknown"} ${date.getFullYear()}`;
 				if (grouped[key]) {
 					grouped[key].push(activity);
 				} else {
@@ -179,7 +224,9 @@
 				return;
 			}
 			const ai = activity.findIndex((a) => a.id === activityId);
-			activity[ai] = updatedActivity;
+			if (ai !== -1) {
+				activity[ai] = updatedActivity;
+			}
 		}}
 		onRemoved={(a) => {
 			if (!activity) {

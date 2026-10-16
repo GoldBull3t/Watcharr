@@ -1,3 +1,8 @@
+<script module>
+	let activeModalCount = 0;
+	let originalBodyOverflow = "";
+</script>
+
 <script lang="ts">
 	import Icon from "./Icon.svelte";
 	import { onMount } from "svelte";
@@ -27,9 +32,19 @@
 	}
 
 	onMount(() => {
+		if (activeModalCount === 0) {
+			originalBodyOverflow = document.body.style.overflow;
+			document.body.style.overflow = "hidden";
+		}
+		activeModalCount++;
 		window.addEventListener("keydown", handleKeydown);
+
 		return () => {
 			window.removeEventListener("keydown", handleKeydown);
+			activeModalCount = Math.max(0, activeModalCount - 1);
+			if (activeModalCount === 0) {
+				document.body.style.overflow = originalBodyOverflow;
+			}
 		};
 	});
 </script>
@@ -39,7 +54,7 @@
 	onclick={onClose}
 	role="presentation"
 ></div>
-<div class="modal">
+<div class="modal" role="dialog" aria-modal="true" aria-label={title}>
 	<div class="modal-card" style="max-width:{maxWidth};">
 		{#if typeof onClose !== "undefined"}
 			<button
@@ -117,7 +132,7 @@
 			width: 100%;
 			max-height: calc(100% - 40px);
 			color: $text-color;
-			background: rgba(16, 21, 30, 0.94);
+			background: var(--glass-modal-bg, rgba(16, 21, 30, 0.94));
 			border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));
 			border-radius: 16px;
 			padding: 24px;

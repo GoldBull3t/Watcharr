@@ -17,8 +17,8 @@
 	let { i, href, wh = 24 }: Props = $props();
 </script>
 
-{#if i === "Apple TV Plus"}
-	<a aria-label={i} href="https://tv.apple.com/" target="_blank">
+{#if i === "Apple TV Plus" || i === "Apple TV+"}
+	<a aria-label={i} href="https://tv.apple.com/" target="_blank" rel="noreferrer noopener">
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
 			viewBox="0 0 45.046 17.091"
@@ -31,7 +31,7 @@
 		</svg>
 	</a>
 {:else if i === "Apple TV"}
-	<a aria-label={i} href="https://tv.apple.com/" target="_blank">
+	<a aria-label={i} href="https://tv.apple.com/" target="_blank" rel="noreferrer noopener">
 		<svg
 			viewBox="0 0 24 24"
 			xmlns="http://www.w3.org/2000/svg"
@@ -43,11 +43,11 @@
 			/>
 		</svg>
 	</a>
-{:else if i === "Amazon Prime Video"}
+{:else if i === "Amazon Prime Video" || i === "Prime Video" || i === "Amazon Video"}
 	<a
 		aria-label={i}
 		href="https://www.amazon.com/gp/video/storefront/"
-		target="_blank"
+		target="_blank" rel="noreferrer noopener"
 	>
 		<svg
 			viewBox="0 0 24 24"
@@ -60,8 +60,8 @@
 			/>
 		</svg>
 	</a>
-{:else if i === "Disney Plus"}
-	<a aria-label={i} href="https://disneyplus.com/" target="_blank">
+{:else if i === "Disney Plus" || i === "Disney+"}
+	<a aria-label={i} href="https://disneyplus.com/" target="_blank" rel="noreferrer noopener">
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
 			viewBox="0 0 1041 565"
@@ -102,7 +102,7 @@
 		</svg>
 	</a>
 {:else if i === "Netflix"}
-	<a aria-label={i} href="https://netflix.com/" target="_blank">
+	<a aria-label={i} href="https://netflix.com/" target="_blank" rel="noreferrer noopener">
 		<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="30">
 			<path
 				d="M5.398 0v.006c3.028 8.556 5.37 15.175 8.348 23.596 2.344.058 4.85.398 4.854.398-2.8-7.924-5.923-16.747-8.487-24zm8.489 0v9.63L18.6 22.951c-.043-7.86-.004-15.913.002-22.95zM5.398 1.05V24c1.873-.225 2.81-.312 4.715-.398v-9.22z"
@@ -110,7 +110,7 @@
 		</svg>
 	</a>
 {:else if i === "Sky Go"}
-	<a aria-label={i} href="https://go.sky.com/" target="_blank">
+	<a aria-label={i} href="https://go.sky.com/" target="_blank" rel="noreferrer noopener">
 		<svg
 			viewBox="0 0 24 24"
 			xmlns="http://www.w3.org/2000/svg"
@@ -122,8 +122,8 @@
 			/>
 		</svg>
 	</a>
-{:else if i === "Paramount Plus"}
-	<a aria-label={i} href="https://paramountplus.com" target="_blank">
+{:else if i === "Paramount Plus" || i === "Paramount+"}
+	<a aria-label={i} href="https://paramountplus.com" target="_blank" rel="noreferrer noopener">
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
 			width="100"
@@ -136,7 +136,7 @@
 		</svg>
 	</a>
 {:else if i === "BBC iPlayer"}
-	<a aria-label={i} href="https://www.bbc.co.uk/iplayer" target="_blank">
+	<a aria-label={i} href="https://www.bbc.co.uk/iplayer" target="_blank" rel="noreferrer noopener">
 		<svg
 			width={80}
 			height={wh}
@@ -149,7 +149,7 @@
 		</svg>
 	</a>
 {:else if i === "Hulu"}
-	<a aria-label={i} href="https://hulu.com" target="_blank">
+	<a aria-label={i} href="https://hulu.com" target="_blank" rel="noreferrer noopener">
 		<svg
 			width={wh}
 			height={wh}
@@ -164,7 +164,7 @@
 		</svg>
 	</a>
 {:else if i === "Steam"}
-	<a aria-label={i} {href} rel="external" target="_blank">
+	<a aria-label={i} {href} target="_blank" rel="noreferrer noopener external">
 		<svg
 			width="30"
 			height="30"
@@ -177,7 +177,7 @@
 		</svg>
 	</a>
 {:else if i === "GOG"}
-	<a aria-label={i} {href} rel="external" target="_blank">
+	<a aria-label={i} {href} target="_blank" rel="noreferrer noopener external">
 		<svg
 			width="30"
 			height="30"
@@ -190,7 +190,7 @@
 		</svg>
 	</a>
 {:else if i === "Itch"}
-	<a aria-label={i} {href} rel="external" target="_blank">
+	<a aria-label={i} {href} target="_blank" rel="noreferrer noopener external">
 		<svg
 			width="30"
 			height="30"
@@ -202,6 +202,20 @@
 			/>
 		</svg>
 	</a>
+{:else if i}
+	{#if href}
+		<a
+			aria-label={i}
+			{href}
+			target="_blank"
+			rel="noreferrer noopener external"
+			class="generic-provider-badge"
+		>
+			<span>{i}</span>
+		</a>
+	{:else}
+		<span class="generic-provider-badge">{i}</span>
+	{/if}
 {/if}
 
 <style lang="scss">
@@ -215,6 +229,30 @@
 
 		&:hover {
 			opacity: 1;
+		}
+	}
+
+	.generic-provider-badge {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 4px 10px;
+		font-size: 11.5px;
+		font-weight: 600;
+		line-height: 1.2;
+		border-radius: 8px;
+		background: rgba(255, 255, 255, 0.08);
+		border: 1px solid var(--card-border, rgba(255, 255, 255, 0.12));
+		color: $text-color;
+		text-decoration: none;
+		white-space: nowrap;
+		transition: all 140ms ease;
+
+		&:hover {
+			background: rgba(255, 255, 255, 0.15);
+			border-color: rgba(255, 255, 255, 0.25);
+			color: #ffffff;
+			transform: translateY(-1px);
 		}
 	}
 </style>

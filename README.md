@@ -7,7 +7,11 @@
 </h1>
 
 <p align="center">
-  <em>A modern, high-performance media tracker for movies, TV shows, and games — elevated with a bespoke Obsidian Glass UI, fullstack speed optimizations.</em>
+  <strong>Performance & Luxury Obsidian Edition</strong>
+</p>
+
+<p align="center">
+  <em>A modern, high-performance media tracker for movies, TV shows, and games — elevated with a bespoke Obsidian Glass UI, fullstack speed optimizations, and automated Cosmos Cloud / Docker deployment.</em>
 </p>
 
 <p align="center">
@@ -25,7 +29,14 @@
 - [✨ What's New & Different (vs. Original Watcharr)](#-whats-new--different-vs-original-watcharr)
   - [💎 Luxury Obsidian UI & UX Overhaul](#1-luxury-obsidian-ui--ux-overhaul)
   - [⚡ Fullstack Performance & Engine Optimization](#2-fullstack-performance--engine-optimization)
+  - [🐳 Automated CI/CD & Cosmos Cloud Integration](#3-automated-cicd--cosmos-cloud-integration)
 - [📊 Side-by-Side Comparison Matrix](#-side-by-side-comparison-matrix)
+- [🚀 Quick Start with Docker & Cosmos Cloud](#-quick-start-with-docker--cosmos-cloud)
+  - [Option A: Cosmos Cloud Server (Recommended)](#option-a-cosmos-cloud-server-recommended)
+  - [Option B: Docker Compose](#option-b-docker-compose)
+- [🔄 How to Keep Updated (Upstream Sync)](#-how-to-keep-updated-upstream-sync)
+- [🛠️ Local Development & Build](#️-local-development--build)
+- [📜 Attribution & License](#-attribution--license)
 
 ---
 
@@ -78,6 +89,16 @@ Designed with inspiration from **Apple TV+** and **Linear**, the interface elimi
 * **28x Faster Blurhash Decoding via GPU:**
   * Reduced client-side blurhash canvas decode from 170×256 pixels down to **32×48 pixels**, delegating bilinear upscaling to hardware GPU textures.
   * Wrapped in `requestAnimationFrame` and guarded by cache status — saving **97% main-thread CPU time** during initial page renders.
+
+---
+
+### 3. 🐳 Automated CI/CD & Cosmos Cloud Integration
+
+* **Automated GHCR Pipeline:**
+  * Includes `.github/workflows/docker-build.yml`: every `git push` to `main` automatically triggers a multi-stage Docker build in GitHub Actions and publishes a fresh image to GitHub Container Registry (`ghcr.io/goldbull3t/my-watcharr:latest`).
+* **Cosmos Cloud First-Class Citizen:**
+  * Ready to deploy in Cosmos Server as a ServApp container with automatic reverse proxy routing, Let's Encrypt HTTPS/SSL certificates, and persistent SQLite storage.
+
 ---
 
 ## 📊 Side-by-Side Comparison Matrix
@@ -99,3 +120,120 @@ Designed with inspiration from **Apple TV+** and **Linear**, the interface elimi
 | **Docker Build** | Manual or upstream releases only | **Automated GitHub Actions CI/CD to GHCR** |
 
 ---
+
+## 🚀 Quick Start with Docker & Cosmos Cloud
+
+### Option A: Cosmos Cloud Server (Recommended)
+
+1. Open your **Cosmos Cloud** dashboard.
+2. Navigate to **ServApps** (or **Containers**) and click **Create / Add Container**:
+   * **Container Name:** `watcharr`
+   * **Image:** `ghcr.io/goldbull3t/my-watcharr:latest`
+   * **Port:** Container port `3080`
+   * **Volumes / Storage:**
+     * Map a host path to `/data` in the container:
+       * **Host Path:** `/var/lib/cosmos/storage/watcharr` *(or your preferred path)*
+       * **Container Path:** `/data`
+   * **Restart Policy:** `Unless Stopped`
+3. Click **Create Container**.
+4. Go to **URL / Reverse Proxy** -> **Create Route**:
+   * Map your domain (e.g. `watcharr.yourdomain.com`) to container `watcharr` on port `3080`.
+   * Cosmos Cloud will automatically generate and manage Let's Encrypt SSL/HTTPS certificates.
+
+> [!TIP]
+> If your GitHub repository is private, make sure your published package in GitHub is set to **Public** (*Profile -> Packages -> watcharr -> Package Settings -> Change Visibility to Public*), so Cosmos Cloud can pull updates without needing extra registry credentials.
+
+---
+
+### Option B: Docker Compose
+
+You can also deploy with standard `docker compose`:
+
+```yaml
+services:
+  watcharr:
+    image: ghcr.io/goldbull3t/my-watcharr:latest
+    container_name: watcharr
+    restart: unless-stopped
+    ports:
+      - "3080:3080"
+    volumes:
+      - ./data:/data
+```
+
+Start the service:
+```bash
+docker compose up -d
+```
+
+---
+
+## 🔄 How to Keep Updated (Upstream Sync)
+
+Your local repository is configured with two remotes:
+* `origin`: Your custom GitHub repository (`GoldBull3t/my-watcharr`)
+* `upstream`: The official Watcharr repository (`sbondCo/Watcharr`)
+
+### Inspecting New Upstream Changes
+To check if the original author released new upstream commits without altering your code:
+```bash
+git fetch upstream
+git log HEAD..upstream/dev --oneline
+```
+
+### Applying Specific Upstream Bugfixes (Cherry-Pick)
+To safely adopt a specific upstream fix without touching your custom UI or performance optimizations:
+```bash
+git cherry-pick <COMMIT_HASH>
+git push origin main
+```
+
+### Making Your Own Updates
+Anytime you make changes to the code:
+```bash
+git add .
+git commit -m "feat: description of improvement"
+git push origin main
+```
+The GitHub Actions workflow will automatically build a new Docker image in ~2 minutes. Then simply click **Restart / Re-pull Image** in your Cosmos Cloud dashboard!
+
+---
+
+## 🛠️ Local Development & Build
+
+### Prerequisites
+* **Node.js** >= 20
+* **Go** >= 1.22
+
+### Running Locally
+```bash
+# 1. Install frontend dependencies
+npm install
+
+# 2. Start frontend dev server
+npm run dev
+
+# 3. In another terminal, run the Go backend
+cd server
+go run watcharr.go
+```
+
+### Running Checks & Production Builds
+```bash
+# Type check frontend
+npm run check
+
+# Build production frontend
+npm run build
+
+# Build Go production binary
+cd server
+go build -o Watcharr.exe watcharr.go
+```
+
+---
+
+## 📜 Attribution & License
+
+* Original project created by [sbondCo](https://github.com/sbondCo) under the **GPLv3 License**.
+* This customized edition is maintained by [GoldBull3t](https://github.com/GoldBull3t) under the same **GNU General Public License v3.0**. See the [LICENSE](LICENSE) file for details.

@@ -99,7 +99,6 @@ export default function paginatedLoader<T, U>(
 		try {
 			const resp = await fn(locReqController.signal);
 			if (!resp) {
-				state.reqLoading = false;
 				console.error(
 					"paginatedLoader->runFn: fn returned nothing! May not have wanted to for some reason..",
 				);
@@ -112,7 +111,6 @@ export default function paginatedLoader<T, U>(
 				logStyle,
 			);
 			if (!resp.results || resp.results.length <= 0) {
-				state.reqLoading = false;
 				console.warn("loadWatchedList: No results.");
 				return;
 			}
@@ -129,8 +127,9 @@ export default function paginatedLoader<T, U>(
 				console.error("loadWatchedList: failed!", err);
 				state.reqLoadError = err;
 			}
+		} finally {
+			state.reqLoading = false;
 		}
-		state.reqLoading = false;
 	};
 
 	return {

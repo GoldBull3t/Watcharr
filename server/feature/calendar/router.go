@@ -26,6 +26,8 @@ func (r *Router) AddRoutes() {
 		Use(authmiddleware.AuthRequired(r.br.Cfg))
 
 	calendar.GET("", r.GetCalendarEvents)
+	calendar.POST("/webhook/test", r.TestCalendarWebhook)
+	calendar.POST("/webhook/send", r.SendCalendarWebhook)
 }
 
 func (r *Router) GetCalendarEvents(c *gin.Context) {
@@ -46,5 +48,46 @@ func (r *Router) GetCalendarEvents(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, events)
+}
+
+type WebhookTestReq struct {
+	Url string `json:"url"`
+}
+
+func (r *Router) TestCalendarWebhook(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	var body WebhookTestReq
+	_ = c.ShouldBindJSON(&body)
+
+	msg, err := r.s.TestWebhook(userId, body.Url)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": msg,
+	})
+}
+
+func (r *Router) SendCalendarWebhook(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	count, err := r.s.CheckAndNotifyUser(userId, true)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	msg := "Nenhuma estreia encontrada na tua biblioteca para o dia de hoje."
+	if count > 0 {
+		msg = "Notificação de lançamentos de hoje enviada com sucesso!"
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"count":   count,
+		"message": msg,
+	})
 }
 

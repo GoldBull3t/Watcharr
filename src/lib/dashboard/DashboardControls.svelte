@@ -59,7 +59,8 @@
 		{ id: "planned", label: "Planned" },
 		{ id: "finished", label: "Finished" },
 		{ id: "hold", label: "On Hold" },
-		{ id: "dropped", label: "Dropped" },
+		{ id: "dropped", label: "Stopped Watching" },
+		{ id: "cancelled", label: "Cancelled" },
 	] as const;
 
 	let currentStatus = $derived.by(() => {
@@ -71,6 +72,7 @@
 		if (val === "finished") return "finished";
 		if (val === "hold") return "hold";
 		if (val === "dropped") return "dropped";
+		if (val === "cancelled" || val === "canceled") return "cancelled";
 		return "all";
 	});
 
@@ -82,7 +84,7 @@
 	}
 
 	function removeFilter(
-		key: "status" | "type" | "year" | "minRating" | "query" | "genre",
+		key: "status" | "type" | "year" | "minRating" | "query" | "genre" | "productionStatus",
 	) {
 		if (key === "status") {
 			store.activeFilters = { ...store.activeFilters, status: [] };
@@ -94,6 +96,8 @@
 			store.activeFilters = { ...store.activeFilters, minRating: undefined };
 		} else if (key === "genre") {
 			store.activeFilters = { ...store.activeFilters, genre: undefined };
+		} else if (key === "productionStatus") {
+			store.activeFilters = { ...store.activeFilters, productionStatus: undefined };
 		} else if (key === "query") {
 			librarySearchText = "";
 			store.activeFilters = { ...store.activeFilters, query: undefined };
@@ -134,7 +138,10 @@
 	});
 </script>
 
-<header class="unified-command-bar">
+<header
+	class="unified-command-bar"
+	class:has-open-menu={sortMenuShown || filterMenuShown || detailedMenuShown}
+>
 	<!-- Left Side: Status Segmented Tabs -->
 	<nav class="status-tabs-container" aria-label="Media status tabs">
 		<div class="status-tabs-track" role="tablist">
@@ -178,7 +185,7 @@
 		</div>
 
 		<!-- Filters Menu Popover -->
-		<div class="control-menu-wrap">
+		<div class="control-menu-wrap" class:menu-open={filterMenuShown}>
 			<button
 				type="button"
 				class="icon-toggle"
@@ -204,7 +211,7 @@
 		</div>
 
 		<!-- Sort Menu Popover -->
-		<div class="control-menu-wrap">
+		<div class="control-menu-wrap" class:menu-open={sortMenuShown}>
 			<button
 				type="button"
 				class="icon-toggle"
@@ -230,7 +237,7 @@
 		</div>
 
 		<!-- Detailed View Toggle -->
-		<div class="control-menu-wrap">
+		<div class="control-menu-wrap" class:menu-open={detailedMenuShown}>
 			<button
 				type="button"
 				class="icon-toggle"
@@ -367,6 +374,20 @@
 			</span>
 		{/if}
 
+		{#if store.activeFilters?.productionStatus}
+			<span class="filter-chip production-chip">
+				Status: {store.activeFilters.productionStatus === "canceled" ? "Cancelada pelos Produtores" : store.activeFilters.productionStatus === "returning" ? "Em Exibição" : "Terminada"}
+				<button
+					type="button"
+					class="plain chip-x-btn"
+					onclick={() => removeFilter("productionStatus")}
+					aria-label="Remove production status filter"
+				>
+					<Icon i="close" wh={11} />
+				</button>
+			</span>
+		{/if}
+
 		{#if store.activeFilters?.query}
 			<span class="filter-chip">
 				"{store.activeFilters.query}"
@@ -393,6 +414,8 @@
 
 <style lang="scss">
 	.unified-command-bar {
+		position: relative;
+		z-index: 50;
 		display: flex;
 		flex-flow: row nowrap;
 		align-items: center;
@@ -408,6 +431,10 @@
 		-webkit-backdrop-filter: blur(20px);
 		box-sizing: border-box;
 		width: 100%;
+
+		&.has-open-menu {
+			z-index: 100;
+		}
 
 		@media screen and (max-width: 960px) {
 			flex-direction: column;
@@ -477,13 +504,10 @@
 			flex-shrink: 0;
 
 			@media screen and (max-width: 960px) {
-				justify-content: space-between;
+				justify-content: flex-end;
 				width: 100%;
-				overflow-x: auto;
-				scrollbar-width: none;
-				&::-webkit-scrollbar {
-					display: none;
-				}
+				flex-wrap: wrap;
+				overflow: visible;
 			}
 
 			/* In-Library Search Input */
@@ -563,6 +587,10 @@
 				display: inline-flex;
 				align-items: center;
 				flex-shrink: 0;
+
+				&.menu-open {
+					z-index: 110;
+				}
 			}
 
 			.icon-toggle {
@@ -684,6 +712,8 @@
 
 	/* Active Filter Chips Dock */
 	.active-chips-dock {
+		position: relative;
+		z-index: 2;
 		display: flex;
 		flex-flow: row wrap;
 		align-items: center;

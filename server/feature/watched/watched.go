@@ -679,7 +679,7 @@ func (s *Service) UpdateWatched(
 
 		activity.
 			NewCreator(s.db, userId, id, entity.RATING_CHANGED, false, ar.ActivityCreatedBy).
-			SetData(strconv.Itoa(int(ar.Rating))).
+			SetData(strconv.FormatFloat(ar.Rating, 'f', -1, 64)).
 			AddToMultiCreator(activityMC)
 	}
 	if ar.Status != "" && ar.Status != upwat.Status {

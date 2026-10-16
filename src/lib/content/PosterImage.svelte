@@ -1,12 +1,13 @@
 <script lang="ts">
 	interface Props {
 		src: string;
+		alt?: string;
 	}
 
-	let { src }: Props = $props();
+	let { src, alt = "Media poster" }: Props = $props();
 </script>
 
-<img {src} alt="" />
+<img {src} {alt} loading="lazy" decoding="async" />
 
 <style lang="scss">
 	img {

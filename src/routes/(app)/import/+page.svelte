@@ -23,11 +23,16 @@
 		TagAddRequest,
 		TodoMoviesCustomList,
 		TodoMoviesMovie,
+		WatchedEpisode,
+		YamtrackRow,
+		LetterboxdRow,
 	} from "@/types";
 	import Icon from "@/lib/Icon.svelte";
 	import { resolve } from "$app/paths";
+	import { baseURL } from "@/lib/util/api";
 
 	let isLoading = $state(false);
+	let isExporting = $state(false);
 
 	function processFiles(
 		files: FileList | null | undefined,
@@ -678,6 +683,459 @@
 		}
 	}
 
+	async function processYamtrackFile(files?: FileList | null) {
+		try {
+			console.log("processYamtrackFile", files);
+			if (!files || files?.length <= 0) {
+				console.error("processYamtrackFile", "No files to process!");
+				notify({
+					type: "error",
+					text: "File not found in dropped items. Please try again or refresh.",
+					time: 6000,
+				});
+				return;
+			}
+			isLoading = true;
+			if (files.length > 1) {
+				notify({
+					type: "error",
+					text: "Only one file at a time is supported. Continuing with the first.",
+					time: 6000,
+				});
+			}
+
+			const file = files[0];
+			if (file.type !== "text/csv" && !file.name.toLowerCase().endsWith(".csv")) {
+				notify({
+					type: "error",
+					text: "Yamtrack export must be a .csv file!",
+				});
+				isLoading = false;
+				return;
+			}
+
+			const csvText = await readFile(new FileReader(), file);
+			if (!csvText || !csvText.trim()) {
+				notify({
+					type: "error",
+					text: "The selected file is empty!",
+				});
+				isLoading = false;
+				return;
+			}
+
+			const parsed = papa.parse<YamtrackRow>(csvText.trim(), {
+				header: true,
+				skipEmptyLines: true,
+			});
+
+			if (!parsed.data || parsed.data.length === 0) {
+				notify({
+					type: "error",
+					text: "Could not find any items in the Yamtrack CSV file!",
+				});
+				isLoading = false;
+				return;
+			}
+
+			const toImport: ImportedList[] = [];
+
+			for (let i = 0; i < parsed.data.length; i++) {
+				const row = parsed.data[i];
+				if (!row || (!row.title && !row.media_id)) {
+					continue;
+				}
+
+				const rawMediaId = String(row.media_id || "").trim();
+				const source = String(row.source || "tmdb").toLowerCase().trim();
+				const rawType = String(row.media_type || "").toLowerCase().trim();
+				const type: "movie" | "tv" | "game" =
+					rawType === "movie" || rawType === "film"
+						? "movie"
+						: rawType === "game" || rawType === "videogame"
+							? "game"
+							: "tv";
+
+				const tmdbId =
+					source === "tmdb" && rawMediaId && !isNaN(Number(rawMediaId))
+						? Number(rawMediaId)
+						: undefined;
+				const imdbId = source === "imdb" && rawMediaId ? rawMediaId : undefined;
+				const igdbId =
+					source === "igdb" && rawMediaId && !isNaN(Number(rawMediaId))
+						? Number(rawMediaId)
+						: undefined;
+
+				// Status mapping
+				const rawStatus = String(row.status || "").toLowerCase().trim();
+				let status: WatchedStatus = "FINISHED";
+				if (
+					rawStatus.includes("complete") ||
+					rawStatus.includes("finish") ||
+					rawStatus.includes("watched")
+				) {
+					status = "FINISHED";
+				} else if (
+					rawStatus.includes("watching") ||
+					rawStatus.includes("progress") ||
+					rawStatus.includes("current")
+				) {
+					status = "WATCHING";
+				} else if (
+					rawStatus.includes("plan") ||
+					rawStatus.includes("want") ||
+					rawStatus.includes("queue") ||
+					rawStatus.includes("list")
+				) {
+					status = "PLANNED";
+				} else if (rawStatus.includes("hold") || rawStatus.includes("pause")) {
+					status = "HOLD";
+				} else if (
+					rawStatus.includes("drop") ||
+					rawStatus.includes("cancel") ||
+					rawStatus.includes("abandon")
+				) {
+					status = "DROPPED";
+				}
+
+				// Rating mapping (Yamtrack can score 1-10 or 1-100)
+				let rating: number | undefined = undefined;
+				if (
+					typeof row.score !== "undefined" &&
+					row.score !== null &&
+					String(row.score).trim() !== ""
+				) {
+					const num = Number(row.score);
+					if (!isNaN(num) && num > 0) {
+						rating = num > 10 ? Math.min(10, Math.round(num / 10)) : Math.min(10, num);
+					}
+				}
+
+				// Dates
+				const datesWatched: Date[] = [];
+				let ratingCustomDate: Date | undefined = undefined;
+				if (row.end_date) {
+					const d = new Date(row.end_date);
+					if (!isNaN(d.getTime())) {
+						datesWatched.push(d);
+						ratingCustomDate = d;
+					}
+				} else if (row.start_date) {
+					const d = new Date(row.start_date);
+					if (!isNaN(d.getTime())) {
+						ratingCustomDate = d;
+					}
+				} else if (row.created_at) {
+					const d = new Date(row.created_at);
+					if (!isNaN(d.getTime())) {
+						ratingCustomDate = d;
+					}
+				}
+
+				// Check if item already exists in toImport (e.g. from multiple episode/watch rows)
+				const existing = toImport.find((item) => {
+					if (tmdbId && item.tmdbId === tmdbId && item.type === type) return true;
+					if (imdbId && item.imdbId === imdbId) return true;
+					if (igdbId && item.igdbId === igdbId) return true;
+					if (
+						!tmdbId &&
+						!imdbId &&
+						!igdbId &&
+						item.name === row.title &&
+						item.type === type
+					)
+						return true;
+					return false;
+				});
+
+				const seasonNum = row.season_number ? Number(row.season_number) : undefined;
+				const epNum = row.episode_number ? Number(row.episode_number) : undefined;
+
+				if (existing) {
+					// Merge additional watch date
+					if (datesWatched.length > 0) {
+						if (!existing.datesWatched) existing.datesWatched = [];
+						existing.datesWatched.push(...datesWatched);
+					}
+					// Update rating if not set yet
+					if (!existing.rating && rating) {
+						existing.rating = rating;
+					}
+					// Append notes if any
+					if (row.notes?.trim() && !existing.thoughts?.includes(row.notes.trim())) {
+						existing.thoughts = existing.thoughts
+							? `${existing.thoughts}\n${row.notes.trim()}`
+							: row.notes.trim();
+					}
+					// Episode tracking
+					if (seasonNum && epNum) {
+						if (!existing.watchedEpisodes) existing.watchedEpisodes = [];
+						if (
+							!existing.watchedEpisodes.some(
+								(e) => e.seasonNumber === seasonNum && e.episodeNumber === epNum,
+							)
+						) {
+							existing.watchedEpisodes.push({
+								seasonNumber: seasonNum,
+								episodeNumber: epNum,
+								status: "FINISHED",
+							} as WatchedEpisode);
+						}
+					}
+					continue;
+				}
+
+				// New item
+				const t: ImportedList = {
+					name: row.title?.trim() || `Media ${rawMediaId}`,
+					type,
+					status,
+					thoughts: row.notes?.trim() || "",
+				};
+
+				if (tmdbId) t.tmdbId = tmdbId;
+				if (imdbId) t.imdbId = imdbId;
+				if (igdbId) t.igdbId = igdbId;
+				if (rating) t.rating = rating;
+				if (datesWatched.length > 0) t.datesWatched = datesWatched;
+				if (ratingCustomDate) t.ratingCustomDate = ratingCustomDate;
+
+				if (seasonNum && epNum) {
+					t.watchedEpisodes = [
+						{
+							seasonNumber: seasonNum,
+							episodeNumber: epNum,
+							status: "FINISHED",
+						} as WatchedEpisode,
+					];
+				}
+
+				toImport.push(t);
+			}
+
+			if (toImport.length === 0) {
+				notify({
+					type: "error",
+					text: "No valid media items found in the Yamtrack CSV file!",
+				});
+				isLoading = false;
+				return;
+			}
+
+			console.log("Yamtrack toImport:", toImport);
+			store.importedList = {
+				data: JSON.stringify(toImport),
+				type: "yamtrack",
+			};
+
+			goto(resolve("/import/process"));
+		} catch (err) {
+			isLoading = false;
+			notify({ type: "error", text: "Failed to read Yamtrack file!" });
+			console.error("import: Failed to read Yamtrack file!", err);
+		}
+	}
+
+	async function processLetterboxdFile(files?: FileList | null) {
+		try {
+			console.log("processLetterboxdFile", files);
+			if (!files || files.length <= 0) {
+				notify({
+					type: "error",
+					text: "No files dropped. Please select one or more Letterboxd CSV files.",
+					time: 5000,
+				});
+				return;
+			}
+			isLoading = true;
+
+			// Map by `${title.toLowerCase()}_${year}`
+			const itemsMap = new Map<string, ImportedList>();
+
+			for (let f = 0; f < files.length; f++) {
+				const file = files[f];
+				const fileName = file.name.toLowerCase();
+				if (!fileName.endsWith(".csv") && file.type !== "text/csv") {
+					continue;
+				}
+
+				const isWatchlist = fileName.includes("watchlist");
+
+				const text = await readFile(new FileReader(), file);
+				if (!text || !text.trim()) continue;
+
+				const parsed = papa.parse<LetterboxdRow>(text.trim(), {
+					header: true,
+					skipEmptyLines: true,
+				});
+
+				if (!parsed.data || parsed.data.length === 0) continue;
+
+				for (let i = 0; i < parsed.data.length; i++) {
+					const row = parsed.data[i];
+					if (!row || !row.Name) continue;
+
+					const title = String(row.Name).trim();
+					let year: number | undefined = undefined;
+					if (row.Year) {
+						const y = Number(row.Year);
+						if (!isNaN(y) && y > 1880 && y < 2100) {
+							year = y;
+						}
+					}
+
+					const key = `${title.toLowerCase()}_${year || ""}`;
+
+					// Default status: watchlist.csv -> PLANNED, others -> FINISHED
+					let status: WatchedStatus = isWatchlist ? "PLANNED" : "FINISHED";
+
+					// Rating: Letterboxd is 0.5 to 5.0 -> multiply by 2 for Watcharr's 1-10 scale
+					let rating: number | undefined = undefined;
+					if (
+						typeof row.Rating !== "undefined" &&
+						row.Rating !== null &&
+						String(row.Rating).trim() !== ""
+					) {
+						const r = Number(row.Rating);
+						if (!isNaN(r) && r > 0) {
+							rating = Math.min(10, Math.round(r * 2 * 10) / 10);
+						}
+					}
+
+					// Dates
+					const datesWatched: Date[] = [];
+					let ratingCustomDate: Date | undefined = undefined;
+					const rawDate = row["Watched Date"] || row.Date;
+					if (rawDate) {
+						const d = new Date(rawDate);
+						if (!isNaN(d.getTime())) {
+							datesWatched.push(d);
+							ratingCustomDate = d;
+						}
+					}
+
+					// Tags
+					const tags: TagAddRequest[] = [];
+					if (row.Tags && typeof row.Tags === "string" && row.Tags.trim()) {
+						const tagNames = row.Tags.split(",").map((s) => s.trim()).filter(Boolean);
+						for (const tn of tagNames) {
+							tags.push({ name: tn, color: "#ffffff", bgColor: "#e11d48" });
+						}
+					}
+
+					const existing = itemsMap.get(key);
+					if (existing) {
+						// Merge
+						if (status === "FINISHED") {
+							existing.status = "FINISHED";
+						}
+						if (!existing.rating && rating) {
+							existing.rating = rating;
+						}
+						if (datesWatched.length > 0) {
+							if (!existing.datesWatched) existing.datesWatched = [];
+							existing.datesWatched.push(...datesWatched);
+						}
+						if (ratingCustomDate && !existing.ratingCustomDate) {
+							existing.ratingCustomDate = ratingCustomDate;
+						}
+						if (tags.length > 0) {
+							if (!existing.tags) existing.tags = [];
+							for (const t of tags) {
+								if (!existing.tags.some((et) => et.name.toLowerCase() === t.name.toLowerCase())) {
+									existing.tags.push(t);
+								}
+							}
+						}
+					} else {
+						const item: ImportedList = {
+							name: title,
+							year,
+							type: "movie",
+							status,
+							rating,
+							datesWatched: datesWatched.length > 0 ? datesWatched : undefined,
+							ratingCustomDate,
+							tags: tags.length > 0 ? tags : undefined,
+						};
+						itemsMap.set(key, item);
+					}
+				}
+			}
+
+			const toImport = Array.from(itemsMap.values());
+			if (toImport.length === 0) {
+				notify({
+					type: "error",
+					text: "Could not find any valid movies in the selected Letterboxd file(s)!",
+					time: 5000,
+				});
+				isLoading = false;
+				return;
+			}
+
+			console.log("Letterboxd toImport count:", toImport.length);
+			store.importedList = {
+				data: JSON.stringify(toImport),
+				type: "letterboxd",
+			};
+
+			goto(resolve("/import/process"));
+		} catch (err) {
+			isLoading = false;
+			notify({ type: "error", text: "Failed to process Letterboxd file(s)!" });
+			console.error("import: Failed to process Letterboxd:", err);
+		}
+	}
+
+	async function downloadExport(format: "json" | "csv") {
+		try {
+			isExporting = true;
+			const nid = notify({
+				type: "loading",
+				text: `Generating ${format.toUpperCase()} export...`,
+			});
+
+			const token = localStorage.getItem("token") || "";
+			const res = await fetch(`${baseURL}/watched/export?format=${format}`, {
+				headers: {
+					Authorization: token,
+				},
+			});
+
+			if (!res.ok) {
+				throw new Error(`Export failed with status: ${res.status}`);
+			}
+
+			const blob = await res.blob();
+			const url = window.URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			const dateStr = new Date().toISOString().split("T")[0];
+			a.download = `watcharr_export_${dateStr}.${format}`;
+			document.body.appendChild(a);
+			a.click();
+			window.URL.revokeObjectURL(url);
+			a.remove();
+
+			notify({
+				id: nid,
+				type: "success",
+				text: `Successfully exported library as .${format}!`,
+				time: 4000,
+			});
+		} catch (err) {
+			console.error("downloadExport: Failed!", err);
+			notify({
+				type: "error",
+				text: "Failed to export your library. Please try again.",
+				time: 6000,
+			});
+		} finally {
+			isExporting = false;
+		}
+	}
+
 	onMount(() => {
 		if (!localStorage.getItem("token")) {
 			goto(resolve("/login"));
@@ -757,7 +1215,55 @@
 					text="TodoMovies"
 					filesSelected={(f) => processTodoMoviesFile(f)}
 				/>
+
+				<DropFileButton
+					icon="yamtrack"
+					text="Yamtrack CSV"
+					filesSelected={(f) => processYamtrackFile(f)}
+				/>
+
+				<DropFileButton
+					icon="letterboxd"
+					text="Letterboxd CSV"
+					filesSelected={(f) => processLetterboxdFile(f)}
+					allowSelectMultipleFiles
+				/>
 			{/if}
+		</div>
+
+		<!-- Export section -->
+		<div class="export-section">
+			<div class="export-header">
+				<div class="export-titles">
+					<div class="title-row">
+						<Icon i="download" wh={22} />
+						<h3>Export Your Library</h3>
+					</div>
+					<p class="subtitle">
+						Download a complete backup of your watched media, reviews, dates, ratings, and tags.
+					</p>
+				</div>
+			</div>
+			<div class="export-actions">
+				<button
+					class="export-btn primary"
+					disabled={isExporting}
+					onclick={() => downloadExport("json")}
+				>
+					<Icon i="download" wh={18} />
+					<span>Export as JSON</span>
+					<span class="btn-subtext">Full backup (Watcharr format)</span>
+				</button>
+				<button
+					class="export-btn secondary"
+					disabled={isExporting}
+					onclick={() => downloadExport("csv")}
+				>
+					<Icon i="download" wh={18} />
+					<span>Export as CSV</span>
+					<span class="btn-subtext">Spreadsheet compatible</span>
+				</button>
+			</div>
 		</div>
 	</div>
 </div>
@@ -863,6 +1369,113 @@
 				font-weight: 600;
 				letter-spacing: 0.2px;
 				margin: 0;
+			}
+		}
+
+		.export-section {
+			margin-top: 48px;
+			padding: 26px;
+			background: rgba(255, 255, 255, 0.02);
+			border: 1px solid rgba(255, 255, 255, 0.06);
+			border-radius: 16px;
+			display: flex;
+			flex-direction: column;
+			gap: 20px;
+
+			.export-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+
+				.export-titles {
+					display: flex;
+					flex-direction: column;
+					gap: 6px;
+
+					.title-row {
+						display: flex;
+						align-items: center;
+						gap: 10px;
+						color: $text-color;
+						fill: $text-color;
+
+						h3 {
+							margin: 0;
+							font-size: 18px;
+							font-weight: 600;
+							letter-spacing: -0.01em;
+						}
+					}
+
+					.subtitle {
+						margin: 0;
+						font-size: 13px;
+						color: $text-muted;
+					}
+				}
+			}
+
+			.export-actions {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+				gap: 14px;
+
+				.export-btn {
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					justify-content: center;
+					gap: 6px;
+					padding: 16px 20px;
+					border-radius: 12px;
+					cursor: pointer;
+					transition: all 0.2s ease;
+					user-select: none;
+					text-align: center;
+					border: 1px solid transparent;
+
+					&:disabled {
+						opacity: 0.5;
+						cursor: not-allowed;
+					}
+
+					span {
+						font-weight: 600;
+						font-size: 14px;
+					}
+
+					.btn-subtext {
+						font-size: 11px;
+						font-weight: 400;
+						opacity: 0.7;
+					}
+
+					&.primary {
+						background: rgba(54, 186, 152, 0.12);
+						color: #36ba98;
+						fill: #36ba98;
+						border-color: rgba(54, 186, 152, 0.3);
+
+						&:hover:not(:disabled) {
+							background: rgba(54, 186, 152, 0.22);
+							border-color: rgba(54, 186, 152, 0.5);
+							transform: translateY(-2px);
+						}
+					}
+
+					&.secondary {
+						background: rgba(255, 255, 255, 0.04);
+						color: $text-color;
+						fill: $text-color;
+						border-color: rgba(255, 255, 255, 0.08);
+
+						&:hover:not(:disabled) {
+							background: rgba(255, 255, 255, 0.08);
+							border-color: rgba(255, 255, 255, 0.18);
+							transform: translateY(-2px);
+						}
+					}
+				}
 			}
 		}
 	}

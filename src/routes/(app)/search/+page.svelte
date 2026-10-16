@@ -109,7 +109,7 @@
 
 	onMount(() => {
 		if (!store.searchQuery && data?.query) {
-			store.searchQuery = decodeURIComponent(data?.query);
+			store.searchQuery = data.query;
 		}
 		dataLoader.runFn(PaginatedLoaderRunFnAction.Reset);
 	});
@@ -124,7 +124,7 @@
 			page.url.searchParams,
 		);
 		// Sync state (so back button updates search correctly)
-		store.searchQuery = data?.query ? decodeURIComponent(data?.query) : "";
+		store.searchQuery = data?.query ? data.query : "";
 		dataLoader.abortReq("navigated away");
 		dataLoader.runFn(PaginatedLoaderRunFnAction.Reset);
 	});
@@ -147,7 +147,7 @@
 	function applySearchQuery(q: string) {
 		store.searchQuery = q;
 		const curLocation = new URL(page.url);
-		curLocation.searchParams.set("query", encodeURIComponent(q));
+		curLocation.searchParams.set("query", q);
 		if (!curLocation.searchParams.has("preferMyList")) {
 			curLocation.searchParams.set("preferMyList", "true");
 		}

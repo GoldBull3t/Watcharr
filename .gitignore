@@ -44,3 +44,6 @@ data/
 # Build artifacts
 server/ui
 server/watcharr
+
+# Agent customizations
+.agents/

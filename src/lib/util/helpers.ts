@@ -14,6 +14,7 @@ export const watchedStatuses: {
 	FINISHED: "check",
 	HOLD: "pause",
 	DROPPED: "thumb-down",
+	CANCELLED: "close-circle",
 };
 
 export const months = [
@@ -70,12 +71,31 @@ export function toUnderstandableStatus(s: WatchedStatus, isForGame: boolean) {
 			return "played";
 		} else if (s === "WATCHING") {
 			return "playing";
+		} else if (s === "DROPPED") {
+			return "stopped playing";
+		} else if (s === "CANCELLED") {
+			return "cancelled";
 		}
 	}
 	if (s === "HOLD") {
 		return "on hold";
 	}
-	return s?.toLowerCase();
+	if (s === "DROPPED") {
+		return "stopped watching";
+	}
+	if (s === "CANCELLED") {
+		return "cancelled";
+	}
+	if (s === "WATCHING") {
+		return "watching";
+	}
+	if (s === "PLANNED") {
+		return "planned";
+	}
+	if (s === "FINISHED") {
+		return "finished";
+	}
+	return (s as string)?.toLowerCase() ?? "";
 }
 
 /**
@@ -214,20 +234,22 @@ export function msToAmountsOfTime(ms: number) {
 }
 
 /** I'm no warden of time, this is as relative as it's getting. */
-export function toRelativeDate(d: Date): string {
+export function toRelativeDate(d: Date | string | number | undefined | null): string {
 	if (!d) {
 		return "Unknown";
 	}
-	const dn = new Date(Date.now());
-	if (d.getFullYear() === dn.getFullYear()) {
-		if (d.getMonth() === dn.getMonth()) {
-			if (d.getDate() === dn.getDate()) {
-				return "Today";
-			}
-		}
-		return `${d.getDate()}${getOrdinalSuffix(d.getDate())} ${monthsShort[d.getMonth()]}`;
+	const date = d instanceof Date ? d : new Date(d);
+	if (isNaN(date.getTime())) {
+		return "Unknown";
 	}
-	return `${d.getDate()}${getOrdinalSuffix(d.getDate())} ${monthsShort[d.getMonth()]} ${d.getFullYear()}`;
+	const dn = new Date();
+	if (date.getFullYear() === dn.getFullYear()) {
+		if (date.getMonth() === dn.getMonth() && date.getDate() === dn.getDate()) {
+			return "Today";
+		}
+		return `${date.getDate()}${getOrdinalSuffix(date.getDate())} ${monthsShort[date.getMonth()]}`;
+	}
+	return `${date.getDate()}${getOrdinalSuffix(date.getDate())} ${monthsShort[date.getMonth()]} ${date.getFullYear()}`;
 }
 
 /**

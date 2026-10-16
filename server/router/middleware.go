@@ -128,7 +128,13 @@ func PaginatedRequest(force bool) gin.HandlerFunc {
 				c.JSON(http.StatusBadRequest, ErrorResponse{Error: "query param 'limit' must be a number"})
 				return
 			}
-			limit = num
+			if num > 100 {
+				limit = 100
+			} else if num <= 0 {
+				limit = 40
+			} else {
+				limit = num
+			}
 		} else {
 			slog.Debug("PossiblyPaginated: Using default limit.")
 		}

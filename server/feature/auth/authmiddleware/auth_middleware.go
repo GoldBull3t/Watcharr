@@ -1,6 +1,7 @@
 package authmiddleware
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -29,6 +30,9 @@ func AuthRequired(cfg *config.ServerConfig) gin.HandlerFunc {
 		}
 		// Parse token
 		token, err := jwt.ParseWithClaims(atoken, &entity.TokenClaims{}, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
 			return []byte(cfg.JWT_SECRET), nil
 		})
 		if err != nil {

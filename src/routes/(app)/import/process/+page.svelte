@@ -134,7 +134,7 @@
 						// Skip if no name or tmdb id
 						if (!el.Name && !el["TMDb ID"]) {
 							console.warn("Skipping item with no name or tmdb id", el);
-							return;
+							continue;
 						}
 						const l: ImportedList = { name: el.Name };
 						const year = el["Release Date"]
@@ -440,6 +440,19 @@
 					text: "Processing failed!. Please report this issue if it persists.",
 				});
 			}
+		} else if (list?.type === "yamtrack" || list?.type === "letterboxd") {
+			importText = list.type === "yamtrack" ? "Yamtrack" : "Letterboxd";
+			try {
+				const s = JSON.parse(list.data);
+				// Builds imported list in previous step for ease.
+				rList = s;
+			} catch (err) {
+				console.error(`${importText} import processing failed!`, err);
+				notify({
+					type: "error",
+					text: "Processing failed! Please report this issue if it persists.",
+				});
+			}
 		}
 	}
 
@@ -563,6 +576,7 @@
 				if (!results || results.length <= 0) {
 					item.state = ImportResponseType.IMPORT_NOTFOUND;
 					rList = rList;
+					res(0);
 					return;
 				}
 				if (item.year) {

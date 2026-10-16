@@ -25,9 +25,37 @@
 	let onMyListFilter = $state(false);
 
 	$effect(() => {
+		const controller = new AbortController();
 		if (data.personId) {
-			fetchPersonData();
+			(async () => {
+				try {
+					person = undefined;
+					pageError = undefined;
+					if (!data.personId) return;
+					const p = await req.get<PersonDetailsResponse>(
+						`/content/person/${data.personId}`,
+						{ signal: controller.signal },
+					);
+					if (controller.signal.aborted) return;
+					person = p;
+					const c = await req.get<PersonCreditsResponse>(
+						`/content/person/${data.personId}/credits`,
+						{ signal: controller.signal },
+					);
+					if (controller.signal.aborted) return;
+					c.credits = c.credits?.filter(
+						(v, i, a) => a.findIndex((t) => t.ids.tmdb === v.ids.tmdb) === i,
+					);
+					credits = c;
+					sortCredits(sortOption);
+				} catch (err: unknown) {
+					if (controller.signal.aborted) return;
+					person = undefined;
+					pageError = err;
+				}
+			})();
 		}
+		return () => controller.abort();
 	});
 
 	$effect(() => {
@@ -35,35 +63,6 @@
 			sortCredits(sortOption);
 		}
 	});
-
-	async function fetchPersonData() {
-		try {
-			person = undefined;
-			pageError = undefined;
-			if (!data.personId) {
-				return;
-			}
-			person = await getPerson(data.personId);
-			await updatePersonCredits();
-			sortCredits(sortOption);
-		} catch (err) {
-			person = undefined;
-			pageError = err;
-		}
-	}
-
-	async function getPerson(id: number) {
-		return await req.get<PersonDetailsResponse>(`/content/person/${id}`);
-	}
-
-	async function updatePersonCredits() {
-		credits = await req.get<PersonCreditsResponse>(
-			`/content/person/${data.personId}/credits`,
-		);
-		credits.credits = credits.credits?.filter(
-			(v, i, a) => a.findIndex((t) => t.ids.tmdb === v.ids.tmdb) === i,
-		); // remove duplicate entries. If an actor has multiple roles in a single movie, it would otherwise show up multiple times
-	}
 
 	function newestOldestSort(
 		a: Media,
@@ -80,8 +79,8 @@
 			// here to avoid an infinite loop.
 			return 0;
 		}
-		if (!a.releaseDate && !a.releaseDate) return n === 0 ? -1 : 1;
-		if (!b.releaseDate && !b.releaseDate) return n === 0 ? 1 : -1;
+		if (!a.releaseDate) return n === 0 ? -1 : 1;
+		if (!b.releaseDate) return n === 0 ? 1 : -1;
 
 		const dateA = new Date(a.releaseDate).valueOf();
 		const dateB = new Date(b.releaseDate).valueOf();
@@ -140,7 +139,7 @@
 
 						<div class="details">
 							<span class="title-container">
-								<a href={person.homepage} rel="external" target="_blank">
+								<a href={person.homepage} rel="noreferrer noopener external" target="_blank">
 									{person.name}
 								</a>
 								<span></span>

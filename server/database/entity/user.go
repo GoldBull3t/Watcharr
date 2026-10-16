@@ -80,6 +80,12 @@ type UserSettings struct {
 	Language *string `gorm:"default:'en-US'" json:"language"`
 	// Does the user want show, season and episode automations enabled.
 	AutomateShowStatuses *bool `gorm:"default:true" json:"automateShowStatuses"`
+	// Webhook URL for Calendar notifications (Discord, Slack, Ntfy, Generic)
+	CalendarWebhookUrl *string `gorm:"default:''" json:"calendarWebhookUrl"`
+	// Enable/disable automated daily calendar release webhook notifications
+	CalendarWebhookEnabled *bool `gorm:"default:false" json:"calendarWebhookEnabled"`
+	// Calendar release filter ("all", "movie", "tv")
+	CalendarWebhookFilter *string `gorm:"default:'all'" json:"calendarWebhookFilter"`
 	// Rating system user wants to use (frontend only).
 	// RatingSystem enum in frontend maxes out at 3, so just max=3 on this and we should be gut.
 	RatingSystem *int `json:"ratingSystem" binding:"omitempty,max=3"`

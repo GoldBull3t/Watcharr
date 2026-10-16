@@ -22,6 +22,10 @@ import (
 // inmemory content cache
 var ContentStore = gocache.New(time.Hour*24, time.Minute)
 
+var imageDownloadClient = &http.Client{
+	Timeout: 20 * time.Second,
+}
+
 // Download file over http (used for downloading poster images)
 // url - The remote file url.
 // outf - Where should we store the downloaded file.
@@ -39,7 +43,7 @@ func download(url string, outf string, force bool) (err error) {
 	}
 
 	// Get the data
-	resp, err := http.Get(url)
+	resp, err := imageDownloadClient.Get(url)
 	if err != nil {
 		slog.Error("download: Failed to make request.", "outf", outf, "error", err)
 		return err

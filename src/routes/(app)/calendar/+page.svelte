@@ -9,12 +9,14 @@
 	import { store } from "@/store.svelte";
 	import type { CalendarEvent, CalendarFilter, CalendarType } from "@/types";
 	import { toRelativeDate } from "@/lib/util/helpers";
+	import CalendarWebhookModal from "@/lib/calendar/CalendarWebhookModal.svelte";
 
 	type CalendarViewMode = "month" | "week" | "agenda";
 
 	let viewMode: CalendarViewMode = $state("month");
 	let scopeFilter: CalendarFilter = $state("library");
 	let typeFilter: CalendarType = $state("all");
+	let webhookModalOpen: boolean = $state(false);
 
 	// Current reference date (defaults to today)
 	const currentDate = new SvelteDate();
@@ -113,10 +115,22 @@
 	});
 
 	// Fetch calendar events whenever parameters change
+	let lastReqKey = "";
 	$effect(() => {
 		const { start, end } = dateRange;
 		const region = store.userSettings?.country || "";
+		const curScope = scopeFilter;
+		const curType = typeFilter;
 
+		// When filtering by library, region does not alter results.
+		// Ignore region changes in library mode to avoid duplicate requests when user settings resolve.
+		const reqKey = `${start}:${end}:${curScope}:${curType}:${curScope === "library" ? "" : region}`;
+		if (reqKey === lastReqKey) {
+			return;
+		}
+		lastReqKey = reqKey;
+
+		const controller = new AbortController();
 		loading = true;
 		error = undefined;
 
@@ -125,27 +139,38 @@
 				params: {
 					start,
 					end,
-					filter: scopeFilter,
-					type: typeFilter,
-					region,
+					filter: curScope,
+					type: curType,
+					region: curScope === "library" ? "" : region,
 				},
+				signal: controller.signal,
 			})
 			.then((res) => {
-				events = Array.isArray(res) ? res : [];
+				if (!controller.signal.aborted) {
+					events = Array.isArray(res) ? res : [];
+				}
 			})
 			.catch((err) => {
+				if (controller.signal.aborted) return;
 				console.error("Calendar: Failed to load events:", err);
 				error = err;
 				events = [];
 			})
 			.finally(() => {
-				loading = false;
+				if (!controller.signal.aborted) {
+					loading = false;
+				}
 			});
+
+		return () => {
+			controller.abort();
+		};
 	});
 
 	// Period navigation
 	function prevPeriod() {
 		if (viewMode === "month") {
+			currentDate.setDate(1);
 			currentDate.setMonth(currentDate.getMonth() - 1);
 		} else if (viewMode === "week") {
 			currentDate.setDate(currentDate.getDate() - 7);
@@ -156,6 +181,7 @@
 
 	function nextPeriod() {
 		if (viewMode === "month") {
+			currentDate.setDate(1);
 			currentDate.setMonth(currentDate.getMonth() + 1);
 		} else if (viewMode === "week") {
 			currentDate.setDate(currentDate.getDate() + 7);
@@ -369,6 +395,20 @@
 					Agenda
 				</button>
 			</div>
+
+			<!-- Webhook Alerts Button -->
+			<button
+				class="pill-btn webhook-btn"
+				class:has-webhook={!!store.userSettings?.calendarWebhookEnabled}
+				onclick={() => (webhookModalOpen = true)}
+				title="Configurar Notificações Webhook (Discord / Slack / Ntfy)"
+			>
+				<Icon i="notifications" wh={15} />
+				<span class="btn-label">Alertas</span>
+				{#if store.userSettings?.calendarWebhookEnabled}
+					<span class="active-dot"></span>
+				{/if}
+			</button>
 		</div>
 	</header>
 
@@ -666,6 +706,8 @@
 			</div>
 		</Modal>
 	{/if}
+
+	<CalendarWebhookModal bind:open={webhookModalOpen} />
 </div>
 
 <style lang="scss">
@@ -767,6 +809,49 @@
 		align-items: center;
 		flex-wrap: wrap;
 		gap: 12px;
+
+		.webhook-btn {
+			display: inline-flex;
+			align-items: center;
+			gap: 7px;
+			padding: 7px 14px;
+			border-radius: 10px;
+			background: rgba(14, 18, 28, 0.85);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			color: rgba(255, 255, 255, 0.75);
+			fill: rgba(255, 255, 255, 0.75);
+			font-size: 13px;
+			font-weight: 600;
+			cursor: pointer;
+			transition: all 180ms ease;
+
+			&:hover {
+				background: rgba(255, 255, 255, 0.08);
+				border-color: rgba(54, 186, 152, 0.4);
+				color: #ffffff;
+				fill: #ffffff;
+			}
+
+			&.has-webhook {
+				border-color: rgba(54, 186, 152, 0.35);
+				background: rgba(54, 186, 152, 0.1);
+				color: #36ba98;
+				fill: #36ba98;
+
+				&:hover {
+					background: rgba(54, 186, 152, 0.2);
+					border-color: rgba(54, 186, 152, 0.6);
+				}
+			}
+
+			.active-dot {
+				width: 7px;
+				height: 7px;
+				border-radius: 50%;
+				background: #36ba98;
+				box-shadow: 0 0 8px rgba(54, 186, 152, 0.8);
+			}
+		}
 	}
 
 	.pill-group {

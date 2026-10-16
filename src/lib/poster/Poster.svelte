@@ -148,9 +148,11 @@
 	const link = $derived<`${`/${SupportedMedia}/${string}`}` | undefined>(
 		meta?.id ? `/${meta.type}/${meta.id}` : undefined,
 	);
-	const year = $derived(
-		media.releaseDate ? new Date(media.releaseDate).getFullYear() : undefined,
-	);
+	const year = $derived.by(() => {
+		if (!media.releaseDate) return undefined;
+		const y = new Date(media.releaseDate).getFullYear();
+		return isNaN(y) ? undefined : y;
+	});
 	const publicRating = $derived(
 		!hideRating ? formatPublicRating(media.rating) : undefined,
 	);
@@ -396,7 +398,16 @@
 					{#if year}
 						<time>{year}</time>
 					{/if}
+					{#if media.status === "Canceled"}
+						<span class="canceled-tag" title="Série cancelada pela emissora/produtores">Cancelada</span>
+					{/if}
 				</h2>
+				{#if media.status === "Canceled"}
+					<div class="card-canceled-alert" title="Série marcada como cancelada pela emissora ou produtores">
+						<Icon i="close-circle" wh={12} />
+						<span>Cancelada pela produção</span>
+					</div>
+				{/if}
 				{#if publicRating}
 					<div
 						class="inner-rating"
@@ -621,6 +632,43 @@
 					font-weight: 500;
 					color: rgba(255, 255, 255, 0.65);
 					margin-left: 4px;
+				}
+
+				.canceled-tag {
+					display: inline-block;
+					background: rgba(225, 29, 72, 0.22);
+					border: 1px solid rgba(225, 29, 72, 0.45);
+					color: #fb7185;
+					font-size: 9.5px;
+					font-weight: 700;
+					padding: 1px 5px;
+					border-radius: 4px;
+					margin-left: 6px;
+					vertical-align: middle;
+					text-transform: uppercase;
+					letter-spacing: 0.03em;
+				}
+			}
+
+			.card-canceled-alert {
+				display: inline-flex;
+				align-items: center;
+				gap: 4px;
+				margin: 3px 0 2px 0;
+				padding: 2px 6px;
+				border-radius: 4px;
+				background: rgba(225, 29, 72, 0.22);
+				border: 1px solid rgba(225, 29, 72, 0.45);
+				color: #fb7185;
+				font-size: 10px;
+				font-weight: 600;
+				letter-spacing: 0.02em;
+				line-height: 1.2;
+				width: fit-content;
+
+				:global(svg) {
+					color: #fb7185;
+					flex-shrink: 0;
 				}
 			}
 

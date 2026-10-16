@@ -165,7 +165,16 @@
 							>
 								<span class="dot-indicator dropped"></span>
 								<Icon i="thumb-down" wh={13} />
-								<span>Dropped</span>
+								<span>Stopped Watching</span>
+							</button>
+							<button
+								class="flyout-row row-cancelled"
+								onclick={() => selectStatus("CANCELLED")}
+								role="menuitem"
+							>
+								<span class="dot-indicator cancelled"></span>
+								<Icon i="close-circle" wh={13} />
+								<span>Cancelled</span>
 							</button>
 						</div>
 					{/if}
@@ -538,6 +547,9 @@
 					}
 					&.dropped {
 						background: #94a3b8;
+					}
+					&.cancelled {
+						background: #f87171;
 					}
 				}
 

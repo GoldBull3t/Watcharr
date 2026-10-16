@@ -74,6 +74,17 @@
 	>
 		<Icon i="thumb-down" wh={20} />
 	</button>
+	<button
+		class={`status-btn ${status === "CANCELLED" ? "active cancelled" : status ? "not-active" : "untracked"}`}
+		onclick={() => handleStatusClick("CANCELLED")}
+		use:tooltip={{
+			text: toUnderstandableStatus("CANCELLED", isForGame),
+			pos: "top",
+		}}
+		aria-label={toUnderstandableStatus("CANCELLED", isForGame)}
+	>
+		<Icon i="close-circle" wh={20} />
+	</button>
 </div>
 
 <style lang="scss">
@@ -147,6 +158,12 @@
 					background-color: rgba(239, 68, 68, 0.18);
 					color: #f87171;
 					box-shadow: 0 0 14px rgba(239, 68, 68, 0.25);
+				}
+				&.cancelled {
+					border-color: #dc2626;
+					background-color: rgba(220, 38, 38, 0.18);
+					color: #fca5a5;
+					box-shadow: 0 0 14px rgba(220, 38, 38, 0.25);
 				}
 			}
 		}

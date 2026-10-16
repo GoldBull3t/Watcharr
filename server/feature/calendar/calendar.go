@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	gocache "github.com/robfig/go-cache"
@@ -48,7 +49,11 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 		req.Type = domain.CalendarTypeAll
 	}
 
-	cacheKey := cache.CreateCacheKey("CalendarEvents", userId, req.Start, req.End, string(req.Filter), string(req.Type), req.Region)
+	regionForCache := req.Region
+	if req.Filter == domain.CalendarFilterLibrary {
+		regionForCache = ""
+	}
+	cacheKey := cache.CreateCacheKey("CalendarEvents", userId, req.Start, req.End, string(req.Filter), string(req.Type), regionForCache)
 	var cachedEvents []domain.CalendarEvent
 	if cache.GetCache(CalendarStore, cacheKey, &cachedEvents) {
 		slog.Debug("Calendar: Returning cached events", "key", cacheKey)
@@ -65,6 +70,7 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 	}
 
 	eventsMap := make(map[string]domain.CalendarEvent)
+	var eventsMu sync.Mutex
 
 	// Fetch user's library items (exclude soft-deleted and dropped)
 	var watchedItems []entity.Watched
@@ -88,15 +94,13 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 		}
 	}
 
-	// 1. Process Library items
-	for i := range watchedItems {
-		w := &watchedItems[i]
-		if w.Content == nil {
-			continue
-		}
-
-		// Movies in user's library
-		if (req.Type == domain.CalendarTypeAll || req.Type == domain.CalendarTypeMovie) && w.Content.Type == entity.MOVIE {
+	// 1. Process Library Movies (in-memory, instant)
+	if req.Type == domain.CalendarTypeAll || req.Type == domain.CalendarTypeMovie {
+		for i := range watchedItems {
+			w := &watchedItems[i]
+			if w.Content == nil || w.Content.Type != entity.MOVIE {
+				continue
+			}
 			if w.Content.ReleaseDate != nil {
 				relStr := w.Content.ReleaseDate.Format("2006-01-02")
 				if relStr >= req.Start && relStr <= req.End {
@@ -115,20 +119,63 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 				}
 			}
 		}
+	}
 
-		// Shows in user's library
-		if (req.Type == domain.CalendarTypeAll || req.Type == domain.CalendarTypeTV) && w.Content.Type == entity.SHOW {
-			if s.tmdb != nil {
-				showDetails, err := s.tmdb.ShowDetails(tmdb.ShowDetailsOptions{
-					ID: strconv.Itoa(w.Content.TmdbID),
-				})
-				if err == nil {
+	// 2. Process Library Shows (pruned candidates + parallel worker pool)
+	if (req.Type == domain.CalendarTypeAll || req.Type == domain.CalendarTypeTV) && s.tmdb != nil {
+		var candidateShows []*entity.Watched
+		for i := range watchedItems {
+			w := &watchedItems[i]
+			if w.Content == nil || w.Content.Type != entity.SHOW {
+				continue
+			}
+
+			// Optimization: Skip shows that definitely cannot have active/new episodes
+			// 1) User already finished the show AND TMDB status is "Ended" or "Canceled"
+			if w.Status == entity.FINISHED && (w.Content.Status == "Ended" || w.Content.Status == "Canceled") {
+				continue
+			}
+
+			// 2) The show is "Ended" or "Canceled" and premiered > 6 months before the requested start date
+			if (w.Content.Status == "Ended" || w.Content.Status == "Canceled") && w.Content.ReleaseDate != nil {
+				if w.Content.ReleaseDate.Before(startDate.AddDate(0, -6, 0)) {
+					continue
+				}
+			}
+
+			candidateShows = append(candidateShows, w)
+		}
+
+		if len(candidateShows) > 0 {
+			var wg sync.WaitGroup
+			sem := make(chan struct{}, 12) // Limit concurrent outbound HTTP calls to 12
+
+			for _, show := range candidateShows {
+				wg.Add(1)
+				sem <- struct{}{}
+
+				go func(w *entity.Watched) {
+					defer func() {
+						<-sem
+						wg.Done()
+					}()
+
+					showDetails, err := s.tmdb.ShowDetails(tmdb.ShowDetailsOptions{
+						ID:             strconv.Itoa(w.Content.TmdbID),
+						DontRunDBCache: true, // Avoid SQLite locking from concurrent writes
+					})
+					if err != nil {
+						return
+					}
+
+					var showEvents []domain.CalendarEvent
+
 					// Check NextEpisodeToAir
 					if showDetails.NextEpisodeToAir != nil && showDetails.NextEpisodeToAir.AirDate != "" {
 						air := showDetails.NextEpisodeToAir.AirDate
 						if air >= req.Start && air <= req.End {
 							evID := fmt.Sprintf("tv-%d-s%d-e%d", w.Content.TmdbID, showDetails.NextEpisodeToAir.SeasonNumber, showDetails.NextEpisodeToAir.EpisodeNumber)
-							eventsMap[evID] = domain.CalendarEvent{
+							showEvents = append(showEvents, domain.CalendarEvent{
 								ID:            evID,
 								MediaID:       w.Content.TmdbID,
 								MediaType:     "tv",
@@ -142,7 +189,7 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 								SeasonNumber:  showDetails.NextEpisodeToAir.SeasonNumber,
 								EpisodeNumber: showDetails.NextEpisodeToAir.EpisodeNumber,
 								EpisodeName:   showDetails.NextEpisodeToAir.Name,
-							}
+							})
 						}
 					}
 
@@ -151,37 +198,46 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 						air := showDetails.LastEpisodeToAir.AirDate
 						if air >= req.Start && air <= req.End {
 							evID := fmt.Sprintf("tv-%d-s%d-e%d", w.Content.TmdbID, showDetails.LastEpisodeToAir.SeasonNumber, showDetails.LastEpisodeToAir.EpisodeNumber)
-							if _, exists := eventsMap[evID]; !exists {
-								eventsMap[evID] = domain.CalendarEvent{
-									ID:            evID,
-									MediaID:       w.Content.TmdbID,
-									MediaType:     "tv",
-									Title:         showDetails.Name,
-									ReleaseDate:   air,
-									PosterPath:    showDetails.PosterPath,
-									BackdropPath:  showDetails.BackdropPath,
-									Overview:      showDetails.LastEpisodeToAir.Overview,
-									InLibrary:     true,
-									Status:        string(w.Status),
-									SeasonNumber:  showDetails.LastEpisodeToAir.SeasonNumber,
-									EpisodeNumber: showDetails.LastEpisodeToAir.EpisodeNumber,
-									EpisodeName:   showDetails.LastEpisodeToAir.Name,
-								}
-							}
+							showEvents = append(showEvents, domain.CalendarEvent{
+								ID:            evID,
+								MediaID:       w.Content.TmdbID,
+								MediaType:     "tv",
+								Title:         showDetails.Name,
+								ReleaseDate:   air,
+								PosterPath:    showDetails.PosterPath,
+								BackdropPath:  showDetails.BackdropPath,
+								Overview:      showDetails.LastEpisodeToAir.Overview,
+								InLibrary:     true,
+								Status:        string(w.Status),
+								SeasonNumber:  showDetails.LastEpisodeToAir.SeasonNumber,
+								EpisodeNumber: showDetails.LastEpisodeToAir.EpisodeNumber,
+								EpisodeName:   showDetails.LastEpisodeToAir.Name,
+							})
 						}
 					}
 
-					// If has seasons, check the latest season's episodes for dates in the range
+					// Check latest season episodes ONLY if season premiere is reasonably close to calendar window
 					if len(showDetails.Seasons) > 0 {
 						latestSeason := showDetails.Seasons[len(showDetails.Seasons)-1]
-						if latestSeason.SeasonNumber > 0 {
-							seasonDetails, err := s.tmdb.SeasonDetails(strconv.Itoa(w.Content.TmdbID), strconv.Itoa(latestSeason.SeasonNumber))
+						if latestSeason.SeasonNumber > 0 && latestSeason.AirDate != "" {
+							sAirDate, err := time.Parse("2006-01-02", latestSeason.AirDate)
+							seasonEligible := false
 							if err == nil {
-								for _, ep := range seasonDetails.Episodes {
-									if ep.AirDate != "" && ep.AirDate >= req.Start && ep.AirDate <= req.End {
-										evID := fmt.Sprintf("tv-%d-s%d-e%d", w.Content.TmdbID, ep.SeasonNumber, ep.EpisodeNumber)
-										if _, exists := eventsMap[evID]; !exists {
-											eventsMap[evID] = domain.CalendarEvent{
+								// Seasons typically air within 4 months of their start date
+								if !sAirDate.Before(startDate.AddDate(0, -4, 0)) && !sAirDate.After(endDate.AddDate(0, 1, 0)) {
+									seasonEligible = true
+								}
+							} else {
+								seasonEligible = true
+							}
+
+							if seasonEligible {
+								seasonDetails, err := s.tmdb.SeasonDetails(strconv.Itoa(w.Content.TmdbID), strconv.Itoa(latestSeason.SeasonNumber))
+								if err == nil {
+									for _, ep := range seasonDetails.Episodes {
+										if ep.AirDate != "" && ep.AirDate >= req.Start && ep.AirDate <= req.End {
+											evID := fmt.Sprintf("tv-%d-s%d-e%d", w.Content.TmdbID, ep.SeasonNumber, ep.EpisodeNumber)
+											showEvents = append(showEvents, domain.CalendarEvent{
 												ID:            evID,
 												MediaID:       w.Content.TmdbID,
 												MediaType:     "tv",
@@ -195,83 +251,111 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 												SeasonNumber:  ep.SeasonNumber,
 												EpisodeNumber: ep.EpisodeNumber,
 												EpisodeName:   ep.Name,
-											}
+											})
 										}
 									}
 								}
 							}
 						}
 					}
-				}
+
+					if len(showEvents) > 0 {
+						eventsMu.Lock()
+						for _, ev := range showEvents {
+							if _, exists := eventsMap[ev.ID]; !exists {
+								eventsMap[ev.ID] = ev
+							}
+						}
+						eventsMu.Unlock()
+					}
+				}(show)
 			}
+
+			wg.Wait()
 		}
 	}
 
-	// 2. If Filter == "all", add Discover releases from TMDB
+	// 3. If Filter == "all", add Discover releases from TMDB (running Movies and Shows in parallel)
 	if req.Filter == domain.CalendarFilterAll && s.tmdb != nil {
-		if req.Type == domain.CalendarTypeAll || req.Type == domain.CalendarTypeMovie {
-			discMovies, err := s.tmdb.DiscoverMovies(tmdb.DiscoverOptions{
-				ReleaseDateMin: startDate,
-				ReleaseDateMax: endDate,
-			}, 1, req.Region)
-			if err == nil {
-				for _, m := range discMovies.Results {
-					if m.ReleaseDate != "" && m.ReleaseDate >= req.Start && m.ReleaseDate <= req.End {
-						evID := fmt.Sprintf("movie-%d", m.ID)
-						w, inLib := libraryMap[mediaKey{id: m.ID, ct: entity.MOVIE}]
-						var status string
-						if inLib && w != nil {
-							status = string(w.Status)
-						}
-						eventsMap[evID] = domain.CalendarEvent{
-							ID:           evID,
-							MediaID:      m.ID,
-							MediaType:    "movie",
-							Title:        m.Title,
-							ReleaseDate:  m.ReleaseDate,
-							PosterPath:   m.PosterPath,
-							BackdropPath: m.BackdropPath,
-							Overview:     m.Overview,
-							InLibrary:    inLib,
-							Status:       status,
-						}
-					}
-				}
-			}
-		}
+		var discWg sync.WaitGroup
 
-		if req.Type == domain.CalendarTypeAll || req.Type == domain.CalendarTypeTV {
-			discShows, err := s.tmdb.DiscoverShows(tmdb.DiscoverOptions{
-				ReleaseDateMin: startDate,
-				ReleaseDateMax: endDate,
-			}, 1, req.Region)
-			if err == nil {
-				for _, sh := range discShows.Results {
-					if sh.FirstAirDate != "" && sh.FirstAirDate >= req.Start && sh.FirstAirDate <= req.End {
-						evID := fmt.Sprintf("tv-%d", sh.ID)
-						w, inLib := libraryMap[mediaKey{id: sh.ID, ct: entity.SHOW}]
-						var status string
-						if inLib && w != nil {
-							status = string(w.Status)
-						}
-						if _, exists := eventsMap[evID]; !exists {
+		if req.Type == domain.CalendarTypeAll || req.Type == domain.CalendarTypeMovie {
+			discWg.Add(1)
+			go func() {
+				defer discWg.Done()
+				discMovies, err := s.tmdb.DiscoverMovies(tmdb.DiscoverOptions{
+					ReleaseDateMin: startDate,
+					ReleaseDateMax: endDate,
+				}, 1, req.Region)
+				if err == nil {
+					eventsMu.Lock()
+					for _, m := range discMovies.Results {
+						if m.ReleaseDate != "" && m.ReleaseDate >= req.Start && m.ReleaseDate <= req.End {
+							evID := fmt.Sprintf("movie-%d", m.ID)
+							w, inLib := libraryMap[mediaKey{id: m.ID, ct: entity.MOVIE}]
+							var status string
+							if inLib && w != nil {
+								status = string(w.Status)
+							}
 							eventsMap[evID] = domain.CalendarEvent{
 								ID:           evID,
-								MediaID:      sh.ID,
-								MediaType:    "tv",
-								Title:        sh.Name,
-								ReleaseDate:  sh.FirstAirDate,
-								PosterPath:   sh.PosterPath,
-								BackdropPath: sh.BackdropPath,
-								Overview:     sh.Overview,
+								MediaID:      m.ID,
+								MediaType:    "movie",
+								Title:        m.Title,
+								ReleaseDate:  m.ReleaseDate,
+								PosterPath:   m.PosterPath,
+								BackdropPath: m.BackdropPath,
+								Overview:     m.Overview,
 								InLibrary:    inLib,
 								Status:       status,
 							}
 						}
 					}
+					eventsMu.Unlock()
 				}
-			}
+			}()
 		}
+
+		if req.Type == domain.CalendarTypeAll || req.Type == domain.CalendarTypeTV {
+			discWg.Add(1)
+			go func() {
+				defer discWg.Done()
+				discShows, err := s.tmdb.DiscoverShows(tmdb.DiscoverOptions{
+					ReleaseDateMin: startDate,
+					ReleaseDateMax: endDate,
+				}, 1, req.Region)
+				if err == nil {
+					eventsMu.Lock()
+					for _, sh := range discShows.Results {
+						if sh.FirstAirDate != "" && sh.FirstAirDate >= req.Start && sh.FirstAirDate <= req.End {
+							evID := fmt.Sprintf("tv-%d", sh.ID)
+							w, inLib := libraryMap[mediaKey{id: sh.ID, ct: entity.SHOW}]
+							var status string
+							if inLib && w != nil {
+								status = string(w.Status)
+							}
+							if _, exists := eventsMap[evID]; !exists {
+								eventsMap[evID] = domain.CalendarEvent{
+									ID:           evID,
+									MediaID:      sh.ID,
+									MediaType:    "tv",
+									Title:        sh.Name,
+									ReleaseDate:  sh.FirstAirDate,
+									PosterPath:   sh.PosterPath,
+									BackdropPath: sh.BackdropPath,
+									Overview:     sh.Overview,
+									InLibrary:    inLib,
+									Status:       status,
+								}
+							}
+						}
+					}
+					eventsMu.Unlock()
+				}
+			}()
+		}
+
+		discWg.Wait()
 	}
 
 	events := make([]domain.CalendarEvent, 0, len(eventsMap))

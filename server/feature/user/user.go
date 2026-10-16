@@ -56,6 +56,15 @@ func (s *Service) UserUpdate(userId uint, ur entity.UserSettings) (entity.UserSe
 	if ur.RatingStep != nil {
 		user.RatingStep = ur.RatingStep
 	}
+	if ur.CalendarWebhookUrl != nil {
+		user.CalendarWebhookUrl = ur.CalendarWebhookUrl
+	}
+	if ur.CalendarWebhookEnabled != nil {
+		user.CalendarWebhookEnabled = ur.CalendarWebhookEnabled
+	}
+	if ur.CalendarWebhookFilter != nil {
+		user.CalendarWebhookFilter = ur.CalendarWebhookFilter
+	}
 	s.db.Save(&user)
 	return entity.UserSettings{
 		Private:                  user.Private,
@@ -67,6 +76,9 @@ func (s *Service) UserUpdate(userId uint, ur entity.UserSettings) (entity.UserSe
 		Language:                 user.Language,
 		RatingSystem:             user.RatingSystem,
 		RatingStep:               user.RatingStep,
+		CalendarWebhookUrl:       user.CalendarWebhookUrl,
+		CalendarWebhookEnabled:   user.CalendarWebhookEnabled,
+		CalendarWebhookFilter:   user.CalendarWebhookFilter,
 	}, nil
 }
 
@@ -88,6 +100,9 @@ func (s *Service) UserGetSettings(userId uint) (entity.UserSettings, error) {
 		Language:                 user.Language,
 		RatingSystem:             user.RatingSystem,
 		RatingStep:               user.RatingStep,
+		CalendarWebhookUrl:       user.CalendarWebhookUrl,
+		CalendarWebhookEnabled:   user.CalendarWebhookEnabled,
+		CalendarWebhookFilter:   user.CalendarWebhookFilter,
 	}, nil
 }
 

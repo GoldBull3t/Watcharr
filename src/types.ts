@@ -1,5 +1,5 @@
 export type WatchedStatus =
-	"PLANNED" | "WATCHING" | "FINISHED" | "HOLD" | "DROPPED";
+	"PLANNED" | "WATCHING" | "FINISHED" | "HOLD" | "DROPPED" | "CANCELLED";
 /**
  * Types of media supported by Watcharr in an overarching way.
  */
@@ -62,7 +62,12 @@ export type Icon =
 	| "website"
 	| "tmdb"
 	| "igdb"
-	| "settings";
+	| "yamtrack"
+	| "letterboxd"
+	| "download"
+	| "settings"
+	| "notifications"
+	| "discord";
 
 export type Theme = "light" | "dark" | "system";
 
@@ -317,6 +322,9 @@ export interface UserSettings {
 	country: string;
 	language?: string;
 	automateShowStatuses: boolean;
+	calendarWebhookUrl?: string;
+	calendarWebhookEnabled?: boolean;
+	calendarWebhookFilter?: "all" | "movie" | "tv";
 	ratingSystem?: RatingSystem;
 	/**
 	 * A rating step decided by the user, only
@@ -676,6 +684,36 @@ export interface ImportedList {
 	tags?: TagAddRequest[];
 }
 
+export interface YamtrackRow {
+	media_id?: string | number;
+	source?: string;
+	media_type?: string;
+	title?: string;
+	image?: string;
+	season_number?: string | number;
+	episode_number?: string | number;
+	score?: string | number;
+	status?: string;
+	notes?: string;
+	start_date?: string;
+	end_date?: string;
+	progress?: string | number;
+	created_at?: string;
+	progressed_at?: string;
+}
+
+export interface LetterboxdRow {
+	Date?: string;
+	Name?: string;
+	Year?: string | number;
+	"Letterboxd URI"?: string;
+	Rating?: string | number;
+	Rewatch?: string;
+	Tags?: string;
+	"Watched Date"?: string;
+	Description?: string;
+}
+
 export interface Filters {
 	type: string[];
 	status: string[];
@@ -684,6 +722,7 @@ export interface Filters {
 	maxRating?: number;
 	query?: string;
 	genre?: string;
+	productionStatus?: string;
 }
 
 export interface ManagedUser {

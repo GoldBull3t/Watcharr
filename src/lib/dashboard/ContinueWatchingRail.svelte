@@ -80,6 +80,8 @@
 
 <style lang="scss">
 	.continue-watching-section {
+		position: relative;
+		z-index: 1;
 		margin-bottom: 24px;
 		padding: 16px 18px;
 		background: rgba(14, 18, 26, 0.75);

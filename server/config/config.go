@@ -235,7 +235,7 @@ func (c *ServerConfig) Write() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path.Join(DataPath, "watcharr.json"), barej, 0755)
+	return os.WriteFile(path.Join(DataPath, "watcharr.json"), barej, 0600)
 }
 
 func (c *ServerConfig) SaveTwitchConfig(newt igdb.IGDB) error {
@@ -325,7 +325,7 @@ func generateConfig() (*ServerConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &cfg, os.WriteFile(path.Join(DataPath, "watcharr.json"), barej, 0755)
+	return &cfg, os.WriteFile(path.Join(DataPath, "watcharr.json"), barej, 0600)
 }
 
 // Get server config.

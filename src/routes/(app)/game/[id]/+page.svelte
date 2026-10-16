@@ -35,6 +35,7 @@
 	});
 
 	$effect(() => {
+		const controller = new AbortController();
 		(async () => {
 			try {
 				game = undefined;
@@ -42,12 +43,16 @@
 				if (!data.gameId) {
 					return;
 				}
-				game = await req.get<Media>(`/game/${data.gameId}`);
-			} catch (err) {
+				game = await req.get<Media>(`/game/${data.gameId}`, {
+					signal: controller.signal,
+				});
+			} catch (err: unknown) {
+				if (controller.signal.aborted) return;
 				game = undefined;
 				pageError = err;
 			}
 		})();
+		return () => controller.abort();
 	});
 
 	async function contentChanged(

@@ -64,11 +64,27 @@
 		}
 	});
 
+	function handleClickOutside(event: MouseEvent) {
+		if (open && mainElement && !mainElement.contains(event.target as Node)) {
+			open = false;
+		}
+	}
+
+	function handleEscapeKey(event: KeyboardEvent) {
+		if (open && event.key === "Escape") {
+			open = false;
+		}
+	}
+
 	onMount(() => {
 		mainElement?.addEventListener("keypress", handleKeyPress);
+		document.addEventListener("click", handleClickOutside);
+		document.addEventListener("keydown", handleEscapeKey);
 
 		return () => {
 			mainElement?.removeEventListener("keypress", handleKeyPress);
+			document.removeEventListener("click", handleClickOutside);
+			document.removeEventListener("keydown", handleEscapeKey);
 		};
 	});
 </script>

@@ -8,6 +8,7 @@
 		getReleaseYear,
 	} from "./mediaHelpers";
 	import { formatPublicRating } from "@/lib/rating/helpers";
+	import { toUnderstandableStatus } from "@/lib/util/helpers";
 
 	interface Props {
 		data: Media[];
@@ -37,7 +38,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each data as w, i (`${i}-${w.type}`)}
+					{#each data as w, i (w?.watched?.id ?? `${i}-${w?.name ?? "item"}`)}
 						{#if w}
 							{@const img = getPosterImage(w)}
 							{@const year = getReleaseYear(w)}
@@ -71,6 +72,9 @@
 										{#if year}
 											<span class="row-year">({year})</span>
 										{/if}
+										{#if w.status === "Canceled"}
+											<span class="table-canceled-tag" title="Série cancelada pelos produtores">Cancelada</span>
+										{/if}
 									</a>
 									{#if w.watched?.watchingSeason}
 										<span class="row-progress">{w.watched.watchingSeason}</span>
@@ -90,7 +94,7 @@
 										<span
 											class={`status-pill status-${w.watched.status.toLowerCase()}`}
 										>
-											{w.watched.status.toLowerCase()}
+											{toUnderstandableStatus(w.watched.status, w.type === MediaTypeE.igdbGame)}
 										</span>
 									{:else}
 										<span class="status-pill status-untracked">
@@ -242,6 +246,21 @@
 						color: $text-color-accent;
 						font-size: 12.5px;
 					}
+
+					.table-canceled-tag {
+						display: inline-block;
+						background: rgba(225, 29, 72, 0.22);
+						border: 1px solid rgba(225, 29, 72, 0.45);
+						color: #fb7185;
+						font-size: 9.5px;
+						font-weight: 700;
+						padding: 1px 6px;
+						border-radius: 4px;
+						margin-left: 6px;
+						vertical-align: middle;
+						text-transform: uppercase;
+						letter-spacing: 0.03em;
+					}
 				}
 
 				.row-progress {
@@ -289,6 +308,11 @@
 				&.status-dropped {
 					background-color: rgba(239, 68, 68, 0.15);
 					color: #f87171;
+				}
+				&.status-cancelled {
+					background-color: rgba(220, 38, 38, 0.18);
+					color: #fca5a5;
+					border: 1px solid rgba(220, 38, 38, 0.3);
 				}
 				&.status-untracked {
 					background-color: var(--accent-color);

@@ -24,11 +24,15 @@ type TMDB struct {
 	Key             string
 	DefaultLanguage func() string
 	contentProvider ContentProvider
+	client          *http.Client
 }
 
 func NewTMDB(key string) *TMDB {
 	return &TMDB{
 		Key: key,
+		client: &http.Client{
+			Timeout: 15 * time.Second,
+		},
 	}
 }
 
@@ -81,7 +85,11 @@ func (t *TMDB) apiRequest(ep string, p map[string]string) ([]byte, error) {
 	base.RawQuery = params.Encode()
 
 	// Run get request
-	res, err := http.Get(base.String())
+	client := t.client
+	if client == nil {
+		client = &http.Client{Timeout: 15 * time.Second}
+	}
+	res, err := client.Get(base.String())
 	if err != nil {
 		return nil, err
 	}
