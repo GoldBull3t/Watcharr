@@ -109,7 +109,7 @@
 	}
 </script>
 
-<li class={isHidden ? "dont-spoil" : ""}>
+<li id={`ep-${ep.season_number}-${ep.episode_number}`} class={isHidden ? "dont-spoil" : ""}>
 	<div class="thumb-container">
 		{#if ep.still_path}
 			<img
@@ -217,6 +217,27 @@
 		&:hover {
 			background: rgba(26, 32, 46, 0.82);
 			border-color: rgba(255, 255, 255, 0.15);
+		}
+
+		&:global(.ep-highlight-pulse) {
+			animation: epPulse 1.4s ease-out;
+		}
+
+		@keyframes epPulse {
+			0% {
+				box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+				border-color: rgba(245, 158, 11, 0.9);
+				transform: scale(1.015);
+			}
+			50% {
+				box-shadow: 0 0 24px 6px rgba(245, 158, 11, 0.4);
+				border-color: rgba(245, 158, 11, 0.6);
+			}
+			100% {
+				box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+				border-color: rgba(255, 255, 255, 0.08);
+				transform: scale(1);
+			}
 		}
 
 		&:hover,

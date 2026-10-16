@@ -10,6 +10,7 @@
 	import Spinner from "@/lib/Spinner.svelte";
 	import Error from "@/lib/Error.svelte";
 	import SeasonsListEpisode from "./SeasonsListEpisode.svelte";
+	import SegmentedProgressBar from "./SegmentedProgressBar.svelte";
 	import PosterStatus from "@/lib/poster/PosterStatus.svelte";
 	import { notify } from "@/lib/util/notify";
 	import PosterRating from "@/lib/poster/PosterRating.svelte";
@@ -251,6 +252,16 @@
 						</div>
 					{/if}
 				</div>
+
+				<!-- Item 6: Segmented Episode Progress Bar -->
+				{#if season?.episodes?.length > 0}
+					<SegmentedProgressBar
+						seasonNumber={season.season_number}
+						episodes={season.episodes}
+						{watchedItem}
+					/>
+				{/if}
+
 				{#if season?.episodes?.length > 0}
 					<ul>
 						{#each season.episodes as ep (ep.id)}
@@ -395,7 +406,7 @@
 
 			.season-mini-bar {
 				width: 100%;
-				height: 4px;
+				height: 4.5px;
 				background: rgba(255, 255, 255, 0.08);
 				border-radius: 999px;
 				overflow: hidden;
@@ -403,9 +414,10 @@
 
 				.season-mini-fill {
 					height: 100%;
-					background: linear-gradient(90deg, #6366f1, #818cf8);
+					background: linear-gradient(90deg, #f59e0b, #fbbf24);
+					box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
 					border-radius: 999px;
-					transition: width 200ms ease;
+					transition: width 220ms ease;
 				}
 			}
 		}
