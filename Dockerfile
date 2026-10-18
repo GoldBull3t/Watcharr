@@ -24,7 +24,7 @@ WORKDIR /app
 
 # Cache package dependencies layer
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 # Copy source and build
 COPY ./src ./src
@@ -34,18 +34,19 @@ COPY vite.config.ts svelte.config.js tsconfig.json ./
 RUN npm run build
 
 #
-# Production
+# Production (Ultra-lightweight Alpine image: Zero Node.js runtime)
 #
-FROM node:24-alpine AS runner
+FROM alpine:3.21 AS runner
+
+WORKDIR /
+
+# Install ca-certificates and tzdata for HTTPS & timezones
+RUN apk --no-cache add ca-certificates tzdata
+
+ENV GOMEMLIMIT=45MiB
 
 COPY --from=server /server/watcharr /
 COPY --from=ui /app/build /ui
-COPY --from=ui /app/package.json /app/package-lock.json /ui/
-
-# Install just the prod dependencies for final step.
-# We --ignore-scripts, to stop the `prepare` script from auto-
-# running, which is only meant for development (will error).
-RUN cd /ui && npm ci --omit=dev --ignore-scripts=true
 
 EXPOSE 3080
 
@@ -53,4 +54,3 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget -qO- http://127.0.0.1:3080/api/health || exit 1
 
 CMD ["/watcharr"]
-
