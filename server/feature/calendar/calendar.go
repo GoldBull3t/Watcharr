@@ -168,6 +168,11 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 						return
 					}
 
+					poster := showDetails.PosterPath
+					if poster == "" && w.Content != nil {
+						poster = w.Content.PosterPath
+					}
+
 					var showEvents []domain.CalendarEvent
 
 					// Check NextEpisodeToAir
@@ -181,7 +186,7 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 								MediaType:     "tv",
 								Title:         showDetails.Name,
 								ReleaseDate:   air,
-								PosterPath:    showDetails.PosterPath,
+								PosterPath:    poster,
 								BackdropPath:  showDetails.BackdropPath,
 								Overview:      showDetails.NextEpisodeToAir.Overview,
 								InLibrary:     true,
@@ -204,7 +209,7 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 								MediaType:     "tv",
 								Title:         showDetails.Name,
 								ReleaseDate:   air,
-								PosterPath:    showDetails.PosterPath,
+								PosterPath:    poster,
 								BackdropPath:  showDetails.BackdropPath,
 								Overview:      showDetails.LastEpisodeToAir.Overview,
 								InLibrary:     true,
@@ -243,7 +248,7 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 												MediaType:     "tv",
 												Title:         showDetails.Name,
 												ReleaseDate:   ep.AirDate,
-												PosterPath:    showDetails.PosterPath,
+												PosterPath:    poster,
 												BackdropPath:  showDetails.BackdropPath,
 												Overview:      ep.Overview,
 												InLibrary:     true,

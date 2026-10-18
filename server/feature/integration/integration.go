@@ -328,10 +328,16 @@ func (s *Service) GetCalendarICS(userId uint) (string, error) {
 			}
 		}
 
+		posterURL := buildPosterURL(ev.PosterPath)
+
 		desc := ev.Overview
 		if desc == "" {
 			desc = "Estreia de conteúdo da tua biblioteca Watcharr."
 		}
+		if posterURL != "" {
+			desc += "\nPoster: " + posterURL
+		}
+		desc = strings.ReplaceAll(desc, "\r", "")
 		desc = strings.ReplaceAll(desc, "\n", "\\n")
 		desc = strings.ReplaceAll(desc, ",", "\\,")
 
@@ -342,11 +348,29 @@ func (s *Service) GetCalendarICS(userId uint) (string, error) {
 		sb.WriteString(fmt.Sprintf("SUMMARY:%s\r\n", summary))
 		sb.WriteString(fmt.Sprintf("DESCRIPTION:%s\r\n", desc))
 		sb.WriteString("STATUS:CONFIRMED\r\n")
+		if posterURL != "" {
+			sb.WriteString(fmt.Sprintf("ATTACH;FMTTYPE=image/jpeg:%s\r\n", posterURL))
+			sb.WriteString(fmt.Sprintf("X-POSTER:%s\r\n", posterURL))
+		}
 		sb.WriteString("END:VEVENT\r\n")
 	}
 
 	sb.WriteString("END:VCALENDAR\r\n")
 	return sb.String(), nil
+}
+
+func buildPosterURL(posterPath string) string {
+	posterPath = strings.TrimSpace(posterPath)
+	if posterPath == "" {
+		return ""
+	}
+	if strings.HasPrefix(posterPath, "http://") || strings.HasPrefix(posterPath, "https://") {
+		return posterPath
+	}
+	if strings.HasPrefix(posterPath, "/") {
+		return "https://image.tmdb.org/t/p/w500" + posterPath
+	}
+	return "https://image.tmdb.org/t/p/w500/" + posterPath
 }
 
 // GetNowNextSVG renders a vector dashboard card for Home Assistant Lovelace / Wallpanels
