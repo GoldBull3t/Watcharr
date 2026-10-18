@@ -5,8 +5,7 @@ Uma edição personalizada, ultra-leve e de alto desempenho do **Watcharr**, des
 ---
 
 > [!IMPORTANT]
-> ### 🔄 100% Compatível com o Watcharr Original
-> **Todas as rotas de API, modelos de dados e endpoints são rigorosamente os mesmos do [Watcharr original](https://github.com/sbondco/Watcharr).**  
+> **Todas as rotas de API, modelos de dados e endpoints são rigorosamente os mesmos do [Watcharr](https://github.com/sbondco/Watcharr).**  
 > Não existem *breaking changes* de protocolo ou migrações forçadas. Qualquer cliente, webhook, ferramenta de backup ou integração externa existente funciona diretamente sem necessidade de qualquer alteração.
 >
 > **O que mudou?**  
@@ -26,31 +25,16 @@ Este projeto é ativamente mantido e estou ativamente à procura de opiniões, c
 ---
 
 ## 🖼️ Showcase & Galeria
-
-<!-- 
-  DICA PARA ADICIONAR IMAGENS:
-  Arrasta as tuas imagens/capturas diretamente para a caixa de edição deste README no GitHub
-  ou coloca os ficheiros na pasta 'docs/assets/' e referencia-os abaixo.
--->
-
-| 🚀 Destaque & Biblioteca | 📅 Linhas Cronológicas & Franquias |
-| :---: | :---: |
-| ![Biblioteca e Hero Showcase](docs/assets/showcase-library.png) | ![Franchise Roadmaps](docs/assets/showcase-roadmaps.png) |
-| *Visual moderno com header fixo, Hero Spotlight e Continue Watching* | *Roadmaps com comutador entre ordem cronológica e de lançamento* |
-
-| 📺 Gestão Detalhada de Episódios | 🏠 Integrações Homelab |
-| :---: | :---: |
-| ![Detalhes de Temporada e Episódios](docs/assets/showcase-episodes.png) | ![Widgets Homelab](docs/assets/showcase-homelab.png) |
-| *Controlo rápido de estado, avaliações táteis e resumo de episódios* | *Endpoints ultra-leves e formatados para Dashy, Homepage e Home Assistant* |
+<img width="1913" height="913" alt="watcharr2" src="https://github.com/user-attachments/assets/12f87ebf-deed-40bb-8f33-8d2138d7233b" />
+<img width="1912" height="916" alt="watcharr3" src="https://github.com/user-attachments/assets/62ee1519-a2f4-44f3-b645-81f4c7c70057" />
+<img width="1906" height="914" alt="watcharr4" src="https://github.com/user-attachments/assets/15539fe3-d943-4e73-b8d9-e9229b77133d" />
 
 ---
 
 ## ✨ Principais Melhorias Implementadas
 
-### 🗺️ Franchise Roadmaps (Linhas Cronológicas & Universos)
-* **Visualização Completa de Franquias:** Acesso direto a roadmaps de sagas como *Marvel Cinematic Universe*, *Star Wars*, *Harry Potter / Wizarding World*, *Alien & Predator*, *Tolkien*, *MonsterVerse*, entre outros.
+### 🗺️ Franchise Roadmaps (Linhas Cronológicas)
 * **Comutador de Ordem:** Alternância imediata entre **Ordem de Lançamento** (datas de estreia oficiais) e **Ordem Cronológica** (linha temporal da história).
-* **Progresso da Saga:** Indicador visual de conclusão, destaque automático para o próximo título a ver (*Next Up*) e badges de ligação direta nos detalhes de cada produção.
 
 ### 🏠 Widgets & Integrações Domésticas (Homelab)
 * **Endpoints Otimizados:** Respostas prontas em formato JSON para dashboards populares como **Homepage**, **Dashy** e sensores REST do **Home Assistant**.
@@ -59,11 +43,6 @@ Este projeto é ativamente mantido e estou ativamente à procura de opiniões, c
 ### 🔔 Notificações e Webhooks de Calendário
 * **Alertas de Estreia:** Envio automatizado de resumos diários para Discord ou webhooks compatíveis com os episódios que estreiam no próprio dia.
 * **Teste com 1 Clique:** Botão de teste imediato integrado no painel de configurações para validação do webhook.
-
-### 💎 Experiência de Utilização & Fluidez
-* **Header Fixo Inteligente:** Navegação e barra de ferramentas da biblioteca com fixação suave no topo (*sticky* com *backdrop-blur*), sem qualquer sobreposição indesejada sobre os cartões durante o scroll.
-* **Hero Spotlight & Continue Watching:** Destaque dinâmico e calha de conteúdos em progresso posicionados de forma intuitiva no topo da biblioteca.
-* **Gestão de Episódios Aprimorada:** Menus de estado e botões de classificação redesenhados com ícones destacados e resposta instantânea.
 
 ### ⚡ Motor Backend & Performance Extrema
 * **Consumo Mínimo de Recursos:** Servidor Go nativo com consumo de memória reduzido para apenas **~23 MB de RAM** em repouso.
@@ -123,15 +102,6 @@ npm run dev
 
 ---
 
-## 🔌 Portas e Serviços
-
-| Serviço | Porta | Descrição |
-| :--- | :--- | :--- |
-| **Aplicação Completa (Docker)** | `3077` | Servidor integrado (Backend + Frontend embutido) |
-| **Backend Dev (Go)** | `3080` | Servidor Go em modo desenvolvimento |
-| **Frontend Dev (Vite)** | `5173` | Servidor de desenvolvimento SvelteKit com HMR |
-
----
 
 ## ⚖️ Licença
 Distribuído sob a licença [Apache 2.0](LICENSE). Baseado no projeto original [Watcharr](https://github.com/sbondco/Watcharr) de Sam Bond.
