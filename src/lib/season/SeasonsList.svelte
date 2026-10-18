@@ -10,8 +10,7 @@
 	import Spinner from "@/lib/Spinner.svelte";
 	import Error from "@/lib/Error.svelte";
 	import SeasonsListEpisode from "./SeasonsListEpisode.svelte";
-	import SegmentedProgressBar from "./SegmentedProgressBar.svelte";
-	import PosterStatus from "@/lib/poster/PosterStatus.svelte";
+		import PosterStatus from "@/lib/poster/PosterStatus.svelte";
 	import { notify } from "@/lib/util/notify";
 	import PosterRating from "@/lib/poster/PosterRating.svelte";
 	import Icon from "@/lib/Icon.svelte";
@@ -89,9 +88,10 @@
 		return resp.body;
 	}
 
-	function handleStatusClick(
+	async function handleStatusClick(
 		type: WatchedStatus | "DELETE",
 		seasonNumber: number,
+		seasonDetails?: TMDBSeasonDetails,
 	) {
 		if (!watchedItem) {
 			console.error("handleStatusClick: No watched item.");
@@ -111,7 +111,34 @@
 			removeWatchedSeason(watchedItem, ws.id);
 			return;
 		}
-		updateWatchedSeason(watchedItem, seasonNumber, { status: type });
+
+		// When marking season as FINISHED, proactively mark all episodes of this season as FINISHED
+		if (type === "FINISHED" && seasonDetails?.episodes?.length) {
+			if (!watchedItem.watchedEpisodes) {
+				watchedItem.watchedEpisodes = [];
+			}
+			for (const ep of seasonDetails.episodes) {
+				const existing = watchedItem.watchedEpisodes.find(
+					(we) =>
+						we.seasonNumber === seasonNumber &&
+						we.episodeNumber === ep.episode_number,
+				);
+				if (existing) {
+					existing.status = "FINISHED";
+				} else {
+					watchedItem.watchedEpisodes.push({
+						id: -ep.id,
+						seasonNumber,
+						episodeNumber: ep.episode_number,
+						status: "FINISHED",
+						rating: 0,
+					} as any);
+				}
+			}
+			watchedItem.watchedEpisodes = [...watchedItem.watchedEpisodes];
+		}
+
+		await updateWatchedSeason(watchedItem, seasonNumber, { status: type });
 	}
 
 	function handleStarClick(rating: number, seasonNumber: number) {
@@ -245,7 +272,7 @@
 								status={ws?.status}
 								btnTooltip="Season Status"
 								handleStatusClick={(t) =>
-									handleStatusClick(t, season.season_number)}
+									handleStatusClick(t, season.season_number, season)}
 								minimal={true}
 								direction="bot"
 							/>
@@ -253,14 +280,7 @@
 					{/if}
 				</div>
 
-				<!-- Item 6: Segmented Episode Progress Bar -->
-				{#if season?.episodes?.length > 0}
-					<SegmentedProgressBar
-						seasonNumber={season.season_number}
-						episodes={season.episodes}
-						{watchedItem}
-					/>
-				{/if}
+
 
 				{#if season?.episodes?.length > 0}
 					<ul>
