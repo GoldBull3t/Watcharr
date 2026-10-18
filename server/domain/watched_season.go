@@ -29,6 +29,8 @@ type (
 		AddedActivities []entity.Activity `json:"addedActivities"`
 		// Response from hook
 		StatusChangedHookResponse SeasonStatusChangedHookResponse `json:"statusChangedHookResponse,omitzero"`
+		// Updated episodes for season if modified
+		WatchedEpisodes []entity.WatchedEpisode `json:"watchedEpisodes,omitempty"`
 	}
 
 	SeasonStatusChangedHookResponse struct {
@@ -38,6 +40,8 @@ type (
 		AddedActivities []entity.Activity `json:"addedActivities,omitempty"`
 		// All errors (fatal and non-fatal) that were encountered.
 		Errors []string `json:"errors,omitempty"`
+		// Updated episodes for season if modified
+		WatchedEpisodes []entity.WatchedEpisode `json:"watchedEpisodes,omitempty"`
 	}
 
 	// Set Watched Season provider.
