@@ -79,10 +79,10 @@
 		}}
 	>
 		{#if status}
-			<Icon i={watchedStatuses[status]} wh={minimal ? 15 : 17} />
+			<Icon i={watchedStatuses[status]} wh={minimal ? 18 : 20} />
 		{:else}
 			<span class={["no-icon", minimal ? "minimal" : ""].join(" ")}>
-				<Icon i="add" wh={minimal ? 14 : 16} />
+				<Icon i="add" wh={minimal ? 18 : 20} />
 			</span>
 		{/if}
 	</button>
@@ -120,7 +120,7 @@
 						pos: "left",
 					}}
 				>
-					<Icon i={icon} wh={17} />
+					<Icon i={icon} wh={20} />
 				</button>
 			{/each}
 			{#if status}
@@ -135,7 +135,7 @@
 					}}
 					use:tooltip={{ text: "Delete", pos: "left" }}
 				>
-					<Icon i="trash" wh={16} />
+					<Icon i="trash" wh={19} />
 				</button>
 			{/if}
 		</div>
@@ -158,7 +158,7 @@
 
 			.status-dropdown {
 				height: unset;
-				max-height: 240px;
+				max-height: 260px;
 				overflow-y: auto;
 				overflow-x: hidden;
 			}
@@ -217,14 +217,15 @@
 		flex-flow: column;
 		position: absolute;
 		width: 100%;
-		min-width: 48px;
+		min-width: 50px;
 		right: 0;
 		left: auto;
-		height: 200px;
 		background: rgba(15, 19, 27, 0.96);
-		border: 1px solid rgba(255, 255, 255, 0.1);
+		border: 1px solid rgba(255, 255, 255, 0.12);
 		list-style: none;
-		border-radius: 10px;
+		border-radius: 12px;
+		padding: 4px;
+		gap: 3px;
 		overflow-y: auto;
 		overflow-x: hidden;
 		scrollbar-width: thin;
@@ -266,10 +267,12 @@
 
 		button {
 			width: 100%;
+			height: 36px;
+			min-height: 36px;
 			color: $text-color;
 			fill: $text-color;
-			padding: 7px 4px;
-			border-radius: 6px;
+			padding: 6px;
+			border-radius: 8px;
 			display: flex;
 			align-items: center;
 			justify-content: center;
@@ -284,16 +287,19 @@
 			}
 
 			& :global(svg) {
-				padding: 0 2px;
+				width: 20px;
+				height: 20px;
+				padding: 0 !important;
+				display: block;
 			}
 
 			&:hover,
 			&:focus-visible {
-				background-color: rgba(255, 255, 255, 0.08);
+				background-color: rgba(255, 255, 255, 0.1);
 			}
 
 			&.active:hover {
-				background-color: rgba(245, 158, 11, 0.28);
+				background-color: rgba(245, 158, 11, 0.3);
 			}
 
 			&.delete-btn:hover {
@@ -301,10 +307,6 @@
 				color: #f87171;
 				fill: #f87171;
 			}
-		}
-
-		&.has-status :global(svg) {
-			padding: 0 4.5px;
 		}
 	}
 </style>
