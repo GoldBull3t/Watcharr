@@ -25,9 +25,9 @@ Este projeto é ativamente mantido e estou ativamente à procura de opiniões, c
 ---
 
 ## 🖼️ Showcase & Galeria
-<img width="1913" height="913" alt="watcharr2" src="https://github.com/user-attachments/assets/12f87ebf-deed-40bb-8f33-8d2138d7233b" />
-<img width="1912" height="916" alt="watcharr3" src="https://github.com/user-attachments/assets/62ee1519-a2f4-44f3-b645-81f4c7c70057" />
-<img width="1906" height="914" alt="watcharr4" src="https://github.com/user-attachments/assets/15539fe3-d943-4e73-b8d9-e9229b77133d" />
+<img width="1913" height="913" alt="watcharr2" src="https://github.com/user-attachments/assets/c7c07bae-be86-4054-a999-4968ea22a9cd" />
+<img width="1906" height="914" alt="watcharr4" src="https://github.com/user-attachments/assets/b1927bdc-5285-4e03-aa63-fd7930a2c9d7" />
+<img width="1912" height="916" alt="watcharr3" src="https://github.com/user-attachments/assets/d43ad80e-6024-42cd-ad5b-9d87507bbe54" />
 
 ---
 
