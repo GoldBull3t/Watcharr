@@ -3,19 +3,17 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
-	"net/http/httputil"
 	"os"
-	"os/exec"
 	"os/signal"
-	"path"
+	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"syscall"
 	"time"
 
@@ -69,6 +67,7 @@ var version string
 
 func main() {
 	startTime := time.Now()
+	debug.SetMemoryLimit(40 * 1024 * 1024)
 
 	// Tune Go runtime memory footprint: GC at 60% growth prevents RAM bloat,
 	// and soft limit of 180MB keeps working set tightly managed.
@@ -187,7 +186,6 @@ func main() {
 	}
 
 	if isProd {
-		go runUI()
 		gin.SetMode(gin.ReleaseMode)
 	}
 	gin.DefaultWriter = multiw
@@ -221,15 +219,37 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 	if isProd {
-		uiProxy := &httputil.ReverseProxy{
-			Director: func(req *http.Request) {
-				req.URL.Scheme = "http"
-				req.URL.Host = "127.0.0.1:3000"
-			},
-		}
-		// Proxy NoRoute requests to UI server
+		// Serve static frontend files with SPA fallback
 		gine.NoRoute(func(c *gin.Context) {
-			uiProxy.ServeHTTP(c.Writer, c.Request)
+			// Do not intercept non-existent /api/ endpoints with index.html
+			if strings.HasPrefix(c.Request.URL.Path, "/api") {
+				c.JSON(http.StatusNotFound, gin.H{"error": "route not found"})
+				return
+			}
+
+			// Clean requested path inside ui directory
+			reqPath := filepath.Clean(strings.TrimPrefix(c.Request.URL.Path, "/"))
+			targetFile := filepath.Join("ui", reqPath)
+
+			// If file exists on disk and is not a directory, serve it directly
+			if fi, err := os.Stat(targetFile); err == nil && !fi.IsDir() {
+				// Cache immutable Vite/SvelteKit assets
+				if strings.Contains(c.Request.URL.Path, "/_app/immutable/") {
+					c.Header("Cache-Control", "public, max-age=31536000, immutable")
+				}
+				c.File(targetFile)
+				return
+			}
+
+			// SPA Fallback: serve index.html for all frontend routes
+			indexPath := filepath.Join("ui", "index.html")
+			if _, err := os.Stat(indexPath); err == nil {
+				c.Header("Cache-Control", "no-cache")
+				c.File(indexPath)
+				return
+			}
+
+			c.String(http.StatusNotFound, "UI not found")
 		})
 	}
 	api := gine.Group("/api")
@@ -413,35 +433,7 @@ func main() {
 	slog.Info("Watcharr exited cleanly.")
 }
 
-// Run UI server
-func runUI() {
-	if _, err := os.Stat("ui/index.js"); errors.Is(err, os.ErrNotExist) {
-		slog.Warn("runUI: ui/index.js not found, skipping built-in UI process.")
-		return
-	}
-	cmd := exec.Command("node", "ui/index.js")
-	cmdReader, err := cmd.StdoutPipe()
-	if err != nil {
-		slog.Error("runUI: get stdout read pipe failed", "error", err)
-		return
-	}
-	scanner := bufio.NewScanner(cmdReader)
-	go func() {
-		for scanner.Scan() {
-			fmt.Println(scanner.Text())
-		}
-		if err := scanner.Err(); err != nil {
-			slog.Error("runUI: scanner error", "error", err)
-		}
-	}()
-	if err := cmd.Start(); err != nil {
-		slog.Error("runUI: command start failed", "error", err)
-		return
-	}
-	if err := cmd.Wait(); err != nil {
-		slog.Warn("runUI: UI process exited", "error", err)
-	}
-}
+
 
 func ensureDirExists(dir string) error {
 	err := os.MkdirAll(dir, 0764)
