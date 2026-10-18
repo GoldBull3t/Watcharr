@@ -66,7 +66,71 @@ func (s *Service) hookStatusChanged(
 		}
 	}
 
+	// When a season is marked as FINISHED, automatically mark all its episodes as FINISHED in db
+	if newSeasonStatus == entity.FINISHED {
+		eps, err := s.completeAllEpisodesForSeason(userID, watchedID, watchedEntry.Content.TmdbID, seasonNum)
+		if err != nil {
+			slog.Error("hookStatusChanged: Failed to complete episodes for season", "error", err)
+			hookResponse.Errors = append(hookResponse.Errors, "failed to complete episodes for season")
+		} else {
+			hookResponse.WatchedEpisodes = eps
+		}
+	}
+
 	return hookResponse
+}
+
+// Marks all episodes of a season as FINISHED in the database.
+func (s *Service) completeAllEpisodesForSeason(
+	userID uint,
+	watchedID uint,
+	tmdbID int,
+	seasonNum int,
+) ([]entity.WatchedEpisode, error) {
+	sDetails, err := s.tmdb.SeasonDetails(strconv.Itoa(tmdbID), strconv.Itoa(seasonNum))
+	if err != nil {
+		slog.Error("completeAllEpisodesForSeason: Failed to get SeasonDetails", "error", err)
+		return nil, err
+	}
+	if len(sDetails.Episodes) == 0 {
+		return nil, nil
+	}
+
+	var updatedEpisodes []entity.WatchedEpisode
+	for _, ep := range sDetails.Episodes {
+		var we entity.WatchedEpisode
+		err := s.db.Where(
+			"user_id = ? AND watched_id = ? AND season_number = ? AND episode_number = ?",
+			userID, watchedID, seasonNum, ep.EpisodeNumber,
+		).First(&we).Error
+
+		if err != nil {
+			// Record doesn't exist, create it as FINISHED
+			newEp := entity.WatchedEpisode{
+				UserID:        userID,
+				WatchedID:     watchedID,
+				SeasonNumber:  seasonNum,
+				EpisodeNumber: ep.EpisodeNumber,
+				Status:        entity.FINISHED,
+			}
+			if createErr := s.db.Create(&newEp).Error; createErr == nil {
+				updatedEpisodes = append(updatedEpisodes, newEp)
+			} else {
+				slog.Error("completeAllEpisodesForSeason: Failed to create episode", "error", createErr)
+			}
+		} else if we.Status != entity.FINISHED {
+			we.Status = entity.FINISHED
+			if saveErr := s.db.Save(&we).Error; saveErr == nil {
+				updatedEpisodes = append(updatedEpisodes, we)
+			} else {
+				slog.Error("completeAllEpisodesForSeason: Failed to save episode", "error", saveErr)
+			}
+		} else {
+			updatedEpisodes = append(updatedEpisodes, we)
+		}
+	}
+
+	return updatedEpisodes, nil
 }
 
 // Set top level watched entry status.
