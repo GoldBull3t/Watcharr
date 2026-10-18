@@ -705,7 +705,10 @@
 			}
 
 			const file = files[0];
-			if (file.type !== "text/csv" && !file.name.toLowerCase().endsWith(".csv")) {
+			if (
+				file.type !== "text/csv" &&
+				!file.name.toLowerCase().endsWith(".csv")
+			) {
 				notify({
 					type: "error",
 					text: "Yamtrack export must be a .csv file!",
@@ -747,8 +750,12 @@
 				}
 
 				const rawMediaId = String(row.media_id || "").trim();
-				const source = String(row.source || "tmdb").toLowerCase().trim();
-				const rawType = String(row.media_type || "").toLowerCase().trim();
+				const source = String(row.source || "tmdb")
+					.toLowerCase()
+					.trim();
+				const rawType = String(row.media_type || "")
+					.toLowerCase()
+					.trim();
 				const type: "movie" | "tv" | "game" =
 					rawType === "movie" || rawType === "film"
 						? "movie"
@@ -767,7 +774,9 @@
 						: undefined;
 
 				// Status mapping
-				const rawStatus = String(row.status || "").toLowerCase().trim();
+				const rawStatus = String(row.status || "")
+					.toLowerCase()
+					.trim();
 				let status: WatchedStatus = "FINISHED";
 				if (
 					rawStatus.includes("complete") ||
@@ -807,7 +816,8 @@
 				) {
 					const num = Number(row.score);
 					if (!isNaN(num) && num > 0) {
-						rating = num > 10 ? Math.min(10, Math.round(num / 10)) : Math.min(10, num);
+						rating =
+							num > 10 ? Math.min(10, Math.round(num / 10)) : Math.min(10, num);
 					}
 				}
 
@@ -834,7 +844,8 @@
 
 				// Check if item already exists in toImport (e.g. from multiple episode/watch rows)
 				const existing = toImport.find((item) => {
-					if (tmdbId && item.tmdbId === tmdbId && item.type === type) return true;
+					if (tmdbId && item.tmdbId === tmdbId && item.type === type)
+						return true;
 					if (imdbId && item.imdbId === imdbId) return true;
 					if (igdbId && item.igdbId === igdbId) return true;
 					if (
@@ -848,8 +859,12 @@
 					return false;
 				});
 
-				const seasonNum = row.season_number ? Number(row.season_number) : undefined;
-				const epNum = row.episode_number ? Number(row.episode_number) : undefined;
+				const seasonNum = row.season_number
+					? Number(row.season_number)
+					: undefined;
+				const epNum = row.episode_number
+					? Number(row.episode_number)
+					: undefined;
 
 				if (existing) {
 					// Merge additional watch date
@@ -862,7 +877,10 @@
 						existing.rating = rating;
 					}
 					// Append notes if any
-					if (row.notes?.trim() && !existing.thoughts?.includes(row.notes.trim())) {
+					if (
+						row.notes?.trim() &&
+						!existing.thoughts?.includes(row.notes.trim())
+					) {
 						existing.thoughts = existing.thoughts
 							? `${existing.thoughts}\n${row.notes.trim()}`
 							: row.notes.trim();
@@ -872,7 +890,8 @@
 						if (!existing.watchedEpisodes) existing.watchedEpisodes = [];
 						if (
 							!existing.watchedEpisodes.some(
-								(e) => e.seasonNumber === seasonNum && e.episodeNumber === epNum,
+								(e) =>
+									e.seasonNumber === seasonNum && e.episodeNumber === epNum,
 							)
 						) {
 							existing.watchedEpisodes.push({
@@ -1017,7 +1036,9 @@
 					// Tags
 					const tags: TagAddRequest[] = [];
 					if (row.Tags && typeof row.Tags === "string" && row.Tags.trim()) {
-						const tagNames = row.Tags.split(",").map((s) => s.trim()).filter(Boolean);
+						const tagNames = row.Tags.split(",")
+							.map((s) => s.trim())
+							.filter(Boolean);
 						for (const tn of tagNames) {
 							tags.push({ name: tn, color: "#ffffff", bgColor: "#e11d48" });
 						}
@@ -1042,7 +1063,11 @@
 						if (tags.length > 0) {
 							if (!existing.tags) existing.tags = [];
 							for (const t of tags) {
-								if (!existing.tags.some((et) => et.name.toLowerCase() === t.name.toLowerCase())) {
+								if (
+									!existing.tags.some(
+										(et) => et.name.toLowerCase() === t.name.toLowerCase(),
+									)
+								) {
 									existing.tags.push(t);
 								}
 							}
@@ -1240,7 +1265,8 @@
 						<h3>Export Your Library</h3>
 					</div>
 					<p class="subtitle">
-						Download a complete backup of your watched media, reviews, dates, ratings, and tags.
+						Download a complete backup of your watched media, reviews, dates,
+						ratings, and tags.
 					</p>
 				</div>
 			</div>

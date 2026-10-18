@@ -1,2 +1,15 @@
-server/data/
+.git
+.github
+.vscode
+node_modules
+server/data
+data
+changelog
+doc
+screenshot
+*.md
+.prettier*
+eslint*
+start.bat
+Makefile
 server/Makefile

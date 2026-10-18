@@ -22,6 +22,7 @@ export default function paginatedLoader<T, U>(
 		meta?: U;
 		page: number;
 		pageMax: number;
+		totalResults: number;
 		reqLoading: boolean;
 		reqLoadError: unknown | undefined;
 	} = $state({
@@ -29,6 +30,7 @@ export default function paginatedLoader<T, U>(
 		meta: undefined,
 		page: 0,
 		pageMax: 1,
+		totalResults: 0,
 		reqLoading: false,
 		reqLoadError: undefined,
 	});
@@ -40,6 +42,7 @@ export default function paginatedLoader<T, U>(
 		state.data = [];
 		state.page = 0;
 		state.pageMax = 1;
+		state.totalResults = 0;
 		state.reqLoading = false;
 		state.reqLoadError = undefined;
 		// Abort any existing request to ensure we don't end up having multiple
@@ -106,6 +109,7 @@ export default function paginatedLoader<T, U>(
 			}
 			state.page = resp.page;
 			state.pageMax = resp.totalPages;
+			state.totalResults = resp.totalResults ?? 0;
 			console.debug(
 				`%cpaginatedLoader->runFn: Loaded Page=${state.page} Max=${state.pageMax}`,
 				logStyle,

@@ -21,7 +21,8 @@
 		if (collectionId) {
 			loading = true;
 			error = undefined;
-			req.get<MediaCollection>(`/content/collection/${collectionId}`)
+			req
+				.get<MediaCollection>(`/content/collection/${collectionId}`)
 				.then((resp) => {
 					collection = resp;
 					loading = false;
@@ -35,7 +36,8 @@
 	});
 
 	const watchedCount = $derived(
-		collection?.parts?.filter((p) => p.watched?.status === "FINISHED").length || 0,
+		collection?.parts?.filter((p) => p.watched?.status === "FINISHED").length ||
+			0,
 	);
 	const totalCount = $derived(collection?.parts?.length || 0);
 	const pctWatched = $derived(
@@ -69,7 +71,8 @@
 
 					<div class="collection-meta">
 						<span class="badge count-badge">
-							{totalCount} {totalCount === 1 ? "Movie" : "Movies"}
+							{totalCount}
+							{totalCount === 1 ? "Movie" : "Movies"}
 						</span>
 						{#if watchedCount > 0}
 							{#if watchedCount === totalCount}
@@ -88,10 +91,7 @@
 
 				{#if watchedCount > 0}
 					<div class="collection-progress-bar">
-						<div
-							class="progress-fill"
-							style={`width: ${pctWatched}%`}
-						></div>
+						<div class="progress-fill" style={`width: ${pctWatched}%`}></div>
 					</div>
 				{/if}
 
@@ -275,7 +275,9 @@
 				position: relative;
 				flex-shrink: 0;
 				border-radius: 12px;
-				transition: transform 180ms ease, box-shadow 180ms ease;
+				transition:
+					transform 180ms ease,
+					box-shadow 180ms ease;
 
 				&.is-current {
 					border: 2px solid $brand-color;
@@ -304,4 +306,3 @@
 		}
 	}
 </style>
-

@@ -8,6 +8,7 @@ package job
 import (
 	"errors"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/sbondCo/Watcharr/util"
@@ -36,7 +37,10 @@ type Job struct {
 	UserId uint `json:"-"`
 }
 
-var activeJobs = make(map[string]*Job)
+var (
+	jobsMu     sync.RWMutex
+	activeJobs = make(map[string]*Job)
+)
 
 // Add a job to our activeJobs map.
 // Returns id of job on success, or error if failed to add.
@@ -47,6 +51,8 @@ func AddJob(name string, userId uint) (string, error) {
 		slog.Error("addJob: Failed to generate a job id!", "error", err)
 		return "", errors.New("failed to generate a job id, please try again")
 	}
+	jobsMu.Lock()
+	defer jobsMu.Unlock()
 	_, ok := activeJobs[idk]
 	if ok {
 		// Lets just hope this doesn't happen, may the odds be with us.
@@ -63,6 +69,7 @@ func AddJob(name string, userId uint) (string, error) {
 // Add a job, but only if one with the same `name` isn't already running.
 // Only return safe errors for display to users.
 func AddUniqueJob(name string, userId uint) (string, error) {
+	jobsMu.RLock()
 	found := false
 	for _, v := range activeJobs {
 		if v.UserId == userId && v.Name == name && (v.Status == JOB_CREATED || v.Status == JOB_RUNNING) {
@@ -70,6 +77,7 @@ func AddUniqueJob(name string, userId uint) (string, error) {
 			break
 		}
 	}
+	jobsMu.RUnlock()
 	if found {
 		return "", errors.New("a job of this type is already running, please wait for the existing job to finish")
 	}
@@ -78,6 +86,8 @@ func AddUniqueJob(name string, userId uint) (string, error) {
 
 func RmJob(id string, userId uint) {
 	slog.Debug("rmJob: Removing a job.", "id", id)
+	jobsMu.Lock()
+	defer jobsMu.Unlock()
 	v, ok := activeJobs[id]
 	if ok && v.UserId == userId {
 		delete(activeJobs, id)
@@ -90,6 +100,8 @@ func RmJob(id string, userId uint) {
 // Get a job.
 // Returns job if found, otherwise errors if job does not exist.
 func GetJob(id string, userId uint) (*Job, error) {
+	jobsMu.RLock()
+	defer jobsMu.RUnlock()
 	j, ok := activeJobs[id]
 	if ok {
 		// Ensure user requesting a job, owns the job.
@@ -97,20 +109,26 @@ func GetJob(id string, userId uint) (*Job, error) {
 			slog.Warn("getJob: A user tried to access a job they do not own.", "user_id", userId, "job_id", id)
 			return &Job{}, errors.New("job does not exist")
 		}
-		return j, nil
+		// Return a shallow copy of the job so caller reads are safe
+		jobCopy := *j
+		return &jobCopy, nil
 	}
 	return &Job{}, errors.New("job does not exist")
 }
 
 // Update a jobs status.
 func UpdateJobStatus(id string, userId uint, status JobStatus) error {
-	j, err := GetJob(id, userId)
-	if err != nil {
-		slog.Error("updateJobStatus: Failed!", "status", status, "error", err)
-		return err
+	jobsMu.Lock()
+	j, ok := activeJobs[id]
+	if !ok || j.UserId != userId {
+		jobsMu.Unlock()
+		slog.Error("updateJobStatus: Failed!", "status", status, "error", "job does not exist")
+		return errors.New("job does not exist")
 	}
 	j.Status = status
-	// If job is set to done, remove it after 1 minute.
+	jobsMu.Unlock()
+
+	// If job is set to done, remove it after 30 minutes.
 	if status == JOB_DONE || status == JOB_CANCELLED {
 		slog.Debug("updateJobStatus: Job set to done or cancelled. Will be removed after 30m.", "id", id, "status", status)
 		go func() {
@@ -124,10 +142,12 @@ func UpdateJobStatus(id string, userId uint, status JobStatus) error {
 
 // Update a jobs current task.
 func UpdateJobCurrentTask(id string, userId uint, ct string) error {
-	j, err := GetJob(id, userId)
-	if err != nil {
-		slog.Error("updateJobCurrentTask: Failed!", "ct", ct, "error", err)
-		return err
+	jobsMu.Lock()
+	defer jobsMu.Unlock()
+	j, ok := activeJobs[id]
+	if !ok || j.UserId != userId {
+		slog.Error("updateJobCurrentTask: Failed!", "ct", ct, "error", "job does not exist")
+		return errors.New("job does not exist")
 	}
 	j.CurrentTask = ct
 	return nil
@@ -135,10 +155,12 @@ func UpdateJobCurrentTask(id string, userId uint, ct string) error {
 
 // Add an error to a job.
 func AddJobError(id string, userId uint, e string) error {
-	j, err := GetJob(id, userId)
-	if err != nil {
-		slog.Error("updateJobCurrentTask: Failed!", "e", e, "error", err)
-		return err
+	jobsMu.Lock()
+	defer jobsMu.Unlock()
+	j, ok := activeJobs[id]
+	if !ok || j.UserId != userId {
+		slog.Error("addJobError: Failed!", "e", e, "error", "job does not exist")
+		return errors.New("job does not exist")
 	}
 	j.Errors = append(j.Errors, e)
 	return nil

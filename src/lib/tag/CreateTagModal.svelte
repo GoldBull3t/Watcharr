@@ -107,7 +107,12 @@
 			onClose();
 		} catch (err) {
 			console.error("addTag: Failed!", err);
-			notify({ id: nid, text: "Failed to create tag!", type: "error", time: 2 });
+			notify({
+				id: nid,
+				text: "Failed to create tag!",
+				type: "error",
+				time: 2,
+			});
 			error = "Failed to create tag!";
 		}
 	}
@@ -134,7 +139,12 @@
 			onClose();
 		} catch (err) {
 			console.error("updateTag: Failed!", err);
-			notify({ id: nid, text: "Failed to update tag!", type: "error", time: 2 });
+			notify({
+				id: nid,
+				text: "Failed to update tag!",
+				type: "error",
+				time: 2,
+			});
 			error = "Failed to update tag!";
 		}
 	}
@@ -188,7 +198,10 @@
 
 		<SettingsList>
 			<!-- Name & Emoji -->
-			<Setting title="Name & Emoji" desc="Choose an emoji and label for your collection">
+			<Setting
+				title="Name & Emoji"
+				desc="Choose an emoji and label for your collection"
+			>
 				<div class="name-input-group">
 					<div class="emoji-indicator" title="Selected Emoji">
 						{selectedEmoji || "🏷️"}
@@ -208,7 +221,9 @@
 						{#each TAG_EMOJI_CATEGORIES as cat, i}
 							<button
 								type="button"
-								class="plain emoji-tab-btn {activeEmojiTab === i ? 'active' : ''}"
+								class="plain emoji-tab-btn {activeEmojiTab === i
+									? 'active'
+									: ''}"
 								onclick={() => (activeEmojiTab = i)}
 							>
 								{cat.category}
@@ -230,7 +245,9 @@
 						{#each TAG_EMOJI_CATEGORIES[activeEmojiTab].emojis as emoji}
 							<button
 								type="button"
-								class="plain emoji-btn {selectedEmoji === emoji ? 'selected' : ''}"
+								class="plain emoji-btn {selectedEmoji === emoji
+									? 'selected'
+									: ''}"
 								onclick={() => selectEmoji(emoji)}
 								title={`Use ${emoji}`}
 							>
@@ -242,12 +259,18 @@
 			</Setting>
 
 			<!-- Color Palette Presets -->
-			<Setting title="Color Palette" desc="Choose a curated tone or customize your hex">
+			<Setting
+				title="Color Palette"
+				desc="Choose a curated tone or customize your hex"
+			>
 				<div class="swatches-grid">
 					{#each TAG_COLOR_PRESETS as preset}
 						<button
 							type="button"
-							class="plain swatch-btn {bgColor.toLowerCase() === preset.bgColor.toLowerCase() ? 'active' : ''}"
+							class="plain swatch-btn {bgColor.toLowerCase() ===
+							preset.bgColor.toLowerCase()
+								? 'active'
+								: ''}"
 							style:background={preset.bgColor}
 							title={preset.name}
 							onclick={() => handleBgColorChange(preset.bgColor)}
@@ -307,7 +330,11 @@
 			</Setting>
 
 			{#if !autoContrast}
-				<Setting title="Custom Text Color" desc="Fine-tune text readability" row>
+				<Setting
+					title="Custom Text Color"
+					desc="Fine-tune text readability"
+					row
+				>
 					<ColorSelector bind:value={textColor} style="max-width: 120px;" />
 				</Setting>
 			{/if}

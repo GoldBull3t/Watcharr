@@ -43,6 +43,10 @@ type IGDB struct {
 	onTokenRefreshed   *func()
 }
 
+var igdbHttpClient = &http.Client{
+	Timeout: 20 * time.Second,
+}
+
 func (i *IGDB) req(host string, ep string, p map[string]string, b string, resp interface{}) error {
 	// if using igdb host and we have no access token, error before running req
 	if host == igdbHost && (i.ClientID == nil || i.AccessToken == "") {
@@ -81,13 +85,13 @@ func (i *IGDB) req(host string, ep string, p map[string]string, b string, resp i
 		req.Header.Add("Authorization", "Bearer "+i.AccessToken)
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := igdbHttpClient.Do(req)
 	if err != nil {
 		return err
 	}
+	defer res.Body.Close()
 
 	body, err := io.ReadAll(res.Body)
-	res.Body.Close()
 	if err != nil {
 		return err
 	}

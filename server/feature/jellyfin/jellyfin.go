@@ -94,7 +94,9 @@ func (s *Service) userAPIRequest(
 	base.RawQuery = params.Encode()
 
 	// Run get request
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: 20 * time.Second,
+	}
 	req, err := http.NewRequest(method, base.String(), bytes.NewBuffer([]byte{}))
 	if err != nil {
 		slog.Error("Creating request to jellyfin failed", "error", err)

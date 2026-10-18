@@ -20,6 +20,7 @@
 		getReleaseYear,
 	} from "@/lib/dashboard/mediaHelpers";
 	import { onDestroy, onMount } from "svelte";
+	import { searchCache } from "@/lib/util/searchCache";
 
 	interface Props {
 		open: boolean;
@@ -27,7 +28,11 @@
 		onOpenWebhookModal?: () => void;
 	}
 
-	let { open = $bindable(false), onClose, onOpenWebhookModal }: Props = $props();
+	let {
+		open = $bindable(false),
+		onClose,
+		onOpenWebhookModal,
+	}: Props = $props();
 
 	let query = $state("");
 	let selectedIndex = $state(0);
@@ -180,7 +185,12 @@
 				title: m.name || "Untitled",
 				subtitle: year ? `${typeBadge} • ${year}` : typeBadge,
 				poster: poster,
-				icon: m.type === MediaTypeE.igdbGame ? "gamepad" : m.type === MediaTypeE.tmdbShow ? "tv" : "film",
+				icon:
+					m.type === MediaTypeE.igdbGame
+						? "gamepad"
+						: m.type === MediaTypeE.tmdbShow
+							? "tv"
+							: "film",
 				badge: typeBadge,
 				badgeColor: badgeColor,
 				action: () => navigateTo(link),
@@ -221,16 +231,26 @@
 			return;
 		}
 
+		// Instant cache check (0ms response)
+		const cached = searchCache.get<
+			PaginationResponse<Media, SearchResponseMeta>
+		>(q, "multi", false, 1);
+		if (cached?.results) {
+			searchResults = cached.results.slice(0, 8);
+			isSearching = false;
+			return;
+		}
+
 		isSearching = true;
 		searchTimeout = window.setTimeout(async () => {
 			try {
-				const res = await req.get<PaginationResponse<Media, SearchResponseMeta>>(
-					`/search`,
-					{
-						params: { query: q, page: 1, type: "multi" },
-					},
-				);
+				const res = await req.get<
+					PaginationResponse<Media, SearchResponseMeta>
+				>(`/search`, {
+					params: { query: q, page: 1, type: "multi" },
+				});
 				if (res?.results) {
+					searchCache.set(q, res, "multi", false, 1);
 					searchResults = res.results.slice(0, 8);
 				} else {
 					searchResults = [];
@@ -241,7 +261,7 @@
 			} finally {
 				isSearching = false;
 			}
-		}, 250);
+		}, 220);
 	});
 
 	// Auto-scroll selected element into view
@@ -299,8 +319,7 @@
 			e.preventDefault();
 			if (filteredActions.length > 0) {
 				selectedIndex =
-					(selectedIndex - 1 + filteredActions.length) %
-					filteredActions.length;
+					(selectedIndex - 1 + filteredActions.length) % filteredActions.length;
 			}
 			return;
 		}
@@ -387,10 +406,14 @@
 					<div class="palette-empty">
 						<Icon i="search" wh={32} />
 						<p>No results found for "<strong>{query}</strong>"</p>
-						<span>Try searching by movie title, director or navigating to library</span>
+						<span
+							>Try searching by movie title, director or navigating to library</span
+						>
 					</div>
 				{:else}
-					{@const sections = Array.from(new Set(filteredActions.map((a) => a.section)))}
+					{@const sections = Array.from(
+						new Set(filteredActions.map((a) => a.section)),
+					)}
 					{#each sections as section}
 						{@const sectionItems = filteredActions
 							.map((item, originalIndex) => ({ item, originalIndex }))
@@ -407,7 +430,13 @@
 								>
 									<div class="item-visual">
 										{#if item.poster}
-											<img src={item.poster} alt="" class="item-poster" loading="lazy" />
+											<img
+												src={item.poster}
+												alt={item.title || "Poster"}
+												class="item-poster"
+												loading="lazy"
+												decoding="async"
+											/>
 										{:else if item.icon}
 											<div class="item-icon-box">
 												<Icon i={item.icon} wh={18} />
@@ -425,7 +454,9 @@
 									{#if item.badge}
 										<span
 											class="item-badge"
-											style={item.badgeColor ? `color: ${item.badgeColor}; border-color: ${item.badgeColor}40; background: ${item.badgeColor}15;` : ""}
+											style={item.badgeColor
+												? `color: ${item.badgeColor}; border-color: ${item.badgeColor}40; background: ${item.badgeColor}15;`
+												: ""}
 										>
 											{item.badge}
 										</span>

@@ -400,7 +400,9 @@ export function getRelativeDateInfo(
 }
 
 /** I'm no warden of time, this is as relative as it's getting. */
-export function toRelativeDate(d: Date | string | number | undefined | null): string {
+export function toRelativeDate(
+	d: Date | string | number | undefined | null,
+): string {
 	if (!d) {
 		return "Unknown";
 	}

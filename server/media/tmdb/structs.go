@@ -61,6 +61,9 @@ func (t *SearchResult) AsMedia() domain.Media {
 		m.Type = domain.MediaTypeTMDBMovie
 	case "tv":
 		m.Type = domain.MediaTypeTMDBShow
+		if c := domain.GetCliffhangerInfo(t.ID); c != nil {
+			m.Cancellation = c
+		}
 	case "person":
 		m.Type = domain.MediaTypeTMDBPerson
 	}
@@ -582,6 +585,10 @@ func (t *ShowDetails) AsMedia() domain.Media {
 	m := t.ContentDetails.AsMedia()
 	m.Type = domain.MediaTypeTMDBShow
 	m.Name = t.Name
+	m.Status = string(t.Status)
+	if c := domain.GetCliffhangerInfo(t.ID); c != nil {
+		m.Cancellation = c
+	}
 	if releaseDate, err := time.Parse("2006-01-02", t.FirstAirDate); err == nil {
 		m.ReleaseDate = releaseDate
 	} else {

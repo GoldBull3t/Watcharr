@@ -139,7 +139,11 @@
 
 						<div class="details">
 							<span class="title-container">
-								<a href={person.homepage} rel="noreferrer noopener external" target="_blank">
+								<a
+									href={person.homepage}
+									rel="noreferrer noopener external"
+									target="_blank"
+								>
 									{person.name}
 								</a>
 								<span></span>

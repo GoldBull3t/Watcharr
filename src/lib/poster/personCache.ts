@@ -6,7 +6,9 @@ const creditsCache = new Map<number, Promise<Media[]>>();
 /**
  * Fetches and caches person credits with user's watched status populated.
  */
-export function getPersonCreditsWithWatched(personId: number): Promise<Media[]> {
+export function getPersonCreditsWithWatched(
+	personId: number,
+): Promise<Media[]> {
 	if (creditsCache.has(personId)) {
 		return creditsCache.get(personId)!;
 	}
@@ -26,4 +28,3 @@ export function getPersonCreditsWithWatched(personId: number): Promise<Media[]> 
 	creditsCache.set(personId, promise);
 	return promise;
 }
-

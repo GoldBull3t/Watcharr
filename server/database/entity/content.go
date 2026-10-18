@@ -47,6 +47,7 @@ type Content struct {
 	NumberOfEpisodes uint32      `json:"numberOfEpisodes"`
 	NumberOfSeasons  uint32      `json:"numberOfSeasons"`
 	Genres           string      `json:"genres,omitempty"`
+	EndingType       string      `json:"endingType,omitempty" gorm:"default:'unknown'"`
 }
 
 // NOTE: Can return empty string, so use only when we know that a valid option

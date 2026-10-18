@@ -67,7 +67,9 @@
 			<button
 				class={["plain", inManageMode ? "manage-on" : ""].join(" ")}
 				onclick={() => (inManageMode = !inManageMode)}
-				title={inManageMode ? "Exit manage mode" : "Manage tags (edit / delete)"}
+				title={inManageMode
+					? "Exit manage mode"
+					: "Manage tags (edit / delete)"}
 			>
 				<Icon i={inManageMode ? "close" : "settings"} wh={16} />
 			</button>

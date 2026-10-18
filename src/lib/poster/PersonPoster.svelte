@@ -58,8 +58,8 @@
 	);
 </script>
 
-<!-- Quick fix to ignore error, should be fixed -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
 <li
 	onmouseenter={handleMouseEnter}
 	onmouseleave={handleMouseLeave}
@@ -67,7 +67,9 @@
 	onclick={() => {
 		if (link) goto(resolve(link));
 	}}
-	onkeypress={() => console.log("on kpress")}
+	onkeydown={(e) => {
+		if (e.key === "Enter" && link) goto(resolve(link));
+	}}
 >
 	{#if popoverVisible && id}
 		<PersonSmartPopover personId={id} personName={name} {role} />
@@ -79,13 +81,13 @@
 			<div class="img-loader"></div>
 			<img
 				loading="lazy"
+				decoding="async"
 				src={poster}
-				alt=""
+				alt={name || "Person"}
 				onload={(e) => {
 					addClassToParent(e, "img-loaded");
 				}}
 				onerror={(e) => {
-					console.log("on err");
 					addClassToParent(e, "details-shown");
 				}}
 			/>

@@ -67,7 +67,11 @@
 					if (typeof data === "number") {
 						return `Rating Changed to ${data}`;
 					}
-					if (data && typeof data === "object" && typeof data.rating !== "undefined") {
+					if (
+						data &&
+						typeof data === "object" &&
+						typeof data.rating !== "undefined"
+					) {
 						return `Rating Changed to ${data.rating}`;
 					}
 					if (!isNaN(Number(a.data))) {
@@ -152,12 +156,17 @@
 			if (text.toUpperCase() === "DROPPED") {
 				return "Stopped Watching";
 			}
-			if (text.toUpperCase() === "CANCELLED" || text.toUpperCase() === "CANCELED") {
+			if (
+				text.toUpperCase() === "CANCELLED" ||
+				text.toUpperCase() === "CANCELED"
+			) {
 				return "Cancelled";
 			}
 			return text
 				.split(" ")
-				.map((l) => (l[0] ? l[0].toUpperCase() + l.substring(1).toLowerCase() : l))
+				.map((l) =>
+					l[0] ? l[0].toUpperCase() + l.substring(1).toLowerCase() : l,
+				)
 				.join(" ");
 		}
 		return "Unknown";
@@ -177,7 +186,8 @@
 	function getCreatedAtVis(a: Activity): number {
 		const raw: unknown = a.customDate ?? a.createdAt;
 		if (!raw) return 0;
-		const parsed = raw instanceof Date ? raw.getTime() : Date.parse(String(raw));
+		const parsed =
+			raw instanceof Date ? raw.getTime() : Date.parse(String(raw));
 		return isNaN(parsed) ? 0 : parsed;
 	}
 
@@ -192,9 +202,10 @@
 				const activity = a[i];
 				const ts = getCreatedAtVis(activity);
 				const date = new Date(ts);
-				const key = isNaN(date.getTime()) || ts === 0
-					? "Unknown Date"
-					: `${months[date.getMonth()] ?? "Unknown"} ${date.getFullYear()}`;
+				const key =
+					isNaN(date.getTime()) || ts === 0
+						? "Unknown Date"
+						: `${months[date.getMonth()] ?? "Unknown"} ${date.getFullYear()}`;
 				if (grouped[key]) {
 					grouped[key].push(activity);
 				} else {

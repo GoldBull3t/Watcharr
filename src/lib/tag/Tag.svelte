@@ -1,10 +1,6 @@
 <script lang="ts">
 	import type { Tag } from "@/types";
-	import {
-		splitTagEmoji,
-		getContrastTextColor,
-		hexToRgba,
-	} from "./tagUtil";
+	import { splitTagEmoji, getContrastTextColor, hexToRgba } from "./tagUtil";
 
 	interface Props {
 		tag: Tag | { name: string; color?: string; bgColor?: string; id?: number };
@@ -33,13 +29,17 @@
 	let tagColor = $derived(tag?.color || getContrastTextColor(tagBg));
 	let borderColor = $derived(hexToRgba(tagBg, 0.45));
 	let glowColor = $derived(hexToRgba(tagBg, 0.3));
-	let isInteractive = $derived(clickable && (typeof onClick === "function" || removable));
+	let isInteractive = $derived(
+		clickable && (typeof onClick === "function" || removable),
+	);
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <button
 	type="button"
-	class="plain watcharr-tag-pill size-{size} {active ? 'active' : ''} {isInteractive ? 'interactive' : 'static'}"
+	class="plain watcharr-tag-pill size-{size} {active
+		? 'active'
+		: ''} {isInteractive ? 'interactive' : 'static'}"
 	style:background={tagBg}
 	style:color={tagColor}
 	style:--tag-border={borderColor}
@@ -96,7 +96,9 @@
 		max-width: 100%;
 		border-radius: 9999px;
 		border: 1px solid var(--tag-border, rgba(255, 255, 255, 0.2));
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 0 8px var(--tag-glow, transparent);
+		box-shadow:
+			0 1px 3px rgba(0, 0, 0, 0.2),
+			0 0 8px var(--tag-glow, transparent);
 		font-weight: 600;
 		line-height: 1.2;
 		white-space: nowrap;
@@ -151,7 +153,9 @@
 			&:hover {
 				transform: translateY(-1px);
 				filter: brightness(1.08);
-				box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25), 0 0 12px var(--tag-glow, transparent);
+				box-shadow:
+					0 3px 10px rgba(0, 0, 0, 0.25),
+					0 0 12px var(--tag-glow, transparent);
 				border-color: rgba(255, 255, 255, 0.4);
 			}
 

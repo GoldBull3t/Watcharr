@@ -46,6 +46,9 @@
 	import SeriesProgress from "@/lib/season/SeriesProgress.svelte";
 	import NextEpisodeCard from "@/lib/season/NextEpisodeCard.svelte";
 	import MediaLightbox from "@/lib/content/MediaLightbox.svelte";
+	import CancellationGuardBadge from "@/lib/content/CancellationGuardBadge.svelte";
+	import CliffhangerWarningModal from "@/lib/content/CliffhangerWarningModal.svelte";
+	import FranchiseBadgeLink from "@/lib/franchise/FranchiseBadgeLink.svelte";
 
 	let { data } = $props();
 
@@ -56,6 +59,15 @@
 	let pageError: unknown | undefined = $state();
 	let countAsPlayModalSignal: Signal<boolean> | undefined = $state();
 	let galleryOpen = $state(false);
+	let pendingStatusChange:
+		| {
+				status?: WatchedStatus;
+				rating?: number;
+				thoughts?: string;
+				pinned?: boolean;
+		  }
+		| undefined = $state();
+	let cliffhangerWarningShown = $state(false);
 
 	$effect(() => {
 		const controller = new AbortController();
@@ -75,7 +87,11 @@
 					if (resp.name && resp.ids.tmdb) {
 						contentExistsOnJellyfin("tv", resp.name, resp.ids.tmdb).then(
 							(j) => {
-								if (!controller.signal.aborted && j?.hasContent && j?.url !== "") {
+								if (
+									!controller.signal.aborted &&
+									j?.hasContent &&
+									j?.url !== ""
+								) {
 									jellyfinUrl = j.url;
 								}
 							},
@@ -104,7 +120,16 @@
 		return credits;
 	}
 
-	async function contentChanged(
+	async function confirmCliffhangerAdd() {
+		cliffhangerWarningShown = false;
+		if (pendingStatusChange) {
+			const { status, rating, thoughts, pinned } = pendingStatusChange;
+			pendingStatusChange = undefined;
+			await executeContentChange(status, rating, thoughts, pinned);
+		}
+	}
+
+	async function executeContentChange(
 		newStatus?: WatchedStatus,
 		newRating?: number,
 		newThoughts?: string,
@@ -146,6 +171,30 @@
 		} catch {
 			return false;
 		}
+	}
+
+	async function contentChanged(
+		newStatus?: WatchedStatus,
+		newRating?: number,
+		newThoughts?: string,
+		pinned?: boolean,
+	): Promise<boolean> {
+		if (
+			!show?.watched &&
+			(show?.cancellation?.hasCliffhanger ||
+				show?.cancellation?.status === "cliffhanger") &&
+			newStatus
+		) {
+			pendingStatusChange = {
+				status: newStatus,
+				rating: newRating,
+				thoughts: newThoughts,
+				pinned: pinned,
+			};
+			cliffhangerWarningShown = true;
+			return false;
+		}
+		return executeContentChange(newStatus, newRating, newThoughts, pinned);
 	}
 </script>
 
@@ -192,24 +241,20 @@
 							voteCount={show.ratingCount}
 						/>
 
+						<CancellationGuardBadge
+							showId={data.tvId}
+							status={show.status}
+							cancellation={show.cancellation}
+							onOverrideChanged={(updated) => {
+								if (show) {
+									show.cancellation = updated;
+								}
+							}}
+						/>
+
 						<span class="quick-info">
-							{#if show.status}
-								<span
-									class="series-status-tag"
-									class:canceled={show.status === MediaStatusShow.Canceled || show.status === "Canceled"}
-								>
-									{show.status === MediaStatusShow.Canceled || show.status === "Canceled" ? "Cancelada" : show.status}
-								</span>
-							{/if}
 							<Genres genres={show.genres} />
 						</span>
-
-						{#if show.status === MediaStatusShow.Canceled || show.status === "Canceled"}
-							<div class="production-canceled-banner">
-								<Icon i="close-circle" wh={15} />
-								<span>Esta série foi cancelada pela emissora / produtora.</span>
-							</div>
-						{/if}
 
 						<ExpandableText text={show.summary} style="margin-bottom: 18px;" />
 
@@ -355,8 +400,22 @@
 			/>
 		{/if}
 
+		{#if cliffhangerWarningShown}
+			<CliffhangerWarningModal
+				showName={show.name}
+				warning={show.cancellation?.warning}
+				description={show.cancellation?.description}
+				onConfirm={confirmCliffhangerAdd}
+				onCancel={() => {
+					cliffhangerWarningShown = false;
+					pendingStatusChange = undefined;
+				}}
+			/>
+		{/if}
+
 		<div class="page">
 			{#if data.tvId}
+				<FranchiseBadgeLink mediaType="tv" tmdbId={data.tvId} />
 				<FollowedThoughts mediaType="tv" mediaId={data.tvId} />
 			{/if}
 
@@ -445,44 +504,6 @@
 				flex-wrap: wrap;
 				gap: 10px;
 				margin-bottom: 8px;
-
-				.series-status-tag {
-					font-size: 12px;
-					font-weight: 700;
-					letter-spacing: 0.04em;
-					text-transform: uppercase;
-					padding: 3px 10px;
-					border-radius: 999px;
-					background: rgba(99, 102, 241, 0.15);
-					border: 1px solid rgba(99, 102, 241, 0.3);
-					color: #c7d2fe;
-
-					&.canceled {
-						background: rgba(225, 29, 72, 0.2);
-						border-color: rgba(225, 29, 72, 0.45);
-						color: #fb7185;
-					}
-				}
-			}
-
-			.production-canceled-banner {
-				display: flex;
-				align-items: center;
-				gap: 8px;
-				padding: 8px 12px;
-				margin-bottom: 14px;
-				border-radius: 8px;
-				background: rgba(225, 29, 72, 0.14);
-				border: 1px solid rgba(225, 29, 72, 0.35);
-				color: #fecdd3;
-				font-size: 13px;
-				font-weight: 500;
-				width: fit-content;
-
-				:global(svg) {
-					color: #fb7185;
-					flex-shrink: 0;
-				}
 			}
 
 			.btns {

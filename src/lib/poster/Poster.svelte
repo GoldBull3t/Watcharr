@@ -6,10 +6,7 @@
 		MediaTypeE,
 		type SupportedMedia,
 	} from "@/types";
-	import {
-		isTouch,
-		mouseOverEl,
-	} from "@/lib/util/helpers";
+	import { isTouch, mouseOverEl } from "@/lib/util/helpers";
 	import { goto } from "$app/navigation";
 	import { baseURL, removeWatched, updateWatched } from "../util/api";
 	import { notify, notifyUndo } from "../util/notify";
@@ -23,6 +20,7 @@
 	import Icon from "../Icon.svelte";
 	import { formatPublicRating, formatVoteCount } from "../rating/helpers";
 	import { viewTransition } from "@/lib/util/viewTransition.svelte";
+	import CliffhangerWarningModal from "../content/CliffhangerWarningModal.svelte";
 
 	interface Props {
 		media: Media;
@@ -86,6 +84,8 @@
 
 	// If the item was just deleted from watched list (via this poster.)
 	let justDeletedFromWatcheds = $state(false);
+	let pendingStatusClick: WatchedStatus | undefined = $state();
+	let cliffhangerModalOpen = $state(false);
 
 	const meta:
 		| {
@@ -117,7 +117,9 @@
 		};
 	});
 	let isTransitionTarget = $derived(
-		meta?.type && meta?.id ? viewTransition.isActive(meta.type, meta.id) : false
+		meta?.type && meta?.id
+			? viewTransition.isActive(meta.type, meta.id)
+			: false,
 	);
 	const poster = $derived.by(() => {
 		if (media.poster?.path) {
@@ -214,6 +216,19 @@
 			});
 			return;
 		}
+		if (
+			!watched &&
+			(media.cancellation?.hasCliffhanger ||
+				media.cancellation?.status === "cliffhanger")
+		) {
+			pendingStatusClick = type;
+			cliffhangerModalOpen = true;
+			return;
+		}
+		executeStatusClick(type);
+	}
+
+	function executeStatusClick(type: WatchedStatus) {
 		if (type == watched?.status || !meta?.id) return;
 		updateWatched(watched, {
 			contentId: meta.id,
@@ -314,11 +329,7 @@
 		posterActive = false;
 		resetTilt();
 		const ae = document.activeElement;
-		if (
-			ae &&
-			ae instanceof HTMLElement &&
-			ae.closest(".poster-body")
-		) {
+		if (ae && ae instanceof HTMLElement && ae.closest(".poster-body")) {
 			// Stops the poster being re-focused after the browser window
 			// loses focus, then regains it (ex: you middle click the poster,
 			// go to the opened tab (or lose browser window focus, then when
@@ -400,7 +411,6 @@
 			e.currentTarget.scrollIntoView({ block: "center" });
 		}
 	}}
-	onkeypress={() => console.log("on kpress")}
 	class={`${posterActive ? "active " : ""}${watched?.pinned ? "pinned " : ""}${hideIfNotOnList && !watched ? "hidden " : ""}`}
 	class:just-deleted={justDeletedFromWatcheds}
 >
@@ -410,7 +420,8 @@
 		style={posterActive && (tiltX !== 0 || tiltY !== 0)
 			? `transform: perspective(800px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) translateY(-5px) scale3d(1.025, 1.025, 1.025);`
 			: undefined}
-		style:view-transition-name={isTransitionTarget && (!poster || posterImgLoaded === -1)
+		style:view-transition-name={isTransitionTarget &&
+		(!poster || posterImgLoaded === -1)
 			? "active-poster"
 			: undefined}
 		bind:this={containerEl}
@@ -436,8 +447,9 @@
 			{/if}
 			<img
 				loading="lazy"
+				decoding="async"
 				src={poster}
-				alt=""
+				alt={media.name || "Poster"}
 				style:view-transition-name={isTransitionTarget && posterImgLoaded !== -1
 					? "active-poster"
 					: undefined}
@@ -459,10 +471,28 @@
 				<span>{publicRating}</span>
 			</div>
 		{/if}
+		{#if !posterActive && (media.cancellation?.hasCliffhanger || media.cancellation?.status === "cliffhanger")}
+			<div
+				class="corner-cancellation-badge"
+				title={media.cancellation?.description || "Cancelada sem desfecho conclusivo"}
+			>
+				<Icon i="close-circle" wh={11} />
+				<span>Sem Fim</span>
+			</div>
+		{:else if !posterActive && media.cancellation?.status === "hiatus"}
+			<div
+				class="corner-cancellation-badge hiatus"
+				title={media.cancellation?.description || "Hiato prolongado (+2 anos)"}
+			>
+				<Icon i="clock" wh={11} />
+				<span>Hiato</span>
+			</div>
+		{/if}
 		{#if watched && meta && !posterActive}
 			<!-- Must be on watched list, and poster not hovered -->
 			<ExtraDetails {...buildExtraDetails(meta.type, watched)} />
 		{/if}
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			onclick={(e) => {
 				if (typeof onClick !== "undefined") {
@@ -478,8 +508,6 @@
 			}}
 			onkeyup={handleInnerKeyUp}
 			class="inner poster-body"
-			role="button"
-			tabindex="-1"
 		>
 			<a
 				data-sveltekit-preload-data="tap"
@@ -496,12 +524,43 @@
 					{#if year}
 						<time>{year}</time>
 					{/if}
-					{#if media.status === "Canceled"}
-						<span class="canceled-tag" title="Série cancelada pela emissora/produtores">Cancelada</span>
+					{#if media.cancellation?.hasCliffhanger || media.cancellation?.status === "cliffhanger"}
+						<span
+							class="canceled-tag cliffhanger-tag"
+							title={media.cancellation?.description || "Cancelada sem desfecho conclusivo"}
+						>Sem Fim</span>
+					{:else if media.cancellation?.status === "hiatus"}
+						<span
+							class="canceled-tag hiatus-tag"
+							title={media.cancellation?.description || "Hiato prolongado (+2 anos)"}
+						>Hiato</span>
+					{:else if media.status === "Canceled" || media.cancellation?.status === "canceled"}
+						<span
+							class="canceled-tag"
+							title="Série cancelada pela emissora/produtores">Cancelada</span>
 					{/if}
 				</h2>
-				{#if media.status === "Canceled"}
-					<div class="card-canceled-alert" title="Série marcada como cancelada pela emissora ou produtores">
+				{#if media.cancellation?.hasCliffhanger || media.cancellation?.status === "cliffhanger"}
+					<div
+						class="card-canceled-alert cliffhanger-alert"
+						title={media.cancellation?.description || "Série cancelada sem desfecho"}
+					>
+						<Icon i="close-circle" wh={12} />
+						<span>Cancelada sem desfecho</span>
+					</div>
+				{:else if media.cancellation?.status === "hiatus"}
+					<div
+						class="card-canceled-alert hiatus-alert"
+						title={media.cancellation?.description || "Hiato prolongado (+2 anos)"}
+					>
+						<Icon i="clock" wh={12} />
+						<span>Hiato (+2 anos)</span>
+					</div>
+				{:else if media.status === "Canceled" || media.cancellation?.status === "canceled"}
+					<div
+						class="card-canceled-alert"
+						title="Série marcada como cancelada pela emissora ou produtores"
+					>
 						<Icon i="close-circle" wh={12} />
 						<span>Cancelada pela produção</span>
 					</div>
@@ -538,6 +597,26 @@
 		</div>
 	</div>
 </li>
+
+{#if cliffhangerModalOpen}
+	<CliffhangerWarningModal
+		showName={media.name}
+		warning={media.cancellation?.warning}
+		description={media.cancellation?.description}
+		onConfirm={() => {
+			cliffhangerModalOpen = false;
+			if (pendingStatusClick) {
+				const t = pendingStatusClick;
+				pendingStatusClick = undefined;
+				executeStatusClick(t);
+			}
+		}}
+		onCancel={() => {
+			cliffhangerModalOpen = false;
+			pendingStatusClick = undefined;
+		}}
+	/>
+{/if}
 
 <style lang="scss">
 	li.hidden {
@@ -632,7 +711,9 @@
 			height: 100%;
 			object-fit: cover;
 			opacity: 0;
-			transition: opacity 220ms ease, filter 180ms ease;
+			transition:
+				opacity 220ms ease,
+				filter 180ms ease;
 
 			&.loaded {
 				opacity: 1;
@@ -710,6 +791,56 @@
 			gap: 2.5px;
 		}
 
+		.corner-cancellation-badge {
+			position: absolute;
+			top: 8px;
+			left: 8px;
+			display: inline-flex;
+			align-items: center;
+			gap: 3.5px;
+			padding: 2.5px 6px;
+			border-radius: 6px;
+			background: rgba(185, 28, 28, 0.88);
+			border: 1px solid rgba(239, 68, 68, 0.5);
+			color: #fee2e2;
+			font-size: 10px;
+			font-weight: 700;
+			line-height: 1;
+			letter-spacing: 0.03em;
+			text-transform: uppercase;
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+			backdrop-filter: blur(8px);
+			-webkit-backdrop-filter: blur(8px);
+			transform: translateZ(16px);
+			backface-visibility: hidden;
+			z-index: 2;
+			pointer-events: none;
+			user-select: none;
+
+			:global(svg) {
+				color: #fca5a5;
+				flex-shrink: 0;
+			}
+
+			&.hiatus {
+				background: rgba(180, 83, 9, 0.88);
+				border-color: rgba(245, 158, 11, 0.5);
+				color: #fef3c7;
+
+				:global(svg) {
+					color: #fde68a;
+				}
+			}
+		}
+
+		&.small .corner-cancellation-badge {
+			top: 6px;
+			left: 6px;
+			padding: 2px 4.5px;
+			font-size: 9px;
+			gap: 2.5px;
+		}
+
 		.inner {
 			position: absolute;
 			opacity: 0;
@@ -767,6 +898,18 @@
 					vertical-align: middle;
 					text-transform: uppercase;
 					letter-spacing: 0.03em;
+
+					&.cliffhanger-tag {
+						background: rgba(225, 29, 72, 0.32);
+						border-color: rgba(225, 29, 72, 0.6);
+						color: #fda4af;
+					}
+
+					&.hiatus-tag {
+						background: rgba(245, 158, 11, 0.28);
+						border-color: rgba(245, 158, 11, 0.55);
+						color: #fcd34d;
+					}
 				}
 			}
 
@@ -789,6 +932,26 @@
 				:global(svg) {
 					color: #fb7185;
 					flex-shrink: 0;
+				}
+
+				&.cliffhanger-alert {
+					background: rgba(225, 29, 72, 0.3);
+					border-color: rgba(225, 29, 72, 0.6);
+					color: #ffe4e6;
+
+					:global(svg) {
+						color: #f43f5e;
+					}
+				}
+
+				&.hiatus-alert {
+					background: rgba(245, 158, 11, 0.25);
+					border-color: rgba(245, 158, 11, 0.5);
+					color: #fef3c7;
+
+					:global(svg) {
+						color: #fbbf24;
+					}
 				}
 			}
 
@@ -856,7 +1019,9 @@
 
 		.active & {
 			transform: translateY(-4px);
-			box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.14);
+			box-shadow:
+				0 16px 36px -4px rgba(0, 0, 0, 0.7),
+				0 0 0 1px rgba(255, 255, 255, 0.14);
 			z-index: 10;
 		}
 

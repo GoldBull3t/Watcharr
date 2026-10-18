@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sbondCo/Watcharr/database/entity"
@@ -71,6 +72,8 @@ func (r *Router) AddRoutes() {
 	content.GET("/languages", r.GetLanguages)
 	// Get movie collection / series details
 	content.GET("/collection/:id", usermiddleware.WithUser(r.br.DB), router.LanguageRequired(r.br.Cfg), r.GetCollection)
+	// Update or set ending type override for tv show
+	content.POST("/tv/:id/ending-type", usermiddleware.WithUser(r.br.DB), r.UpdateTvEndingType)
 }
 
 func (r *Router) GetMovieDetails(c *gin.Context) {
@@ -153,6 +156,16 @@ func (r *Router) GetTvDetails(c *gin.Context) {
 		return
 	}
 	contentAsMedia := content.AsMedia()
+
+	// Cancellation Guard: Evaluate show status, cliffhanger database, prolonged hiatus, and database overrides
+	var dbEndingType string
+	var cachedContent entity.Content
+	if err := r.br.DB.Where("tmdb_id = ? AND type = ?", content.ID, entity.SHOW).Select("ending_type").First(&cachedContent).Error; err == nil {
+		dbEndingType = cachedContent.EndingType
+	}
+	cancInfo := EvaluateShowCancellation(content, dbEndingType)
+	contentAsMedia.Cancellation = &cancInfo
+
 	if err := addedtocontent.AddSingularAndList(
 		r.wp,
 		userId,
@@ -177,6 +190,37 @@ func (r *Router) GetTvDetails(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, contentAsMedia)
+}
+
+type UpdateEndingTypeRequest struct {
+	EndingType string `json:"endingType" binding:"required"`
+}
+
+func (r *Router) UpdateTvEndingType(c *gin.Context) {
+	idStr := c.Param("id")
+	tmdbId, err := strconv.Atoi(idStr)
+	if err != nil || tmdbId <= 0 {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid show id"})
+		return
+	}
+	var req UpdateEndingTypeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "endingType is required"})
+		return
+	}
+	endingType := strings.ToLower(strings.TrimSpace(req.EndingType))
+	res := r.br.DB.Model(&entity.Content{}).
+		Where("tmdb_id = ? AND type = ?", tmdbId, entity.SHOW).
+		Update("ending_type", endingType)
+	if res.Error != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: "failed to update ending type"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success":    true,
+		"tmdbId":     tmdbId,
+		"endingType": endingType,
+	})
 }
 
 func (r *Router) GetTvCredits(c *gin.Context) {

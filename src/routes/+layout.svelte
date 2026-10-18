@@ -59,6 +59,18 @@
 	onMount(() => {
 		window.addEventListener("resize", resetTooltipPos);
 
+		if (pwaInfo) {
+			import("virtual:pwa-register")
+				.then(({ registerSW }) => {
+					registerSW({
+						immediate: true,
+					});
+				})
+				.catch((err) => {
+					console.error("Failed to register Service Worker", err);
+				});
+		}
+
 		return () => {
 			window.removeEventListener("resize", resetTooltipPos);
 		};

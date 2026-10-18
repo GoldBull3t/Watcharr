@@ -57,7 +57,9 @@
 			width: 100%;
 			max-width: 1440px;
 			padding: 0 4px;
-			transition: gap 200ms ease, margin 200ms ease;
+			transition:
+				gap 200ms ease,
+				margin 200ms ease;
 
 			/* 1. Comfortable Density (Default) */
 			&.density-comfortable,

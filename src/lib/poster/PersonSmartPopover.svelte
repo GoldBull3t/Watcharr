@@ -119,7 +119,9 @@
 			</div>
 		{:else}
 			<div class="no-library-state">
-				<p class="no-library-msg">Nenhum título deste criador na tua lista ainda.</p>
+				<p class="no-library-msg">
+					Nenhum título deste criador na tua lista ainda.
+				</p>
 				{#if otherKnown.length > 0}
 					<div class="known-section">
 						<span class="known-header">Títulos mais conhecidos:</span>

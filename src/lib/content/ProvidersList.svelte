@@ -252,7 +252,8 @@
 			<div class="providers-loading">
 				<Spinner />
 				<span class="loading-text">
-					A procurar catálogo em {activeCountryFlag} {activeCountryName}...
+					A procurar catálogo em {activeCountryFlag}
+					{activeCountryName}...
 				</span>
 			</div>
 		{:else if displayedProviders && displayedProviders.length > 0}
@@ -269,7 +270,8 @@
 		{:else if mediaType === "movie" || mediaType === "tv"}
 			<div class="no-providers-alert">
 				<span class="no-providers-text">
-					Sem plataformas de streaming registadas em {activeCountryFlag} {activeCountryName}.
+					Sem plataformas de streaming registadas em {activeCountryFlag}
+					{activeCountryName}.
 				</span>
 				<div class="alternative-suggestions">
 					<span class="suggest-label">Verificar em:</span>

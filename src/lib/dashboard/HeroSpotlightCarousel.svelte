@@ -33,7 +33,8 @@
 
 	function prevSlide() {
 		if (spotlightItems.length <= 1) return;
-		activeIndex = (activeIndex - 1 + spotlightItems.length) % spotlightItems.length;
+		activeIndex =
+			(activeIndex - 1 + spotlightItems.length) % spotlightItems.length;
 	}
 
 	function goToSlide(idx: number) {
@@ -129,7 +130,9 @@
 				title={isCollapsed ? "Expandir Spotlight" : "Minimizar Spotlight"}
 				aria-label={isCollapsed ? "Expandir Spotlight" : "Minimizar Spotlight"}
 			>
-				<span class="toggle-text">{isCollapsed ? "Mostrar Destaques" : "Minimizar"}</span>
+				<span class="toggle-text"
+					>{isCollapsed ? "Mostrar Destaques" : "Minimizar"}</span
+				>
 				<span class="toggle-icon" class:rotated={isCollapsed}>
 					<Icon i="chevron" wh={14} />
 				</span>
@@ -197,7 +200,10 @@
 						{/if}
 
 						{#if rating}
-							<span class="rating-pill" title={`${rating} de 10 (${voteCount})`}>
+							<span
+								class="rating-pill"
+								title={`${rating} de 10 (${voteCount})`}
+							>
 								<Icon i="star" wh={12} />
 								{rating}
 							</span>
@@ -209,7 +215,9 @@
 					</div>
 
 					<h2 class="spotlight-title">
-						<a href={resolve(link)} onclick={() => onNavigateToItem(current)}>{current.name}</a>
+						<a href={resolve(link)} onclick={() => onNavigateToItem(current)}
+							>{current.name}</a
+						>
 					</h2>
 
 					{#if current.summary}
@@ -218,11 +226,19 @@
 
 					<!-- Call to Action Buttons -->
 					<div class="spotlight-actions">
-						<a href={resolve(link)} class="btn-primary" onclick={() => onNavigateToItem(current)}>
+						<a
+							href={resolve(link)}
+							class="btn-primary"
+							onclick={() => onNavigateToItem(current)}
+						>
 							<Icon i="play" wh={16} />
 							<span>Continuar a Ver</span>
 						</a>
-						<a href={resolve(link)} class="btn-secondary" onclick={() => onNavigateToItem(current)}>
+						<a
+							href={resolve(link)}
+							class="btn-secondary"
+							onclick={() => onNavigateToItem(current)}
+						>
 							<Icon i="arrow" wh={14} />
 							<span>Ver Detalhes</span>
 						</a>
@@ -439,7 +455,11 @@
 			left: 0;
 			right: 0;
 			height: 140px;
-			background: linear-gradient(to top, rgba(11, 14, 22, 1) 0%, rgba(11, 14, 22, 0) 100%);
+			background: linear-gradient(
+				to top,
+				rgba(11, 14, 22, 1) 0%,
+				rgba(11, 14, 22, 0) 100%
+			);
 		}
 
 		.scrim-top {
@@ -448,7 +468,11 @@
 			left: 0;
 			right: 0;
 			height: 60px;
-			background: linear-gradient(to bottom, rgba(11, 14, 22, 0.6) 0%, rgba(11, 14, 22, 0) 100%);
+			background: linear-gradient(
+				to bottom,
+				rgba(11, 14, 22, 0.6) 0%,
+				rgba(11, 14, 22, 0) 100%
+			);
 		}
 	}
 
@@ -727,4 +751,3 @@
 		}
 	}
 </style>
-

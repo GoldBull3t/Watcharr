@@ -18,9 +18,11 @@
 	</h2>
 	<p class="empty-desc">
 		{#if store.hasActiveFilters}
-			No titles match your active filters or search terms. Try clearing them to see all your media.
+			No titles match your active filters or search terms. Try clearing them to
+			see all your media.
 		{:else}
-			Start building your personal collection by discovering movies, TV shows, and games.
+			Start building your personal collection by discovering movies, TV shows,
+			and games.
 		{/if}
 	</p>
 	<div class="empty-actions">

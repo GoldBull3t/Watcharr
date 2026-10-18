@@ -21,9 +21,7 @@
 			<h3 class="norm">Continue Watching</h3>
 			<span class="count-badge">{items.length}</span>
 		</div>
-		<span class="section-subtitle">
-			In progress across your collection
-		</span>
+		<span class="section-subtitle"> In progress across your collection </span>
 	</div>
 	<div class="continue-rail small-scrollbar">
 		{#each items.slice(0, 16) as item (item.ids.tmdb || item.ids.igdb || item.name)}

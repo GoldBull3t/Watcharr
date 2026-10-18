@@ -39,6 +39,7 @@
 	// Bulk actions mode & selection
 	let bulkMode: boolean = $state(false);
 	let selectedIds: number[] = $state([]);
+	let selectedAllInLibrary: boolean = $state(false);
 	let lastClickedIndex: number | undefined = $state();
 
 	// Lasso (Marquee Drag) selection state
@@ -61,18 +62,24 @@
 
 	// Active status tab pill
 	let activeTab:
-		"all" | "watching" | "planned" | "finished" | "hold" | "dropped" | "cancelled" =
-		$derived.by(() => {
-			const statuses = store.activeFilters?.status;
-			if (!statuses || statuses.length === 0) return "all";
-			if (statuses.includes("watching")) return "watching";
-			if (statuses.includes("planned")) return "planned";
-			if (statuses.includes("finished")) return "finished";
-			if (statuses.includes("hold")) return "hold";
-			if (statuses.includes("dropped")) return "dropped";
-			if (statuses.includes("cancelled") || statuses.includes("canceled")) return "cancelled";
-			return "all";
-		});
+		| "all"
+		| "watching"
+		| "planned"
+		| "finished"
+		| "hold"
+		| "dropped"
+		| "cancelled" = $derived.by(() => {
+		const statuses = store.activeFilters?.status;
+		if (!statuses || statuses.length === 0) return "all";
+		if (statuses.includes("watching")) return "watching";
+		if (statuses.includes("planned")) return "planned";
+		if (statuses.includes("finished")) return "finished";
+		if (statuses.includes("hold")) return "hold";
+		if (statuses.includes("dropped")) return "dropped";
+		if (statuses.includes("cancelled") || statuses.includes("canceled"))
+			return "cancelled";
+		return "all";
+	});
 
 	// Display items for continue watching
 	let displayContinueWatching = $derived.by(() => {
@@ -100,10 +107,13 @@
 			return;
 		}
 		try {
-			const r = await req.get<PaginationResponse<Media, undefined>>(`/watched`, {
-				params: nextLoadParams,
-				signal,
-			});
+			const r = await req.get<PaginationResponse<Media, undefined>>(
+				`/watched`,
+				{
+					params: nextLoadParams,
+					signal,
+				},
+			);
 			scroll.dataLoaded();
 			return r;
 		} finally {
@@ -133,6 +143,7 @@
 	}
 
 	function toggleSelectItem(id: number) {
+		selectedAllInLibrary = false;
 		if (selectedIds.includes(id)) {
 			selectedIds = selectedIds.filter((i) => i !== id);
 		} else {
@@ -146,10 +157,17 @@
 			.filter((w) => w?.watched?.id)
 			.map((w) => w.watched!.id);
 		selectedIds = allIds;
+		selectedAllInLibrary = false;
+	}
+
+	function selectAllEverywhere() {
+		selectAllLoaded();
+		selectedAllInLibrary = true;
 	}
 
 	function clearSelection() {
 		selectedIds = [];
+		selectedAllInLibrary = false;
 		lastClickedIndex = undefined;
 	}
 
@@ -243,7 +261,9 @@
 		const box = lassoBox;
 		if (box.width < 6 && box.height < 6) return;
 
-		const posterEls = document.querySelectorAll<HTMLElement>("li[data-watched-id]");
+		const posterEls = document.querySelectorAll<HTMLElement>(
+			"li[data-watched-id]",
+		);
 		const touchedIds = new Set<number>(initialSelectedIds);
 
 		for (const el of posterEls) {
@@ -284,6 +304,7 @@
 		if (e.key === "Escape") {
 			if (selectedIds.length > 0 || bulkMode) {
 				selectedIds = [];
+				selectedAllInLibrary = false;
 				bulkMode = false;
 				lastClickedIndex = undefined;
 			}
@@ -388,31 +409,60 @@
 	}
 
 	async function bulkDeleteItems() {
-		if (selectedIds.length === 0) return;
-		const idsToRemove = [...selectedIds];
-		selectedIds = [];
-		const count = idsToRemove.length;
+		const isAll = selectedAllInLibrary;
+		if (selectedIds.length === 0 && !isAll) return;
 
-		notifyUndo({
-			text: `<b>${count} ${count === 1 ? "item" : "itens"}</b> removido(s) da lista`,
-			undoLabel: "Desfazer",
-			time: 6000,
-			onUndo: () => {
-				dataLoader.reset();
-				dataLoader.runFn();
-				loadContinueWatching();
-			},
-			onDismiss: async () => {
-				const promises = idsToRemove.map(async (id) => {
-					const ok = await removeWatched(id);
-					return Boolean(ok);
-				});
-				await Promise.allSettled(promises);
-				dataLoader.reset();
-				dataLoader.runFn();
-				loadContinueWatching();
-			},
+		const idsToRemove = [...selectedIds];
+		const count = isAll
+			? dataLoader.state.totalResults || idsToRemove.length
+			: idsToRemove.length;
+
+		// 1. Clear selection and exit bulk mode immediately
+		selectedIds = [];
+		selectedAllInLibrary = false;
+		bulkMode = false;
+
+		// 2. Optimistic UI update: Remove items instantly from the screen
+		if (isAll) {
+			dataLoader.state.data = [];
+		} else {
+			const idSet = new Set(idsToRemove);
+			if (dataLoader.state.data) {
+				dataLoader.state.data = dataLoader.state.data.filter(
+					(w) => !w?.watched?.id || !idSet.has(w.watched.id),
+				);
+			}
+		}
+
+		// 3. Immediate progress notification
+		const nid = notify({
+			text: `A remover ${count} ${count === 1 ? "item" : "itens"}...`,
+			type: "loading",
 		});
+
+		try {
+			if (isAll) {
+				await req.post("/watched/bulk-delete", { all: true, hard: true });
+			} else {
+				await req.post("/watched/bulk-delete", { ids: idsToRemove });
+			}
+			notify({
+				id: nid,
+				text: `${count} ${count === 1 ? "item removido" : "itens removidos"} com sucesso!`,
+				type: "success",
+			});
+		} catch (err) {
+			console.error("bulkDeleteItems failed:", err);
+			notify({
+				id: nid,
+				text: "Erro ao remover itens selecionados.",
+				type: "error",
+			});
+		} finally {
+			dataLoader.reset();
+			dataLoader.runFn();
+			loadContinueWatching();
+		}
 	}
 
 	$effect(() => {
@@ -430,8 +480,9 @@
 		if (savedViewMode === "grid" || savedViewMode === "list") {
 			viewMode = savedViewMode;
 		}
-		const savedDensity = localStorage.getItem("watcharr_grid_density") as
-			GridDensity;
+		const savedDensity = localStorage.getItem(
+			"watcharr_grid_density",
+		) as GridDensity;
 		if (
 			savedDensity === "compact" ||
 			savedDensity === "comfortable" ||
@@ -472,6 +523,15 @@
 	onpointerup={handleLassoPointerUp}
 	onpointercancel={handleLassoPointerUp}
 >
+	<!-- Hero Spotlight Carousel & Continue Watching Rail -->
+	{#if displayContinueWatching.length > 0 && activeTab === "all" && !store.hasActiveFilters}
+		<HeroSpotlightCarousel
+			items={displayContinueWatching}
+			onItemUpdated={loadContinueWatching}
+		/>
+		<ContinueWatchingRail items={displayContinueWatching} />
+	{/if}
+
 	<!-- Top Controls: View Options, Density, Sort & Bulk Mode -->
 	<DashboardControls
 		{viewMode}
@@ -485,16 +545,14 @@
 		}}
 	/>
 
-	<!-- Hero Spotlight Carousel & Continue Watching Rail -->
-	{#if displayContinueWatching.length > 0 && activeTab === "all" && !store.hasActiveFilters}
-		<HeroSpotlightCarousel items={displayContinueWatching} onItemUpdated={loadContinueWatching} />
-		<ContinueWatchingRail items={displayContinueWatching} />
-	{/if}
-
 	<!-- Main Content Area: Grid View or List View -->
 	{#if isInitialLoad && dataLoader.state.reqLoading && (!dataLoader.state.data || dataLoader.state.data.length === 0)}
 		<PosterGridSkeleton
-			count={gridDensity === "compact" ? 18 : gridDensity === "editorial" ? 8 : 12}
+			count={gridDensity === "compact"
+				? 18
+				: gridDensity === "editorial"
+					? 8
+					: 12}
 			density={gridDensity}
 		/>
 	{:else if viewMode === "grid"}
@@ -506,7 +564,9 @@
 							bind:watched={dataLoader.state.data[i].watched}
 							media={w}
 							fluidSize={true}
-							selected={w.watched?.id ? selectedIds.includes(w.watched.id) : false}
+							selected={w.watched?.id
+								? selectedIds.includes(w.watched.id)
+								: false}
 							onUpdated={() => loadContinueWatching()}
 							onClick={(e) => handlePosterClick(w.watched?.id, i, e)}
 						>
@@ -571,8 +631,12 @@
 	<!-- Bulk Selection Action Dock (Fixed at bottom center when items are selected) -->
 	{#if bulkMode || selectedIds.length > 0}
 		<BulkActionBar
-			selectedCount={selectedIds.length}
+			selectedCount={selectedAllInLibrary
+				? dataLoader.state.totalResults || selectedIds.length
+				: selectedIds.length}
+			totalCount={dataLoader.state.totalResults}
 			onSelectAll={selectAllLoaded}
+			onSelectAllEverywhere={selectAllEverywhere}
 			onClear={clearSelection}
 			onUpdateStatus={bulkUpdateStatus}
 			onUpdateRating={bulkUpdateRating}
@@ -580,6 +644,7 @@
 			onClose={() => {
 				bulkMode = false;
 				selectedIds = [];
+				selectedAllInLibrary = false;
 				lastClickedIndex = undefined;
 			}}
 		/>
@@ -622,7 +687,9 @@
 
 	:global(.poster-list-wrapper) {
 		:global(.poster) {
-			transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 160ms ease;
+			transition:
+				transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+				box-shadow 160ms ease;
 
 			&:has(.bulk-card-badge) {
 				cursor: pointer;

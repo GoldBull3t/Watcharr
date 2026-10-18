@@ -213,7 +213,9 @@
 
 		<!-- Production Status (Canceladas pela produtora, etc.) -->
 		<div class="filter-group">
-			<label class="group-label" for="filter-production-status">Production Status</label>
+			<label class="group-label" for="filter-production-status"
+				>Production Status</label
+			>
 			<select
 				id="filter-production-status"
 				class="filter-select"
@@ -361,4 +363,3 @@
 		}
 	}
 </style>
-

@@ -20,13 +20,17 @@
 	let webhookUrl = $state(store.userSettings?.calendarWebhookUrl ?? "");
 	let isEnabled = $state(store.userSettings?.calendarWebhookEnabled ?? false);
 	let filterType: "all" | "movie" | "tv" = $state(
-		(store.userSettings?.calendarWebhookFilter as "all" | "movie" | "tv") ?? "all",
+		(store.userSettings?.calendarWebhookFilter as "all" | "movie" | "tv") ??
+			"all",
 	);
 
 	let isTesting = $state(false);
 	let isSending = $state(false);
 	let isSaving = $state(false);
-	let statusMessage = $state<{ type: "success" | "error"; text: string } | null>(null);
+	let statusMessage = $state<{
+		type: "success" | "error";
+		text: string;
+	} | null>(null);
 
 	// Sync local states if store changes
 	$effect(() => {
@@ -37,13 +41,15 @@
 			isEnabled = settings.calendarWebhookEnabled ?? false;
 		}
 		if (settings?.calendarWebhookFilter !== undefined) {
-			filterType = (settings.calendarWebhookFilter as "all" | "movie" | "tv") ?? "all";
+			filterType =
+				(settings.calendarWebhookFilter as "all" | "movie" | "tv") ?? "all";
 		}
 	});
 
 	let detectedPlatform = $derived.by(() => {
 		const u = webhookUrl.toLowerCase().trim();
-		if (u.includes("discord.com") || u.includes("discordapp.com")) return "discord";
+		if (u.includes("discord.com") || u.includes("discordapp.com"))
+			return "discord";
 		if (u.includes("slack.com")) return "slack";
 		if (u.includes("ntfy.sh")) return "ntfy";
 		if (u.startsWith("http://") || u.startsWith("https://")) return "generic";
@@ -104,7 +110,10 @@
 				time: 4000,
 			});
 		} catch (err) {
-			const errMsg = ReqerError.getMsg(err, "Falha ao enviar notificação de teste.");
+			const errMsg = ReqerError.getMsg(
+				err,
+				"Falha ao enviar notificação de teste.",
+			);
 			statusMessage = {
 				type: "error",
 				text: errMsg,
@@ -135,10 +144,11 @@
 			statusMessage = null;
 			saveUrl();
 
-			const res = await req.post<{ success: boolean; count: number; message: string }>(
-				"/calendar/webhook/send",
-				{},
-			);
+			const res = await req.post<{
+				success: boolean;
+				count: number;
+				message: string;
+			}>("/calendar/webhook/send", {});
 
 			const count = res.count ?? 0;
 			const msg =
@@ -156,7 +166,10 @@
 				time: 5000,
 			});
 		} catch (err) {
-			const errMsg = ReqerError.getMsg(err, "Falha ao verificar/enviar lançamentos.");
+			const errMsg = ReqerError.getMsg(
+				err,
+				"Falha ao verificar/enviar lançamentos.",
+			);
 			statusMessage = {
 				type: "error",
 				text: errMsg,
@@ -185,7 +198,8 @@
 				<div class="setting-info">
 					<span class="setting-title">Alertas Automáticos Diários</span>
 					<span class="setting-desc">
-						O Watcharr verifica todas as manhãs se há episódios ou filmes a estrear hoje na tua biblioteca e envia uma notificação.
+						O Watcharr verifica todas as manhãs se há episódios ou filmes a
+						estrear hoje na tua biblioteca e envia uma notificação.
 					</span>
 				</div>
 				<Checkbox
@@ -222,7 +236,9 @@
 					/>
 				</div>
 				<span class="field-hint">
-					No Discord: vai a <strong>Definições do Servidor &gt; Integrações &gt; Webhooks</strong> e copia o URL do webhook.
+					No Discord: vai a <strong
+						>Definições do Servidor &gt; Integrações &gt; Webhooks</strong
+					> e copia o URL do webhook.
 				</span>
 			</div>
 
@@ -260,7 +276,10 @@
 			<!-- Status Feedback Message -->
 			{#if statusMessage}
 				<div class="status-alert {statusMessage.type}">
-					<Icon i={statusMessage.type === "success" ? "check" : "close-circle"} wh={18} />
+					<Icon
+						i={statusMessage.type === "success" ? "check" : "close-circle"}
+						wh={18}
+					/>
 					<span>{statusMessage.text}</span>
 				</div>
 			{/if}
@@ -405,7 +424,9 @@
 				border-radius: 10px;
 				color: $text-color;
 				outline: none;
-				transition: border-color 0.2s ease, box-shadow 0.2s ease;
+				transition:
+					border-color 0.2s ease,
+					box-shadow 0.2s ease;
 
 				&:focus {
 					border-color: #36ba98;
@@ -535,4 +556,3 @@
 		}
 	}
 </style>
-

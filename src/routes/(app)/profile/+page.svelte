@@ -30,6 +30,9 @@
 	import { ReqerError } from "@/lib/util/fetch";
 	import Icon from "@/lib/Icon.svelte";
 	import CalendarWebhookModal from "@/lib/calendar/CalendarWebhookModal.svelte";
+	import DashboardIntegrationModal from "@/lib/integrations/DashboardIntegrationModal.svelte";
+	import Modal from "@/lib/Modal.svelte";
+	import SpinnerTiny from "@/lib/SpinnerTiny.svelte";
 
 	let user = $derived(store.userInfo);
 	let settings = $derived(store.userSettings);
@@ -48,9 +51,28 @@
 	let jellyfinSyncModalOpen = $state(false);
 	let plexSyncModalOpen = $state(false);
 	let calendarWebhookModalOpen = $state(false);
+	let dashboardModalOpen = $state(false);
+	let clearLibraryModalOpen = $state(false);
+	let isWipingLibrary = $state(false);
 
 	let statusTab: "all" | "movie" | "tv" | "game" = $state("all");
 	let activityPeriodTab: "month" | "year" = $state("month");
+
+	async function wipeAllLibrary() {
+		isWipingLibrary = true;
+		const nid = notify({ text: "A limpar biblioteca completa...", type: "loading" });
+		try {
+			await req.post("/watched/bulk-delete", { all: true, hard: true });
+			notify({ id: nid, text: "Biblioteca limpa com sucesso!", type: "success" });
+			clearLibraryModalOpen = false;
+			getProfilePromise = getProfile();
+		} catch (err) {
+			console.error("Failed to wipe library:", err);
+			notify({ id: nid, text: "Falha ao limpar biblioteca.", type: "error" });
+		} finally {
+			isWipingLibrary = false;
+		}
+	}
 
 	async function getProfile() {
 		return await req.get<Profile>(`/profile`);
@@ -872,7 +894,8 @@
 					<div>
 						<h4 class="card-title">Calendar & Release Webhooks</h4>
 						<p class="card-desc">
-							Recebe alertas matinais automáticos no Discord, Slack ou Ntfy quando estrearem episódios ou filmes da tua biblioteca.
+							Recebe alertas matinais automáticos no Discord, Slack ou Ntfy
+							quando estrearem episódios ou filmes da tua biblioteca.
 						</p>
 					</div>
 					<button
@@ -923,6 +946,19 @@
 							Sync With Plex
 						</button>
 					{/if}
+					<button
+						class="btn-action primary-accent"
+						onclick={() => (dashboardModalOpen = true)}
+					>
+						<Icon i="compass" wh={16} /> Dashboards & API (Homepage, HA)
+					</button>
+					<button
+						class="btn-action danger"
+						onclick={() => (clearLibraryModalOpen = true)}
+						title="Apagar todos os itens da biblioteca para testes"
+					>
+						<Icon i="trash" wh={16} /> Limpar Biblioteca
+					</button>
 				</div>
 			</div>
 
@@ -947,7 +983,42 @@
 			{#if plexSyncModalOpen}
 				<SyncModal type="plex" onClose={() => (plexSyncModalOpen = false)} />
 			{/if}
+			{#if clearLibraryModalOpen}
+				<Modal
+					title="Limpar Biblioteca Inteira"
+					desc="Aviso: Esta ação irá apagar todos os filmes, séries, jogos e histórico de atividade da tua conta."
+					onClose={() => {
+						if (!isWipingLibrary) clearLibraryModalOpen = false;
+					}}
+					maxWidth="520px"
+				>
+					<div class="wipe-modal-body">
+						<p>Tens a certeza absoluta de que desejas apagar todos os itens registados? Isto deixará a tua biblioteca completamente vazia para poderes testar uma importação nova do zero.</p>
+						<div class="wipe-modal-actions">
+							<button
+								class="btn-modal-cancel"
+								onclick={() => (clearLibraryModalOpen = false)}
+								disabled={isWipingLibrary}
+							>
+								Cancelar
+							</button>
+							<button
+								class="btn-modal-danger"
+								onclick={wipeAllLibrary}
+								disabled={isWipingLibrary}
+							>
+								{#if isWipingLibrary}
+									<SpinnerTiny /> A apagar...
+								{:else}
+									<Icon i="trash" wh={14} /> Sim, Apagar Tudo
+								{/if}
+							</button>
+						</div>
+					</div>
+				</Modal>
+			{/if}
 			<CalendarWebhookModal bind:open={calendarWebhookModalOpen} />
+			<DashboardIntegrationModal bind:open={dashboardModalOpen} />
 		</section>
 	</div>
 </div>
@@ -1790,6 +1861,69 @@
 				background: rgba(255, 255, 255, 0.1);
 				border-color: rgba(255, 255, 255, 0.2);
 				transform: translateY(-1px);
+			}
+
+			&.danger {
+				color: #f87171;
+				border-color: rgba(239, 68, 68, 0.3);
+				background: rgba(239, 68, 68, 0.08);
+
+				&:hover {
+					background: #ef4444;
+					border-color: #ef4444;
+					color: #ffffff;
+				}
+			}
+		}
+	}
+
+	.wipe-modal-body {
+		display: flex;
+		flex-direction: column;
+		gap: 20px;
+		color: #cbd5e1;
+		font-size: 14px;
+		line-height: 1.5;
+
+		.wipe-modal-actions {
+			display: flex;
+			justify-content: flex-end;
+			gap: 10px;
+
+			.btn-modal-cancel {
+				padding: 8px 16px;
+				border-radius: 8px;
+				background: rgba(255, 255, 255, 0.08);
+				border: 1px solid rgba(255, 255, 255, 0.15);
+				color: #e2e8f0;
+				cursor: pointer;
+				font-weight: 500;
+
+				&:hover {
+					background: rgba(255, 255, 255, 0.14);
+				}
+			}
+
+			.btn-modal-danger {
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				padding: 8px 18px;
+				border-radius: 8px;
+				background: #dc2626;
+				border: 1px solid #ef4444;
+				color: #ffffff;
+				cursor: pointer;
+				font-weight: 600;
+
+				&:hover:not(:disabled) {
+					background: #b91c1c;
+				}
+
+				&:disabled {
+					opacity: 0.6;
+					cursor: not-allowed;
+				}
 			}
 		}
 	}

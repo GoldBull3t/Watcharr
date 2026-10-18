@@ -3,12 +3,9 @@
 	import DetailedMenu from "@/lib/nav/DetailedMenu.svelte";
 	import SortMenu from "@/lib/nav/SortMenu.svelte";
 	import FilterMenu from "./FilterMenu.svelte";
-	import {
-		store,
-		defaultSort,
-		clearActiveFilters,
-	} from "@/store.svelte";
+	import { store, defaultSort, clearActiveFilters } from "@/store.svelte";
 	import { onDestroy, onMount } from "svelte";
+	import { t } from "@/lib/i18n";
 
 	export type GridDensity = "compact" | "comfortable" | "editorial";
 
@@ -63,15 +60,15 @@
 	}
 
 	// Active status tabs
-	const statusTabs = [
-		{ id: "all", label: "All" },
-		{ id: "watching", label: "Watching" },
-		{ id: "planned", label: "Planned" },
-		{ id: "finished", label: "Finished" },
-		{ id: "hold", label: "On Hold" },
-		{ id: "dropped", label: "Stopped Watching" },
-		{ id: "cancelled", label: "Cancelled" },
-	] as const;
+	let statusTabs = $derived([
+		{ id: "all", label: t("status.all") },
+		{ id: "watching", label: t("status.watching") },
+		{ id: "planned", label: t("status.planned") },
+		{ id: "finished", label: t("status.finished") },
+		{ id: "hold", label: t("status.hold") },
+		{ id: "dropped", label: t("status.dropped") },
+		{ id: "cancelled", label: t("status.cancelled") },
+	]);
 
 	let currentStatus = $derived.by(() => {
 		const s = store.activeFilters?.status;
@@ -94,7 +91,14 @@
 	}
 
 	function removeFilter(
-		key: "status" | "type" | "year" | "minRating" | "query" | "genre" | "productionStatus",
+		key:
+			| "status"
+			| "type"
+			| "year"
+			| "minRating"
+			| "query"
+			| "genre"
+			| "productionStatus",
 	) {
 		if (key === "status") {
 			store.activeFilters = { ...store.activeFilters, status: [] };
@@ -107,7 +111,10 @@
 		} else if (key === "genre") {
 			store.activeFilters = { ...store.activeFilters, genre: undefined };
 		} else if (key === "productionStatus") {
-			store.activeFilters = { ...store.activeFilters, productionStatus: undefined };
+			store.activeFilters = {
+				...store.activeFilters,
+				productionStatus: undefined,
+			};
 		} else if (key === "query") {
 			librarySearchText = "";
 			store.activeFilters = { ...store.activeFilters, query: undefined };
@@ -156,353 +163,346 @@
 		class="unified-command-bar"
 		class:has-open-menu={sortMenuShown || filterMenuShown || detailedMenuShown}
 	>
-	<!-- Left Side: Status Segmented Tabs -->
-	<nav class="status-tabs-container" aria-label="Media status tabs">
-		<div class="status-tabs-track" role="tablist">
-			{#each statusTabs as tab (tab.id)}
+		<!-- Left Side: Status Segmented Tabs -->
+		<nav class="status-tabs-container" aria-label="Media status tabs">
+			<div class="status-tabs-track" role="tablist">
+				{#each statusTabs as tab (tab.id)}
+					<button
+						type="button"
+						role="tab"
+						class="status-tab-btn"
+						class:active={currentStatus === tab.id}
+						onclick={() => setStatusTab(tab.id)}
+						aria-selected={currentStatus === tab.id}
+					>
+						{tab.label}
+					</button>
+				{/each}
+			</div>
+		</nav>
+
+		<!-- Right Side: Search, Filters, Sort, Details, Bulk, Grid/List -->
+		<div class="actions-cluster">
+			<!-- In-Library Search Input -->
+			<div class="library-search-box">
+				<Icon i="search" wh={14} />
+				<input
+					type="text"
+					placeholder="Search library..."
+					value={librarySearchText}
+					oninput={handleLibrarySearchInput}
+					aria-label="Filter library by title"
+				/>
+				{#if librarySearchText}
+					<button
+						type="button"
+						class="plain clear-search-icon"
+						onclick={clearLibrarySearch}
+						aria-label="Clear search"
+					>
+						<Icon i="close" wh={12} />
+					</button>
+				{/if}
+			</div>
+
+			<!-- Filters Menu Popover -->
+			<div class="control-menu-wrap" class:menu-open={filterMenuShown}>
 				<button
 					type="button"
-					role="tab"
-					class="status-tab-btn"
-					class:active={currentStatus === tab.id}
-					onclick={() => setStatusTab(tab.id)}
-					aria-selected={currentStatus === tab.id}
+					class="icon-toggle"
+					class:active={filterMenuShown || store.hasSecondaryFilters}
+					onclick={(e) => {
+						e.stopPropagation();
+						sortMenuShown = false;
+						detailedMenuShown = false;
+						filterMenuShown = !filterMenuShown;
+					}}
+					title="Secondary Filters (Type, Year, Rating, Genre)"
+					aria-label="Open secondary filters"
 				>
-					{tab.label}
+					<Icon i="filter" wh={14} />
+					<span class="toggle-label">Filter</span>
+					{#if store.secondaryFilterCount > 0}
+						<span class="filter-count-badge">{store.secondaryFilterCount}</span>
+					{/if}
 				</button>
-			{/each}
-		</div>
-	</nav>
+				{#if filterMenuShown}
+					<FilterMenu />
+				{/if}
+			</div>
 
-	<!-- Right Side: Search, Filters, Sort, Details, Bulk, Grid/List -->
-	<div class="actions-cluster">
-		<!-- In-Library Search Input -->
-		<div class="library-search-box">
-			<Icon i="search" wh={14} />
-			<input
-				type="text"
-				placeholder="Search library..."
-				value={librarySearchText}
-				oninput={handleLibrarySearchInput}
-				aria-label="Filter library by title"
-			/>
-			{#if librarySearchText}
+			<!-- Sort Menu Popover -->
+			<div class="control-menu-wrap" class:menu-open={sortMenuShown}>
 				<button
 					type="button"
-					class="plain clear-search-icon"
-					onclick={clearLibrarySearch}
-					aria-label="Clear search"
+					class="icon-toggle"
+					class:active={sortMenuShown}
+					onclick={(e) => {
+						e.stopPropagation();
+						detailedMenuShown = false;
+						filterMenuShown = false;
+						sortMenuShown = !sortMenuShown;
+					}}
+					title="Sort Order"
+					aria-label="Sort order"
 				>
-					<Icon i="close" wh={12} />
+					<Icon i="sort" wh={14} />
+					<span class="toggle-label">Sort</span>
+					{#if store.activeSort?.length === 2 && store.activeSort[1] && JSON.stringify(store.activeSort) !== JSON.stringify(defaultSort)}
+						<span class="sort-active-dot"></span>
+					{/if}
 				</button>
-			{/if}
-		</div>
-
-		<!-- Filters Menu Popover -->
-		<div class="control-menu-wrap" class:menu-open={filterMenuShown}>
-			<button
-				type="button"
-				class="icon-toggle"
-				class:active={filterMenuShown || store.hasSecondaryFilters}
-				onclick={(e) => {
-					e.stopPropagation();
-					sortMenuShown = false;
-					detailedMenuShown = false;
-					filterMenuShown = !filterMenuShown;
-				}}
-				title="Secondary Filters (Type, Year, Rating, Genre)"
-				aria-label="Open secondary filters"
-			>
-				<Icon i="filter" wh={14} />
-				<span class="toggle-label">Filter</span>
-				{#if store.secondaryFilterCount > 0}
-					<span class="filter-count-badge">{store.secondaryFilterCount}</span>
+				{#if sortMenuShown}
+					<SortMenu />
 				{/if}
-			</button>
-			{#if filterMenuShown}
-				<FilterMenu />
-			{/if}
-		</div>
+			</div>
 
-		<!-- Sort Menu Popover -->
-		<div class="control-menu-wrap" class:menu-open={sortMenuShown}>
-			<button
-				type="button"
-				class="icon-toggle"
-				class:active={sortMenuShown}
-				onclick={(e) => {
-					e.stopPropagation();
-					detailedMenuShown = false;
-					filterMenuShown = false;
-					sortMenuShown = !sortMenuShown;
-				}}
-				title="Sort Order"
-				aria-label="Sort order"
-			>
-				<Icon i="sort" wh={14} />
-				<span class="toggle-label">Sort</span>
-				{#if store.activeSort?.length === 2 && store.activeSort[1] && JSON.stringify(store.activeSort) !== JSON.stringify(defaultSort)}
-					<span class="sort-active-dot"></span>
+			<!-- Detailed View Toggle -->
+			<div class="control-menu-wrap" class:menu-open={detailedMenuShown}>
+				<button
+					type="button"
+					class="icon-toggle"
+					class:active={detailedMenuShown}
+					onclick={(e) => {
+						e.stopPropagation();
+						sortMenuShown = false;
+						filterMenuShown = false;
+						detailedMenuShown = !detailedMenuShown;
+					}}
+					title="Detailed View Options"
+					aria-label="Detailed view options"
+				>
+					<Icon i="eye" wh={14} />
+					<span class="toggle-label">Details</span>
+				</button>
+				{#if detailedMenuShown}
+					<DetailedMenu />
 				{/if}
+			</div>
+
+			<div class="toolbar-separator"></div>
+
+			<!-- Bulk Selection Toggle -->
+			<button
+				type="button"
+				class="icon-toggle bulk-btn"
+				class:active={bulkMode}
+				onclick={onToggleBulkMode}
+				title={bulkMode ? "Exit Bulk Actions" : "Bulk Selection Mode"}
+				aria-label="Bulk selection mode"
+			>
+				<Icon i="check" wh={14} />
+				<span class="toggle-label">Bulk</span>
 			</button>
-			{#if sortMenuShown}
-				<SortMenu />
+
+			<div class="toolbar-separator"></div>
+
+			<!-- View Switcher & Grid Density (Compact / Comfortable / Editorial / List) -->
+			<div
+				class="view-mode-group"
+				role="group"
+				aria-label="Visual density and layout mode"
+			>
+				<button
+					type="button"
+					class="view-btn"
+					class:active={viewMode === "grid" && density === "compact"}
+					onclick={() => {
+						onDensityChange?.("compact");
+						if (viewMode !== "grid") onViewModeChange("grid");
+					}}
+					title="Compact Grid (Dense Wall)"
+					aria-label="Compact grid (dense wall)"
+					aria-pressed={viewMode === "grid" && density === "compact"}
+				>
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+						<rect x="1" y="1" width="3.6" height="3.6" rx="0.8" />
+						<rect x="6.2" y="1" width="3.6" height="3.6" rx="0.8" />
+						<rect x="11.4" y="1" width="3.6" height="3.6" rx="0.8" />
+						<rect x="1" y="6.2" width="3.6" height="3.6" rx="0.8" />
+						<rect x="6.2" y="6.2" width="3.6" height="3.6" rx="0.8" />
+						<rect x="11.4" y="6.2" width="3.6" height="3.6" rx="0.8" />
+						<rect x="1" y="11.4" width="3.6" height="3.6" rx="0.8" />
+						<rect x="6.2" y="11.4" width="3.6" height="3.6" rx="0.8" />
+						<rect x="11.4" y="11.4" width="3.6" height="3.6" rx="0.8" />
+					</svg>
+				</button>
+				<button
+					type="button"
+					class="view-btn"
+					class:active={viewMode === "grid" && density === "comfortable"}
+					onclick={() => {
+						onDensityChange?.("comfortable");
+						if (viewMode !== "grid") onViewModeChange("grid");
+					}}
+					title="Comfortable Grid (Standard)"
+					aria-label="Comfortable grid (standard)"
+					aria-pressed={viewMode === "grid" && density === "comfortable"}
+				>
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+						<rect x="1" y="1" width="6" height="6" rx="1.2" />
+						<rect x="9" y="1" width="6" height="6" rx="1.2" />
+						<rect x="1" y="9" width="6" height="6" rx="1.2" />
+						<rect x="9" y="9" width="6" height="6" rx="1.2" />
+					</svg>
+				</button>
+				<button
+					type="button"
+					class="view-btn"
+					class:active={viewMode === "grid" && density === "editorial"}
+					onclick={() => {
+						onDensityChange?.("editorial");
+						if (viewMode !== "grid") onViewModeChange("grid");
+					}}
+					title="Editorial Grid (Large Showcase)"
+					aria-label="Editorial grid (large showcase)"
+					aria-pressed={viewMode === "grid" && density === "editorial"}
+				>
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+						<rect x="1" y="1" width="6.2" height="14" rx="1.5" />
+						<rect x="8.8" y="1" width="6.2" height="14" rx="1.5" />
+					</svg>
+				</button>
+				<div class="inner-divider"></div>
+				<button
+					type="button"
+					class="view-btn"
+					class:active={viewMode === "list"}
+					onclick={() => onViewModeChange("list")}
+					title="Table / List View"
+					aria-label="Table / list view"
+					aria-pressed={viewMode === "list"}
+				>
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+						<rect x="1" y="2" width="14" height="2.5" rx="1" />
+						<rect x="1" y="6.75" width="14" height="2.5" rx="1" />
+						<rect x="1" y="11.5" width="14" height="2.5" rx="1" />
+					</svg>
+				</button>
+			</div>
+		</div>
+	</header>
+
+	<!-- Active Secondary Filter Chips (Only rendered when secondary filters or search are active) -->
+	{#if store.hasSecondaryFilters || store.activeFilters?.query}
+		<div class="active-chips-dock">
+			<span class="chips-title">Active:</span>
+
+			{#if store.activeFilters?.type && store.activeFilters.type.length > 0}
+				{#each store.activeFilters.type as t (t)}
+					<span class="filter-chip">
+						Type: {t === "tv" ? "Shows" : t === "movie" ? "Movies" : "Games"}
+						<button
+							type="button"
+							class="plain chip-x-btn"
+							onclick={() => removeFilter("type")}
+							aria-label="Remove type filter"
+						>
+							<Icon i="close" wh={11} />
+						</button>
+					</span>
+				{/each}
 			{/if}
-		</div>
 
-		<!-- Detailed View Toggle -->
-		<div class="control-menu-wrap" class:menu-open={detailedMenuShown}>
-			<button
-				type="button"
-				class="icon-toggle"
-				class:active={detailedMenuShown}
-				onclick={(e) => {
-					e.stopPropagation();
-					sortMenuShown = false;
-					filterMenuShown = false;
-					detailedMenuShown = !detailedMenuShown;
-				}}
-				title="Detailed View Options"
-				aria-label="Detailed view options"
-			>
-				<Icon i="eye" wh={14} />
-				<span class="toggle-label">Details</span>
-			</button>
-			{#if detailedMenuShown}
-				<DetailedMenu />
-			{/if}
-		</div>
-
-		<div class="toolbar-separator"></div>
-
-		<!-- Bulk Selection Toggle -->
-		<button
-			type="button"
-			class="icon-toggle bulk-btn"
-			class:active={bulkMode}
-			onclick={onToggleBulkMode}
-			title={bulkMode ? "Exit Bulk Actions" : "Bulk Selection Mode"}
-			aria-label="Bulk selection mode"
-		>
-			<Icon i="check" wh={14} />
-			<span class="toggle-label">Bulk</span>
-		</button>
-
-		<div class="toolbar-separator"></div>
-
-		<!-- View Switcher & Grid Density (Compact / Comfortable / Editorial / List) -->
-		<div
-			class="view-mode-group"
-			role="group"
-			aria-label="Visual density and layout mode"
-		>
-			<button
-				type="button"
-				class="view-btn"
-				class:active={viewMode === "grid" && density === "compact"}
-				onclick={() => {
-					onDensityChange?.("compact");
-					if (viewMode !== "grid") onViewModeChange("grid");
-				}}
-				title="Compact Grid (Dense Wall)"
-				aria-label="Compact grid (dense wall)"
-				aria-pressed={viewMode === "grid" && density === "compact"}
-			>
-				<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-					<rect x="1" y="1" width="3.6" height="3.6" rx="0.8" />
-					<rect x="6.2" y="1" width="3.6" height="3.6" rx="0.8" />
-					<rect x="11.4" y="1" width="3.6" height="3.6" rx="0.8" />
-					<rect x="1" y="6.2" width="3.6" height="3.6" rx="0.8" />
-					<rect x="6.2" y="6.2" width="3.6" height="3.6" rx="0.8" />
-					<rect x="11.4" y="6.2" width="3.6" height="3.6" rx="0.8" />
-					<rect x="1" y="11.4" width="3.6" height="3.6" rx="0.8" />
-					<rect x="6.2" y="11.4" width="3.6" height="3.6" rx="0.8" />
-					<rect x="11.4" y="11.4" width="3.6" height="3.6" rx="0.8" />
-				</svg>
-			</button>
-			<button
-				type="button"
-				class="view-btn"
-				class:active={viewMode === "grid" && density === "comfortable"}
-				onclick={() => {
-					onDensityChange?.("comfortable");
-					if (viewMode !== "grid") onViewModeChange("grid");
-				}}
-				title="Comfortable Grid (Standard)"
-				aria-label="Comfortable grid (standard)"
-				aria-pressed={viewMode === "grid" && density === "comfortable"}
-			>
-				<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-					<rect x="1" y="1" width="6" height="6" rx="1.2" />
-					<rect x="9" y="1" width="6" height="6" rx="1.2" />
-					<rect x="1" y="9" width="6" height="6" rx="1.2" />
-					<rect x="9" y="9" width="6" height="6" rx="1.2" />
-				</svg>
-			</button>
-			<button
-				type="button"
-				class="view-btn"
-				class:active={viewMode === "grid" && density === "editorial"}
-				onclick={() => {
-					onDensityChange?.("editorial");
-					if (viewMode !== "grid") onViewModeChange("grid");
-				}}
-				title="Editorial Grid (Large Showcase)"
-				aria-label="Editorial grid (large showcase)"
-				aria-pressed={viewMode === "grid" && density === "editorial"}
-			>
-				<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-					<rect x="1" y="1" width="6.2" height="14" rx="1.5" />
-					<rect x="8.8" y="1" width="6.2" height="14" rx="1.5" />
-				</svg>
-			</button>
-			<div class="inner-divider"></div>
-			<button
-				type="button"
-				class="view-btn"
-				class:active={viewMode === "list"}
-				onclick={() => onViewModeChange("list")}
-				title="Table / List View"
-				aria-label="Table / list view"
-				aria-pressed={viewMode === "list"}
-			>
-				<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-					<rect x="1" y="2" width="14" height="2.5" rx="1" />
-					<rect x="1" y="6.75" width="14" height="2.5" rx="1" />
-					<rect x="1" y="11.5" width="14" height="2.5" rx="1" />
-				</svg>
-			</button>
-		</div>
-	</div>
-</header>
-
-<!-- Active Secondary Filter Chips (Only rendered when secondary filters or search are active) -->
-{#if store.hasSecondaryFilters || store.activeFilters?.query}
-	<div class="active-chips-dock">
-		<span class="chips-title">Active:</span>
-
-		{#if store.activeFilters?.type && store.activeFilters.type.length > 0}
-			{#each store.activeFilters.type as t (t)}
+			{#if store.activeFilters?.genre}
 				<span class="filter-chip">
-					Type: {t === "tv" ? "Shows" : t === "movie" ? "Movies" : "Games"}
+					Genre: {store.activeFilters.genre}
 					<button
 						type="button"
 						class="plain chip-x-btn"
-						onclick={() => removeFilter("type")}
-						aria-label="Remove type filter"
+						onclick={() => removeFilter("genre")}
+						aria-label="Remove genre filter"
 					>
 						<Icon i="close" wh={11} />
 					</button>
 				</span>
-			{/each}
-		{/if}
+			{/if}
 
-		{#if store.activeFilters?.genre}
-			<span class="filter-chip">
-				Genre: {store.activeFilters.genre}
-				<button
-					type="button"
-					class="plain chip-x-btn"
-					onclick={() => removeFilter("genre")}
-					aria-label="Remove genre filter"
-				>
-					<Icon i="close" wh={11} />
-				</button>
-			</span>
-		{/if}
+			{#if store.activeFilters?.year}
+				<span class="filter-chip">
+					Year: {store.activeFilters.year}
+					<button
+						type="button"
+						class="plain chip-x-btn"
+						onclick={() => removeFilter("year")}
+						aria-label="Remove year filter"
+					>
+						<Icon i="close" wh={11} />
+					</button>
+				</span>
+			{/if}
 
-		{#if store.activeFilters?.year}
-			<span class="filter-chip">
-				Year: {store.activeFilters.year}
-				<button
-					type="button"
-					class="plain chip-x-btn"
-					onclick={() => removeFilter("year")}
-					aria-label="Remove year filter"
-				>
-					<Icon i="close" wh={11} />
-				</button>
-			</span>
-		{/if}
+			{#if store.activeFilters?.minRating}
+				<span class="filter-chip">
+					★ {store.activeFilters.minRating}+
+					<button
+						type="button"
+						class="plain chip-x-btn"
+						onclick={() => removeFilter("minRating")}
+						aria-label="Remove rating filter"
+					>
+						<Icon i="close" wh={11} />
+					</button>
+				</span>
+			{/if}
 
-		{#if store.activeFilters?.minRating}
-			<span class="filter-chip">
-				★ {store.activeFilters.minRating}+
-				<button
-					type="button"
-					class="plain chip-x-btn"
-					onclick={() => removeFilter("minRating")}
-					aria-label="Remove rating filter"
-				>
-					<Icon i="close" wh={11} />
-				</button>
-			</span>
-		{/if}
+			{#if store.activeFilters?.productionStatus}
+				<span class="filter-chip production-chip">
+					Status: {store.activeFilters.productionStatus === "canceled"
+						? "Cancelada pelos Produtores"
+						: store.activeFilters.productionStatus === "returning"
+							? "Em Exibição"
+							: "Terminada"}
+					<button
+						type="button"
+						class="plain chip-x-btn"
+						onclick={() => removeFilter("productionStatus")}
+						aria-label="Remove production status filter"
+					>
+						<Icon i="close" wh={11} />
+					</button>
+				</span>
+			{/if}
 
-		{#if store.activeFilters?.productionStatus}
-			<span class="filter-chip production-chip">
-				Status: {store.activeFilters.productionStatus === "canceled" ? "Cancelada pelos Produtores" : store.activeFilters.productionStatus === "returning" ? "Em Exibição" : "Terminada"}
-				<button
-					type="button"
-					class="plain chip-x-btn"
-					onclick={() => removeFilter("productionStatus")}
-					aria-label="Remove production status filter"
-				>
-					<Icon i="close" wh={11} />
-				</button>
-			</span>
-		{/if}
+			{#if store.activeFilters?.query}
+				<span class="filter-chip">
+					"{store.activeFilters.query}"
+					<button
+						type="button"
+						class="plain chip-x-btn"
+						onclick={() => removeFilter("query")}
+						aria-label="Remove query filter"
+					>
+						<Icon i="close" wh={11} />
+					</button>
+				</span>
+			{/if}
 
-		{#if store.activeFilters?.query}
-			<span class="filter-chip">
-				"{store.activeFilters.query}"
-				<button
-					type="button"
-					class="plain chip-x-btn"
-					onclick={() => removeFilter("query")}
-					aria-label="Remove query filter"
-				>
-					<Icon i="close" wh={11} />
-				</button>
-			</span>
-		{/if}
-
-		<button
-			type="button"
-			class="plain clear-all-dock-btn"
-			onclick={handleClearAll}
-		>
-			Clear all
-		</button>
-	</div>
-{/if}
+			<button
+				type="button"
+				class="plain clear-all-dock-btn"
+				onclick={handleClearAll}
+			>
+				Clear all
+			</button>
+		</div>
+	{/if}
 </div>
 
 <style lang="scss">
 	.sticky-subnav-wrapper {
 		position: sticky;
-		top: 76px;
-		z-index: 40;
+		top: 60px;
+		z-index: 500;
 		margin-bottom: 22px;
-		transition:
-			top 200ms cubic-bezier(0.4, 0, 0.2, 1),
-			transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
-
-		:global(body.scrolled-down) & {
-			top: 14px;
-		}
 
 		&.has-open-menu {
-			z-index: 100;
+			z-index: 900;
 		}
 
 		@media screen and (max-width: 768px) {
-			top: 66px;
+			top: 52px;
 			margin-bottom: 16px;
-
-			:global(body.scrolled-down) & {
-				top: 8px;
-			}
 		}
 	}
 

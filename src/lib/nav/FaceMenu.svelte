@@ -9,10 +9,15 @@
 	import { notify } from "../util/notify";
 	import AboutModal from "./AboutModal.svelte";
 	import { resolve } from "$app/paths";
+	import { t, i18n } from "@/lib/i18n";
 
 	let user = $derived(store.userInfo);
 	let proxyUserLogoutShown = $state(false);
 	let aboutModalOpen = $state(false);
+
+	function toggleLanguage() {
+		i18n.setLocale(i18n.currentLocale === "pt" ? "en" : "pt");
+	}
 
 	function logout() {
 		if (user?.type === UserType.Proxy) {
@@ -41,26 +46,26 @@
 	}
 
 	function shareWatchedList() {
-		const nid = notify({ type: "loading", text: "Getting link" });
+		const nid = notify({ type: "loading", text: t("nav.getting_link") });
 		const ud = parseTokenPayload();
 		if (ud?.userId && ud?.username) {
 			const shareLink = `${window.location.origin}/lists/${ud.userId}/${ud.username}`;
 			navigator.clipboard
 				.writeText(shareLink)
 				.then(() => {
-					notify({ id: nid, type: "success", text: "Copied share link" });
+					notify({ id: nid, type: "success", text: t("nav.copied_link") });
 				})
 				.catch((r) => {
 					console.error("Failed to copy list share link", r);
 					notify({
 						id: nid,
 						type: "error",
-						text: `Failed to copy share link:<br/><a href="${shareLink}" target="_blank">${shareLink}</a>`,
+						text: `${t("nav.failed_link")}:<br/><a href="${shareLink}" target="_blank">${shareLink}</a>`,
 						time: 20000,
 					});
 				});
 		} else {
-			notify({ id: nid, type: "error", text: "Failed to get link" });
+			notify({ id: nid, type: "error", text: t("nav.failed_link") });
 		}
 	}
 
@@ -69,25 +74,38 @@
 	}
 </script>
 
-<Menu conf={{ width: "180px", right: "0px", top: "calc(100% + 8px)" }}>
+<Menu conf={{ width: "190px", right: "0px", top: "calc(100% + 8px)" }}>
 	{#if user?.username}
 		<h5 title={user.username}>Hi, {user.username}!</h5>
 	{/if}
-	<button type="button" class="plain" onclick={() => profile()}>Profile & Settings</button>
+	<button type="button" class="plain" onclick={() => profile()}
+		>{t("nav.profile_settings")}</button
+	>
 	{#if !store.userSettings?.private}
-		<button type="button" class="plain" onclick={() => shareWatchedList()}>Share List</button>
+		<button type="button" class="plain" onclick={() => shareWatchedList()}
+			>{t("nav.share_list")}</button
+		>
 	{/if}
 	{#if user && userHasPermission(user.permissions, UserPermission.PERM_ADMIN)}
-		<button type="button" class="plain" onclick={() => serverSettings()}>Server Settings</button>
-		<button type="button" class="plain" onclick={() => userManagement()}>Users</button>
+		<button type="button" class="plain" onclick={() => serverSettings()}
+			>{t("nav.server_settings")}</button
+		>
+		<button type="button" class="plain" onclick={() => userManagement()}
+			>{t("nav.manage_users")}</button
+		>
 		{#if store.serverFeatures?.sonarr || store.serverFeatures?.radarr}
 			<!-- At least one (sonarr/radarr) should be enabled for requests menu item to display. -->
 			<button type="button" class="plain" onclick={() => requestManagement()}>
-				Requests
+				{t("nav.requests")}
 			</button>
 		{/if}
 	{/if}
-	<button type="button" class="plain logout" onclick={() => logout()}>Logout</button>
+	<button type="button" class="plain lang-toggle" onclick={toggleLanguage}>
+		🌐 {i18n.currentLocale === "pt" ? "Português" : "English"}
+	</button>
+	<button type="button" class="plain logout" onclick={() => logout()}
+		>{t("nav.logout")}</button
+	>
 	{#if proxyUserLogoutShown}
 		<ProxyUserLogoutModal onClose={() => (proxyUserLogoutShown = false)} />
 	{/if}

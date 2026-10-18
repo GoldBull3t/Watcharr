@@ -419,6 +419,23 @@ export enum MediaTypeE {
 	igdbGame = "igdb_game",
 }
 
+export type CancellationStatus =
+	| "cliffhanger"
+	| "canceled"
+	| "hiatus"
+	| "concluded"
+	| "returning"
+	| "unknown";
+
+export interface CancellationInfo {
+	status: CancellationStatus;
+	badgeText: string;
+	description: string;
+	warning?: string;
+	hasCliffhanger: boolean;
+	yearsSinceAir?: number;
+}
+
 export interface Media {
 	type?: MediaTypeE;
 	ids: MediaIDs;
@@ -444,6 +461,7 @@ export interface Media {
 	seasons?: MediaSeason[];
 	isShowAnime?: boolean;
 	collection?: MediaCollection;
+	cancellation?: CancellationInfo;
 }
 
 export interface MediaCollection {
@@ -520,6 +538,7 @@ export enum SearchType {
 export interface SearchRequest extends PaginationParams {
 	type?: SearchType;
 	query: string;
+	preferMyList?: boolean;
 }
 
 export interface SearchResponseMeta {
@@ -1035,3 +1054,56 @@ export interface CalendarEvent {
 	episodeNumber?: number;
 	episodeName?: string;
 }
+
+export interface FranchiseItem {
+	tmdbId: number;
+	type: "movie" | "tv";
+	title: string;
+	year: string;
+	posterPath?: string;
+	backdropPath?: string;
+	overview?: string;
+	phaseOrEra?: string;
+	timelineOrder: number;
+	releaseOrder: number;
+	releaseDate?: string;
+	watched?: Watched;
+	isWatched: boolean;
+	isNextUp: boolean;
+}
+
+export interface FranchiseRoadmap {
+	id: string;
+	name: string;
+	description: string;
+	backdropPath?: string;
+	posterPath?: string;
+	activeOrder: "timeline" | "release";
+	totalItems: number;
+	watchedCount: number;
+	percentWatched: number;
+	nextUpItem?: FranchiseItem;
+	items: FranchiseItem[];
+}
+
+export interface FranchiseSummary {
+	id: string;
+	name: string;
+	description: string;
+	backdropPath?: string;
+	posterPath?: string;
+	totalItems: number;
+	watchedCount: number;
+	percentWatched: number;
+	itemTypes: string;
+}
+
+export interface FranchiseMatch {
+	inFranchise: boolean;
+	franchiseId?: string;
+	franchiseName?: string;
+	phaseOrEra?: string;
+	timelineOrder?: number;
+	releaseOrder?: number;
+}
+

@@ -4,6 +4,8 @@ package main
 
 import (
 	"bufio"
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -11,7 +13,10 @@ import (
 	"net/http/httputil"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
+	"runtime/debug"
+	"syscall"
 	"time"
 
 	_ "embed"
@@ -34,9 +39,11 @@ import (
 	"github.com/sbondCo/Watcharr/feature/discover"
 	"github.com/sbondCo/Watcharr/feature/feature"
 	"github.com/sbondCo/Watcharr/feature/follow"
+	"github.com/sbondCo/Watcharr/feature/franchise"
 	"github.com/sbondCo/Watcharr/feature/game"
 	"github.com/sbondCo/Watcharr/feature/img"
 	"github.com/sbondCo/Watcharr/feature/imprt"
+	"github.com/sbondCo/Watcharr/feature/integration"
 	"github.com/sbondCo/Watcharr/feature/jellyfin"
 	"github.com/sbondCo/Watcharr/feature/job"
 	"github.com/sbondCo/Watcharr/feature/plex"
@@ -61,6 +68,13 @@ import (
 var version string
 
 func main() {
+	startTime := time.Now()
+
+	// Tune Go runtime memory footprint: GC at 60% growth prevents RAM bloat,
+	// and soft limit of 180MB keeps working set tightly managed.
+	debug.SetGCPercent(60)
+	debug.SetMemoryLimit(180 * 1024 * 1024)
+
 	err := godotenv.Load()
 	if err != nil {
 		// Do not fail if file does not exist
@@ -207,18 +221,42 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 	if isProd {
-		// Proxy NoRoute requests to UI server
-		gine.NoRoute(func(c *gin.Context) {
-			director := func(req *http.Request) {
+		uiProxy := &httputil.ReverseProxy{
+			Director: func(req *http.Request) {
 				req.URL.Scheme = "http"
 				req.URL.Host = "127.0.0.1:3000"
-			}
-			proxy := &httputil.ReverseProxy{Director: director}
-			proxy.ServeHTTP(c.Writer, c.Request)
+			},
+		}
+		// Proxy NoRoute requests to UI server
+		gine.NoRoute(func(c *gin.Context) {
+			uiProxy.ServeHTTP(c.Writer, c.Request)
 		})
 	}
 	api := gine.Group("/api")
 	api.Use(gzip.Gzip(gzip.DefaultCompression))
+
+	// Health check endpoint for Docker, orchestrators and uptime monitoring
+	api.GET("/health", func(c *gin.Context) {
+		dbStatus := "connected"
+		sqlDB, err := db.DB()
+		if err != nil || sqlDB.Ping() != nil {
+			dbStatus = "disconnected"
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"status":   "degraded",
+				"version":  version,
+				"uptime":   time.Since(startTime).String(),
+				"database": dbStatus,
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"status":   "ok",
+			"version":  version,
+			"uptime":   time.Since(startTime).String(),
+			"database": dbStatus,
+		})
+	})
+
 	br := router.NewBaseRouter(db, api, cfg)
 
 	tmdbService := tmdb.NewTMDB(cfg.TMDB_KEY)
@@ -319,6 +357,10 @@ func main() {
 	discover.NewRouter(br, discoverService, watchedService).AddRoutes()
 	calendarService := calendar.NewService(db, cfg, tmdbService)
 	calendar.NewRouter(br, calendarService).AddRoutes()
+	integrationService := integration.NewService(db, cfg, tmdbService, calendarService)
+	integration.NewRouter(br, integrationService).AddRoutes()
+	franchiseService := franchise.NewService(db, cfg, tmdbService, watchedService)
+	franchise.NewRouter(br, franchiseService).AddRoutes()
 	img.NewRouter(br).AddRoutes()
 
 	// Only add setup routes if there are no users found in db.
@@ -337,15 +379,51 @@ func main() {
 
 	go taskl.SetupTasks(cfg, db, calendarService)
 
-	gine.Run("0.0.0.0:3080")
+	srv := &http.Server{
+		Addr:    "0.0.0.0:3080",
+		Handler: gine.Handler(),
+	}
+
+	go func() {
+		slog.Info("Watcharr is listening on 0.0.0.0:3080")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("ListenAndServe failed!", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	slog.Info("Shutting down Watcharr gracefully...")
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		slog.Error("Server forced to shutdown:", "error", err)
+	}
+
+	// Close database connections cleanly
+	if sqlDB, err := db.DB(); err == nil {
+		_ = sqlDB.Close()
+	}
+
+	slog.Info("Watcharr exited cleanly.")
 }
 
 // Run UI server
 func runUI() {
+	if _, err := os.Stat("ui/index.js"); errors.Is(err, os.ErrNotExist) {
+		slog.Warn("runUI: ui/index.js not found, skipping built-in UI process.")
+		return
+	}
 	cmd := exec.Command("node", "ui/index.js")
 	cmdReader, err := cmd.StdoutPipe()
 	if err != nil {
-		log.Fatal("UI ERR @ get stdout read pipe: ", err)
+		slog.Error("runUI: get stdout read pipe failed", "error", err)
+		return
 	}
 	scanner := bufio.NewScanner(cmdReader)
 	go func() {
@@ -357,10 +435,11 @@ func runUI() {
 		}
 	}()
 	if err := cmd.Start(); err != nil {
-		log.Fatal("UI ERR @ command start: ", err)
+		slog.Error("runUI: command start failed", "error", err)
+		return
 	}
 	if err := cmd.Wait(); err != nil {
-		log.Fatal("UI ERR @ command wait: ", err)
+		slog.Warn("runUI: UI process exited", "error", err)
 	}
 }
 

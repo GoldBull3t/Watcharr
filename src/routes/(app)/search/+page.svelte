@@ -28,6 +28,7 @@
 	import MediaTypeFilter from "@/lib/search/MediaTypeFilter.svelte";
 	import Filters from "./components/Filters.svelte";
 	import PosterGridSkeleton from "@/lib/dashboard/PosterGridSkeleton.svelte";
+	import { searchCache } from "@/lib/util/searchCache";
 
 	let { data } = $props();
 
@@ -59,7 +60,9 @@
 		preferMyList: preferMyList,
 	});
 
-	async function load(signal: AbortSignal) {
+	async function load(
+		signal: AbortSignal,
+	): Promise<PaginationResponse<Media, SearchResponseMeta> | undefined> {
 		console.debug("load: loadParams:", nextLoadParams);
 		if (nextLoadParams.page === dataLoader.state.page) {
 			console.warn("load: Already on this page, not loading it again!");
@@ -69,6 +72,23 @@
 			console.warn("load: There is no search query!");
 			return;
 		}
+
+		// 1. Instant cache hit check (0ms response)
+		const cached = searchCache.get<
+			PaginationResponse<Media, SearchResponseMeta>
+		>(
+			nextLoadParams.query,
+			nextLoadParams.type,
+			nextLoadParams.preferMyList,
+			nextLoadParams.page,
+		);
+		if (cached) {
+			console.debug("load: Returning cached search result for:", nextLoadParams.query);
+			scroll.dataLoaded();
+			return cached;
+		}
+
+		// 2. Fetch from network
 		const r = await req.get<PaginationResponse<Media, SearchResponseMeta>>(
 			`/search`,
 			{
@@ -76,6 +96,18 @@
 				signal,
 			},
 		);
+
+		// 3. Cache response for subsequent fast lookups
+		if (r) {
+			searchCache.set(
+				nextLoadParams.query,
+				r,
+				nextLoadParams.type,
+				nextLoadParams.preferMyList,
+				nextLoadParams.page,
+			);
+		}
+
 		scroll.dataLoaded();
 		return r;
 	}

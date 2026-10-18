@@ -660,7 +660,10 @@
 					<div class="empty-state">
 						<Icon i="film" wh={48} />
 						<h3>Nenhuma estreia encontrada neste mês</h3>
-						<p>Não foram encontrados lançamentos de filmes ou episódios para este período.</p>
+						<p>
+							Não foram encontrados lançamentos de filmes ou episódios para este
+							período.
+						</p>
 						{#if scopeFilter === "library"}
 							<button
 								class="pill-btn primary"
@@ -674,7 +677,10 @@
 					<div class="wall-header-summary">
 						<span class="total-releases-pill">
 							<Icon i="film" wh={14} />
-							<span>{displayedEvents.length} {displayedEvents.length === 1 ? "estreia" : "estreias"} em {dateRange.title}</span>
+							<span
+								>{displayedEvents.length}
+								{displayedEvents.length === 1 ? "estreia" : "estreias"} em {dateRange.title}</span
+							>
 						</span>
 					</div>
 
@@ -693,7 +699,8 @@
 										</h4>
 									</div>
 									<span class="day-count-tag">
-										{group.events.length} {group.events.length === 1 ? "título" : "títulos"}
+										{group.events.length}
+										{group.events.length === 1 ? "título" : "títulos"}
 									</span>
 								</header>
 
@@ -736,7 +743,9 @@
 
 												{#if ev.inLibrary && ev.status}
 													<div class="bottom-overlays">
-														<span class="status-badge status-{ev.status.toLowerCase()}">
+														<span
+															class="status-badge status-{ev.status.toLowerCase()}"
+														>
 															<span class="status-dot"></span>
 															<span>{ev.status}</span>
 														</span>

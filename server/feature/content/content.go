@@ -11,16 +11,12 @@ import (
 	"strconv"
 	"time"
 
-	gocache "github.com/robfig/go-cache"
 	"github.com/sbondCo/Watcharr/config"
 	"github.com/sbondCo/Watcharr/database/entity"
 	"github.com/sbondCo/Watcharr/media/tmdb"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
-
-// inmemory content cache
-var ContentStore = gocache.New(time.Hour*24, time.Minute)
 
 var imageDownloadClient = &http.Client{
 	Timeout: 20 * time.Second,
@@ -148,17 +144,16 @@ func (s *Service) saveContent(c *entity.Content, onlyUpdate bool) error {
 			}
 		}
 	}
-	// If row created, download the image
-	if res.RowsAffected > 0 {
-		slog.Debug("saveContent: Downloading poster.")
-		err := download(
-			"https://image.tmdb.org/t/p/w500"+c.PosterPath,
-			path.Join(config.DataPath, "img", c.PosterPath),
-			false,
-		)
-		if err != nil {
-			slog.Error("saveContent: Failed to download content image!", "error", err.Error())
-		}
+	// If row created, download the image in background so content saving is non-blocking
+	if res.RowsAffected > 0 && c.PosterPath != "" {
+		posterURL := "https://image.tmdb.org/t/p/w500" + c.PosterPath
+		posterPath := path.Join(config.DataPath, "img", c.PosterPath)
+		go func() {
+			slog.Debug("saveContent: Downloading poster in background.", "path", posterPath)
+			if err := download(posterURL, posterPath, false); err != nil {
+				slog.Error("saveContent: Failed to download content image in background!", "error", err.Error())
+			}
+		}()
 	}
 	return nil
 }

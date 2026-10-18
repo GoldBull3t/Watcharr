@@ -507,6 +507,29 @@
 		return true;
 	}
 
+	let modalQueue: (() => void)[] = [];
+	let isModalOpen = false;
+
+	function acquireModalLock(): Promise<void> {
+		return new Promise((resolve) => {
+			if (!isModalOpen) {
+				isModalOpen = true;
+				resolve();
+			} else {
+				modalQueue.push(resolve);
+			}
+		});
+	}
+
+	function releaseModalLock() {
+		if (modalQueue.length > 0) {
+			const next = modalQueue.shift();
+			next?.();
+		} else {
+			isModalOpen = false;
+		}
+	}
+
 	async function startImport() {
 		if (!validatableInputsAreValid()) {
 			console.warn(
@@ -518,29 +541,34 @@
 			});
 			return;
 		}
-		console.log("startImport: Starting.", rList);
+		console.log("startImport: Starting with 4 concurrent workers.", rList);
 		isImporting = true;
 		window.scrollTo(0, 0);
-		for (let i = 0; i < rList.length; i++) {
-			if (cancelled) {
-				notify({ type: "error", text: "Importing Cancelled" });
-				return;
+
+		const concurrency = 4;
+		let currentIndex = 0;
+
+		async function worker() {
+			while (currentIndex < rList.length) {
+				if (cancelled) return;
+				const index = currentIndex++;
+				const li = rList[index];
+				if (!li) break;
+				try {
+					console.log("Importing", li);
+					await doImport(li);
+				} catch (err) {
+					li.state = ImportResponseType.IMPORT_FAILED;
+					console.error("Failed to import item:", li, "reason:", err);
+				}
+				// Small 15ms tick to yield to browser paint loop
+				await sleep(15);
 			}
-			const li = rList[i];
-			try {
-				console.log("Importing", li);
-				await doImport(li);
-			} catch (err) {
-				li.state = ImportResponseType.IMPORT_FAILED;
-				console.error("Failed to import item:", li, "reason:", err);
-				notify({
-					type: "error",
-					text: "Failed to import an item! Check console for more info.",
-					time: Infinity,
-				});
-			}
-			await sleep(1500);
 		}
+
+		const workers = Array.from({ length: concurrency }, () => worker());
+		await Promise.all(workers);
+
 		store.importedList = undefined;
 		if (
 			rList.some(
@@ -569,39 +597,40 @@
 			return;
 		}
 		const resp = await req.post<ImportResponse>("/import", item);
-		return new Promise((res, rej) => {
-			if (resp.type === ImportResponseType.IMPORT_MULTI) {
-				console.log("Import found multiple responses for content", resp);
-				let results = resp.results;
-				if (!results || results.length <= 0) {
-					item.state = ImportResponseType.IMPORT_NOTFOUND;
-					rList = rList;
-					res(0);
-					return;
-				}
-				if (item.year) {
-					results.sort((a, b) => {
-						try {
-							const ar = a.releaseDate;
-							const ay = ar
-								? new Date(Date.parse(ar)).getFullYear()
-								: undefined;
-							const br = b.releaseDate;
-							const by = br
-								? new Date(Date.parse(br)).getFullYear()
-								: undefined;
-							if (ay == item.year) return -1;
-							else if (by == item.year) return 1;
-						} catch (err) {
-							console.error("doImport: results sort failed", err);
-						}
-						return 0;
-					});
-				}
+		if (resp.type === ImportResponseType.IMPORT_MULTI) {
+			console.log("Import found multiple responses for content", resp);
+			let results = resp.results;
+			if (!results || results.length <= 0) {
+				item.state = ImportResponseType.IMPORT_NOTFOUND;
+				rList = rList;
+				return;
+			}
+			if (item.year) {
+				results.sort((a, b) => {
+					try {
+						const ar = a.releaseDate;
+						const ay = ar
+							? new Date(Date.parse(ar)).getFullYear()
+							: undefined;
+						const br = b.releaseDate;
+						const by = br
+							? new Date(Date.parse(br)).getFullYear()
+							: undefined;
+						if (ay == item.year) return -1;
+						else if (by == item.year) return 1;
+					} catch (err) {
+						console.error("doImport: results sort failed", err);
+					}
+					return 0;
+				});
+			}
+			await acquireModalLock();
+			return new Promise((res, rej) => {
 				importMultiItem = {
 					original: item,
 					results: results,
 					callback: (err) => {
+						releaseModalLock();
 						if (err) {
 							item.state = ImportResponseType.IMPORT_NOTFOUND;
 							rList = rList;
@@ -611,23 +640,21 @@
 						}
 					},
 				};
-			} else if (resp.type === ImportResponseType.IMPORT_SUCCESS) {
-				item.state = ImportResponseType.IMPORT_SUCCESS;
-				const w = resp.watchedEntry;
-				if (w) {
-					const release = w.media?.releaseDate;
-					if (release) item.year = new Date(Date.parse(release)).getFullYear();
-					const t = w.media ? getContentTypeFromMedia(w.media) : undefined;
-					if (t) item.type = t;
-				}
-				rList = rList;
-				res(0);
-			} else {
-				item.state = resp.type;
-				rList = rList;
-				res(0);
+			});
+		} else if (resp.type === ImportResponseType.IMPORT_SUCCESS) {
+			item.state = ImportResponseType.IMPORT_SUCCESS;
+			const w = resp.watchedEntry;
+			if (w) {
+				const release = w.media?.releaseDate;
+				if (release) item.year = new Date(Date.parse(release)).getFullYear();
+				const t = w.media ? getContentTypeFromMedia(w.media) : undefined;
+				if (t) item.type = t;
 			}
-		});
+			rList = rList;
+		} else {
+			item.state = resp.type;
+			rList = rList;
+		}
 	}
 
 	/**

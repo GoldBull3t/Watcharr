@@ -54,4 +54,3 @@
 {:catch err}
 	<Error error={err} pretty="Failed to load languages!" />
 {/await}
-

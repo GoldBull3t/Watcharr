@@ -7,6 +7,7 @@ import (
 	"github.com/sbondCo/Watcharr/activity"
 	"github.com/sbondCo/Watcharr/database/entity"
 	"github.com/sbondCo/Watcharr/domain"
+	"github.com/sbondCo/Watcharr/util"
 )
 
 // Called after episode status is changed.
@@ -23,7 +24,7 @@ func (s *Service) hookStatusChanged(
 		slog.Error("hookStatusChanged: Failed to get user settings! Continuing.",
 			"error", err)
 	} else {
-		if !*userSettings.AutomateShowStatuses {
+		if !util.Deref(userSettings.AutomateShowStatuses, true) {
 			slog.Debug("hookStatusChanged: User has AutomateShowStatuses disabled. Skipping hook.",
 				"user_id", userID)
 			return domain.EpisodeStatusChangedHookResponse{}

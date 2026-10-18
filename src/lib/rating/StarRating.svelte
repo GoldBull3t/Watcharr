@@ -150,7 +150,9 @@
 
 	let isDragging = $state(false);
 
-	function handlePointerDown(ev: PointerEvent & { currentTarget: HTMLDivElement }) {
+	function handlePointerDown(
+		ev: PointerEvent & { currentTarget: HTMLDivElement },
+	) {
 		if (isTouch()) return;
 		try {
 			ev.currentTarget.setPointerCapture(ev.pointerId);
@@ -160,7 +162,9 @@
 		handleMouseOver(ev as any, true);
 	}
 
-	async function handlePointerUp(ev: PointerEvent & { currentTarget: HTMLDivElement }) {
+	async function handlePointerUp(
+		ev: PointerEvent & { currentTarget: HTMLDivElement },
+	) {
 		if (isTouch()) return;
 		if (isDragging) {
 			isDragging = false;
@@ -245,7 +249,10 @@
 
 	function getRatingDescription(value: number | undefined): string {
 		if (value === undefined || value <= 0) return "";
-		const idx = Math.max(0, Math.min(ratingDesc.length - 1, Math.ceil(value) - 1));
+		const idx = Math.max(
+			0,
+			Math.min(ratingDesc.length - 1, Math.ceil(value) - 1),
+		);
 		return ratingDesc[idx] ?? "";
 	}
 

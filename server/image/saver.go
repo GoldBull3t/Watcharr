@@ -15,12 +15,17 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"time"
 
 	"github.com/sbondCo/Watcharr/config"
 	"github.com/sbondCo/Watcharr/database/entity"
 	"github.com/sbondCo/Watcharr/util"
 	"gorm.io/gorm"
 )
+
+var imageHttpClient = &http.Client{
+	Timeout: 20 * time.Second,
+}
 
 func NewSaver(db *gorm.DB, saveSubPath string, vo ValidateOptions) *Saver {
 	return &Saver{
@@ -45,7 +50,7 @@ func (s *Saver) DownloadAndInsertFromUrl(url string) (entity.Image, error) {
 	slog.Debug("DownloadAndInsertFromUrl: Running.", "url", url)
 
 	// Get the data
-	resp, err := http.Get(url)
+	resp, err := imageHttpClient.Get(url)
 	if err != nil {
 		return entity.Image{}, err
 	}

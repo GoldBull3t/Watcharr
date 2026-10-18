@@ -24,6 +24,7 @@
 	import { SvelteURLSearchParams } from "svelte/reactivity";
 	import HandbookModal from "@/lib/handbook/HandbookModal.svelte";
 	import CommandPalette from "@/lib/nav/CommandPalette.svelte";
+	import { t } from "@/lib/i18n";
 
 	interface Props {
 		children?: import("svelte").Snippet;
@@ -218,12 +219,8 @@
 
 	function docOnScroll() {
 		const currentScrollY = window.scrollY;
-		if (currentScrollY <= 20 || scroll > currentScrollY) {
-			navEl?.classList.remove("scrolled-down");
-			document.body.classList.add("nav-shown");
-		} else if (currentScrollY > 80 && scroll < currentScrollY) {
-			navEl?.classList.add("scrolled-down");
-			document.body.classList.remove("nav-shown");
+		document.body.classList.add("nav-shown");
+		if (currentScrollY > 80 && scroll < currentScrollY) {
 			closeAllSubMenus();
 		}
 		scroll = Math.max(0, currentScrollY);
@@ -296,21 +293,25 @@
 					class="nav-link {page.url?.pathname === '/' ? 'active' : ''}"
 				>
 					<Icon i="film" wh={16} />
-					<span>Library</span>
+					<span>{t("nav.library")}</span>
 				</a>
 				<a
 					href={resolve("/discover")}
-					class="nav-link {page.url?.pathname.startsWith('/discover') ? 'active' : ''}"
+					class="nav-link {page.url?.pathname.startsWith('/discover')
+						? 'active'
+						: ''}"
 				>
 					<Icon i="compass" wh={16} />
-					<span>Discover</span>
+					<span>{t("nav.discover")}</span>
 				</a>
 				<a
 					href={resolve("/calendar")}
-					class="nav-link {page.url?.pathname.startsWith('/calendar') ? 'active' : ''}"
+					class="nav-link {page.url?.pathname.startsWith('/calendar')
+						? 'active'
+						: ''}"
 				>
 					<Icon i="calendar" wh={16} />
-					<span>Calendar</span>
+					<span>{t("nav.calendar")}</span>
 				</a>
 			</div>
 		</div>
@@ -331,7 +332,7 @@
 			</span>
 			<input
 				type="text"
-				placeholder="Search or jump to... (Ctrl+K)"
+				placeholder={`${t("nav.search_placeholder")} (${isMac ? "⌘K" : "Ctrl+K"})`}
 				readonly
 				tabindex="-1"
 			/>
@@ -361,7 +362,12 @@
 							tagMenuShown = false;
 						}}
 						showManageBtn={true}
-						menuConfig={{ width: "220px", right: "0px", top: "45px", arrowRight: "10px" }}
+						menuConfig={{
+							width: "220px",
+							right: "0px",
+							top: "45px",
+							arrowRight: "10px",
+						}}
 					/>
 				{/if}
 			</div>
@@ -386,7 +392,12 @@
 				{#if followingMenuShown}
 					<FollowingMenu
 						close={() => (followingMenuShown = false)}
-						menuConfig={{ width: "190px", right: "0px", top: "45px", arrowRight: "10px" }}
+						menuConfig={{
+							width: "190px",
+							right: "0px",
+							top: "45px",
+							arrowRight: "10px",
+						}}
 					/>
 				{/if}
 			</div>
@@ -397,7 +408,9 @@
 					class="plain face {subMenuShown ? 'active' : ''}"
 					onclick={handleProfileClick}
 					use:tooltip={{
-						text: store.userInfo?.username ? store.userInfo.username : "Account",
+						text: store.userInfo?.username
+							? store.userInfo.username
+							: "Account",
 						pos: "bot",
 						condition: !subMenuShown,
 					}}
@@ -462,21 +475,21 @@
 		class="nav-tab {page.url?.pathname === '/' ? 'active' : ''}"
 	>
 		<Icon i="film" wh={20} />
-		<span>Library</span>
+		<span>{t("nav.library")}</span>
 	</a>
 	<a
 		href={resolve("/calendar")}
 		class="nav-tab {page.url?.pathname.startsWith('/calendar') ? 'active' : ''}"
 	>
 		<Icon i="calendar" wh={20} />
-		<span>Calendar</span>
+		<span>{t("nav.calendar")}</span>
 	</a>
 	<a
 		href={resolve("/discover")}
 		class="nav-tab {page.url?.pathname.startsWith('/discover') ? 'active' : ''}"
 	>
 		<Icon i="compass" wh={20} />
-		<span>Discover</span>
+		<span>{t("nav.discover")}</span>
 	</a>
 	<button
 		class="nav-tab plain {commandPaletteOpen ? 'active' : ''}"
@@ -484,7 +497,7 @@
 		aria-label="Search and Commands"
 	>
 		<Icon i="search" wh={20} />
-		<span>Search</span>
+		<span>{t("nav.search")}</span>
 	</button>
 	<button
 		class="nav-tab plain {tagMenuShown ? 'active' : ''}"
@@ -540,16 +553,14 @@
 		gap: 6px;
 		z-index: 99990;
 		border-bottom: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
-		transition: top 200ms cubic-bezier(0.4, 0, 0.2, 1);
-		@include nav-blur;
+		background: rgba(13, 17, 23, 0.94);
+		backdrop-filter: blur(20px);
+		-webkit-backdrop-filter: blur(20px);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
 
 		@media screen and (max-width: 768px) {
 			padding: 8px 16px;
 			margin-bottom: 16px;
-		}
-
-		&:global(.scrolled-down) {
-			top: -110px;
 		}
 
 		.wrapper {

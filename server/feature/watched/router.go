@@ -32,6 +32,7 @@ func (r *Router) AddRoutes() {
 	watched.GET("/export", r.ExportWatchedList)
 	watched.GET(":id/:username", router.PaginatedRequest(true), r.GetPublicWatchedList)
 	watched.POST("", r.AddWatched)
+	watched.POST("/bulk-delete", r.BulkDeleteWatched)
 	watched.PUT(":id", r.UpdateWatched)
 	watched.DELETE(":id", r.DeleteWatched)
 	// TODO Move add/delete watched from tag to the `tag` package (the service code is there so the route may as well be under there, also avoids a circular dep).
@@ -69,6 +70,7 @@ func (r *Router) GetWatchedList(c *gin.Context) {
 		wp, err := r.s.GetWatchedPage(userId, pp, wpr, nil)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "failed to get page"})
+			return
 		}
 		dto := util.PaginationResponse[domain.Media, util.None]{
 			PaginationParams: wp.PaginationParams,
@@ -176,6 +178,21 @@ func (r *Router) DeleteWatched(c *gin.Context) {
 		return
 	}
 	c.AbortWithStatusJSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+}
+
+func (r *Router) BulkDeleteWatched(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	var req domain.WatchedBulkRemoveRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	response, err := r.s.bulkRemoveWatched(userId, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 func (r *Router) AddWatchedToTag(c *gin.Context) {

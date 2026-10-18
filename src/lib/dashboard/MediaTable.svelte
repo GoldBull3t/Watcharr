@@ -2,11 +2,7 @@
 	import { resolve } from "$app/paths";
 	import Icon from "@/lib/Icon.svelte";
 	import { MediaTypeE, type Media } from "@/types";
-	import {
-		getMediaLink,
-		getPosterImage,
-		getReleaseYear,
-	} from "./mediaHelpers";
+	import { getMediaLink, getPosterImage, getReleaseYear } from "./mediaHelpers";
 	import { formatPublicRating } from "@/lib/rating/helpers";
 	import { toUnderstandableStatus } from "@/lib/util/helpers";
 
@@ -40,7 +36,9 @@
 				<tbody>
 					{#each data as w, i (w?.watched?.id ?? `${i}-${w?.name ?? "item"}`)}
 						{#if w}
-							{@const isSelected = w.watched?.id ? selectedIds.includes(w.watched.id) : false}
+							{@const isSelected = w.watched?.id
+								? selectedIds.includes(w.watched.id)
+								: false}
 							{@const img = getPosterImage(w)}
 							{@const year = getReleaseYear(w)}
 							{@const link = getMediaLink(w)}
@@ -88,7 +86,10 @@
 											<span class="row-year">({year})</span>
 										{/if}
 										{#if w.status === "Canceled"}
-											<span class="table-canceled-tag" title="Série cancelada pelos produtores">Cancelada</span>
+											<span
+												class="table-canceled-tag"
+												title="Série cancelada pelos produtores">Cancelada</span
+											>
 										{/if}
 									</a>
 									{#if w.watched?.watchingSeason}
@@ -109,7 +110,10 @@
 										<span
 											class={`status-pill status-${w.watched.status.toLowerCase()}`}
 										>
-											{toUnderstandableStatus(w.watched.status, w.type === MediaTypeE.igdbGame)}
+											{toUnderstandableStatus(
+												w.watched.status,
+												w.type === MediaTypeE.igdbGame,
+											)}
 										</span>
 									{:else}
 										<span class="status-pill status-untracked">
@@ -384,4 +388,3 @@
 		}
 	}
 </style>
-

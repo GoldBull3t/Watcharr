@@ -311,11 +311,7 @@
 					>
 						<div class="thumb-media">
 							{#if item.thumbUrl}
-								<img
-									src={item.thumbUrl}
-									alt=""
-									loading="lazy"
-								/>
+								<img src={item.thumbUrl} alt="" loading="lazy" />
 							{:else}
 								<div class="thumb-placeholder">🎬</div>
 							{/if}
@@ -735,4 +731,3 @@
 		}
 	}
 </style>
-

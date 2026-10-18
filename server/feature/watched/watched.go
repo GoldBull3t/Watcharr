@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"runtime/debug"
 	"strconv"
 
 	"github.com/sbondCo/Watcharr/activity"
@@ -673,7 +674,15 @@ func (s *Service) UpdateWatched(
 	// changes succeeds, these activities are then saved too.
 	activityMC := activity.NewMultiCreator()
 
-	if ar.Rating != 0 && ar.Rating != upwat.Rating {
+	if ar.RemoveRating && upwat.Rating != 0 {
+		anythingChanged = true
+		upwat.Rating = 0
+
+		activity.
+			NewCreator(s.db, userId, id, entity.RATING_CHANGED, false, ar.ActivityCreatedBy).
+			SetData("0").
+			AddToMultiCreator(activityMC)
+	} else if ar.Rating != 0 && ar.Rating != upwat.Rating {
 		anythingChanged = true
 		upwat.Rating = ar.Rating
 
@@ -793,6 +802,55 @@ func (s *Service) removeWatched(
 		NewCreator(s.db, userId, id, entity.REMOVED_WATCHED, false, 0).
 		Create()
 	return domain.WatchedRemoveResponse{NewActivity: addedActivity}, nil
+}
+
+func (s *Service) bulkRemoveWatched(
+	userId uint,
+	req domain.WatchedBulkRemoveRequest,
+) (domain.WatchedBulkRemoveResponse, error) {
+	slog.Info("bulkRemoveWatched:", "userId", userId, "all", req.All, "hard", req.Hard, "idsCount", len(req.IDs))
+
+	var deletedCount int64
+	if req.Hard {
+		if req.All {
+			res := s.db.Unscoped().Where("user_id = ?", userId).Delete(&entity.Watched{})
+			if res.Error != nil {
+				return domain.WatchedBulkRemoveResponse{}, res.Error
+			}
+			deletedCount = res.RowsAffected
+			s.db.Unscoped().Where("user_id = ?", userId).Delete(&entity.WatchedSeason{})
+			s.db.Unscoped().Where("user_id = ?", userId).Delete(&entity.WatchedEpisode{})
+			s.db.Unscoped().Where("user_id = ?", userId).Delete(&entity.Activity{})
+		} else if len(req.IDs) > 0 {
+			res := s.db.Unscoped().Where("id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.Watched{})
+			if res.Error != nil {
+				return domain.WatchedBulkRemoveResponse{}, res.Error
+			}
+			deletedCount = res.RowsAffected
+			s.db.Unscoped().Where("watched_id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.WatchedSeason{})
+			s.db.Unscoped().Where("watched_id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.WatchedEpisode{})
+			s.db.Unscoped().Where("watched_id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.Activity{})
+		}
+	} else {
+		if req.All {
+			res := s.db.Model(&entity.Watched{}).Where("user_id = ?", userId).Delete(&entity.Watched{})
+			if res.Error != nil {
+				return domain.WatchedBulkRemoveResponse{}, res.Error
+			}
+			deletedCount = res.RowsAffected
+		} else if len(req.IDs) > 0 {
+			res := s.db.Model(&entity.Watched{}).Where("id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.Watched{})
+			if res.Error != nil {
+				return domain.WatchedBulkRemoveResponse{}, res.Error
+			}
+			deletedCount = res.RowsAffected
+		}
+	}
+
+	// Reclaim memory back to OS in background after batch operation
+	go debug.FreeOSMemory()
+
+	return domain.WatchedBulkRemoveResponse{Count: deletedCount}, nil
 }
 
 // Get all currently watching items across the entire collection for the user.

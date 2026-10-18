@@ -101,7 +101,11 @@
 			{#each Object.entries(watchedStatuses) as [statusName, icon] (statusName)}
 				<button
 					type="button"
-					class="plain{status === statusName ? ' active' : status ? ' not-active' : ''}"
+					class="plain{status === statusName
+						? ' active'
+						: status
+							? ' not-active'
+							: ''}"
 					role="menuitem"
 					onclick={(ev) => {
 						ev.stopPropagation();
@@ -109,7 +113,10 @@
 						handleStatusClick(statusName as WatchedStatus);
 					}}
 					use:tooltip={{
-						text: toUnderstandableStatus(statusName as WatchedStatus, isForGame),
+						text: toUnderstandableStatus(
+							statusName as WatchedStatus,
+							isForGame,
+						),
 						pos: "left",
 					}}
 				>
@@ -266,7 +273,9 @@
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			transition: background-color 120ms ease, color 120ms ease;
+			transition:
+				background-color 120ms ease,
+				color 120ms ease;
 
 			&.active {
 				background-color: rgba(245, 158, 11, 0.2);

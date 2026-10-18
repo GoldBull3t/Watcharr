@@ -9,8 +9,8 @@ on:
     paths:
       - ".github/workflows/test-pr-web.yml"
       - "package*.json"
-      - "svelte.config.json"
-      - "vite.config.json"
+      - "svelte.config.js"
+      - "vite.config.ts"
       - "tsconfig.json"
       - ".prettier*"
       - "src/**"
@@ -34,3 +34,6 @@ jobs:
 
       - name: Check for linting/formatting errors
         run: npm run lint
+
+      - name: Check TypeScript & Svelte types
+        run: npm run check

@@ -55,4 +55,3 @@ export function getReleaseYear(w: Media): string {
 	}
 	return "";
 }
-

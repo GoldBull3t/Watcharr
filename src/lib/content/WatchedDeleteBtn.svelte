@@ -13,13 +13,8 @@
 		onRestore?: (w: Watched) => void;
 	}
 
-	let {
-		watchedId,
-		watchedEntry,
-		mediaName,
-		onDelete,
-		onRestore,
-	}: Props = $props();
+	let { watchedId, watchedEntry, mediaName, onDelete, onRestore }: Props =
+		$props();
 
 	function onDeleteClicked() {
 		const targetId = watchedId;

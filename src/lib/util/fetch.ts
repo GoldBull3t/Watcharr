@@ -263,7 +263,10 @@ export class Reqer {
 					clearWatcharrData();
 					goto(resolve("/login?again=1"));
 				} else if (err.response?.status === 403) {
-					notify({ text: "You don't have permission for this action.", type: "error" });
+					notify({
+						text: "You don't have permission for this action.",
+						type: "error",
+					});
 				}
 				throw err;
 			} else if (err instanceof Error) {

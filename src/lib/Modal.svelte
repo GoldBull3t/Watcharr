@@ -25,13 +25,37 @@
 		children,
 	}: Props = $props();
 
+	let modalCardEl: HTMLDivElement | undefined = $state();
+	let previousActiveElement: HTMLElement | null = null;
+
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === "Escape" && onClose) {
 			onClose();
+			return;
+		}
+		if (e.key === "Tab" && modalCardEl) {
+			const focusable = modalCardEl.querySelectorAll<HTMLElement>(
+				'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+			);
+			if (focusable.length === 0) return;
+			const first = focusable[0];
+			const last = focusable[focusable.length - 1];
+			if (e.shiftKey) {
+				if (document.activeElement === first) {
+					last.focus();
+					e.preventDefault();
+				}
+			} else {
+				if (document.activeElement === last) {
+					first.focus();
+					e.preventDefault();
+				}
+			}
 		}
 	}
 
 	onMount(() => {
+		previousActiveElement = document.activeElement as HTMLElement | null;
 		if (activeModalCount === 0) {
 			originalBodyOverflow = document.body.style.overflow;
 			document.body.style.overflow = "hidden";
@@ -39,23 +63,40 @@
 		activeModalCount++;
 		window.addEventListener("keydown", handleKeydown);
 
+		requestAnimationFrame(() => {
+			if (modalCardEl) {
+				const focusable = modalCardEl.querySelector<HTMLElement>(
+					"input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not(.close):not([disabled])",
+				);
+				if (focusable) {
+					focusable.focus();
+				} else {
+					const closeBtn =
+						modalCardEl.querySelector<HTMLElement>("button.close");
+					if (closeBtn) closeBtn.focus();
+				}
+			}
+		});
+
 		return () => {
 			window.removeEventListener("keydown", handleKeydown);
 			activeModalCount = Math.max(0, activeModalCount - 1);
 			if (activeModalCount === 0) {
 				document.body.style.overflow = originalBodyOverflow;
 			}
+			if (
+				previousActiveElement &&
+				typeof previousActiveElement.focus === "function"
+			) {
+				previousActiveElement.focus();
+			}
 		};
 	});
 </script>
 
-<div
-	class="backdrop"
-	onclick={onClose}
-	role="presentation"
-></div>
+<div class="backdrop" onclick={onClose} role="presentation"></div>
 <div class="modal" role="dialog" aria-modal="true" aria-label={title}>
-	<div class="modal-card" style="max-width:{maxWidth};">
+	<div class="modal-card" style="max-width:{maxWidth};" bind:this={modalCardEl}>
 		{#if typeof onClose !== "undefined"}
 			<button
 				type="button"

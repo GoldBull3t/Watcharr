@@ -23,6 +23,9 @@
 				<p>
 					The server encountered an unexpected error. Please try refreshing.
 				</p>
+				{#if page?.error?.message}
+					<small style="opacity: 0.7; font-family: monospace; display: block; margin-top: 8px;">{page.error.message}</small>
+				{/if}
 			{:else if page?.error?.message}
 				<h2>Something Went Wrong</h2>
 				<p>{page.error.message}</p>

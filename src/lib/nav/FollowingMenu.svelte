@@ -11,7 +11,14 @@
 	let { close, menuConfig }: Props = $props();
 </script>
 
-<Menu conf={menuConfig || { width: "180px", right: "0px", top: "45px", arrowRight: "14px" }}>
+<Menu
+	conf={menuConfig || {
+		width: "180px",
+		right: "0px",
+		top: "45px",
+		arrowRight: "14px",
+	}}
+>
 	{#if store.follows?.length > 0}
 		<h4 class="norm sm-caps">following</h4>
 		<div class="list">

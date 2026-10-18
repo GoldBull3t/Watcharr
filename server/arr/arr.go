@@ -11,7 +11,12 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 )
+
+var httpClient = &http.Client{
+	Timeout: 20 * time.Second,
+}
 
 type ArrType string
 
@@ -235,7 +240,7 @@ func request(host string, ep string, p map[string]string, resp interface{}) (int
 	base.RawQuery = params.Encode()
 
 	// Run get request
-	res, err := http.Get(base.String())
+	res, err := httpClient.Get(base.String())
 	if err != nil {
 		if res != nil {
 			return res.StatusCode, err
@@ -281,7 +286,7 @@ func requestPost(host string, ep string, key string, p map[string]interface{}, r
 	if err != nil {
 		return err
 	}
-	res, err = http.Post(base.String(), "application/json", bytes.NewBuffer(jsonp))
+	res, err = httpClient.Post(base.String(), "application/json", bytes.NewBuffer(jsonp))
 	if err != nil {
 		return err
 	}

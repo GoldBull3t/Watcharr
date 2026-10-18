@@ -8,6 +8,56 @@ export default defineConfig({
 	plugins: [
 		sveltekit(),
 		SvelteKitPWA({
+			strategies: "generateSW",
+			registerType: "autoUpdate",
+			workbox: {
+				globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff,woff2}"],
+				runtimeCaching: [
+					{
+						urlPattern: /^https:\/\/www\.themoviedb\.org\/t\/p\/.*/i,
+						handler: "CacheFirst",
+						options: {
+							cacheName: "tmdb-images-cache",
+							expiration: {
+								maxEntries: 500,
+								maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+							},
+							cacheableResponse: {
+								statuses: [0, 200],
+							},
+						},
+					},
+					{
+						urlPattern: /\/api\/img\/.*/i,
+						handler: "CacheFirst",
+						options: {
+							cacheName: "local-images-cache",
+							expiration: {
+								maxEntries: 200,
+								maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+							},
+							cacheableResponse: {
+								statuses: [0, 200],
+							},
+						},
+					},
+					{
+						urlPattern: /\/api\/watched.*/i,
+						handler: "NetworkFirst",
+						options: {
+							cacheName: "watched-api-cache",
+							networkTimeoutSeconds: 3,
+							expiration: {
+								maxEntries: 50,
+								maxAgeSeconds: 60 * 60 * 24, // 24 hours
+							},
+							cacheableResponse: {
+								statuses: [0, 200],
+							},
+						},
+					},
+				],
+			},
 			manifest: {
 				name: "Watcharr",
 				short_name: "Watcharr",

@@ -208,6 +208,7 @@ type WatchedAddExtraProps struct {
 type WatchedUpdateRequest struct {
 	Status         entity.WatchedStatus `json:"status"`
 	Rating         float64              `json:"rating"`
+	RemoveRating   bool                 `json:"removeRating"`
 	Thoughts       string               `json:"thoughts" `
 	RemoveThoughts bool                 `json:"removeThoughts"`
 	Pinned         *bool                `json:"pinned" `
@@ -226,6 +227,7 @@ type WatchedUpdateRequest struct {
 func (w WatchedUpdateRequest) Valid() error {
 	if w.Status == "" &&
 		w.Rating == 0 &&
+		!w.RemoveRating &&
 		(w.Thoughts == "" && !w.RemoveThoughts) &&
 		w.Pinned == nil &&
 		w.LetCountAsPlay == nil {
@@ -249,4 +251,16 @@ type WatchedUpdateResponse struct {
 // Removal response.
 type WatchedRemoveResponse struct {
 	NewActivity entity.Activity `json:"newActivity"`
+}
+
+// Bulk removal request.
+type WatchedBulkRemoveRequest struct {
+	IDs  []uint `json:"ids"`
+	All  bool   `json:"all"`
+	Hard bool   `json:"hard"`
+}
+
+// Bulk removal response.
+type WatchedBulkRemoveResponse struct {
+	Count int64 `json:"count"`
 }

@@ -69,47 +69,50 @@ const _store: Store = $state({
 	tags: [],
 });
 
-const updateSortAndFiltersForQueryParams = () => {
+function computeSortAndFiltersForQueryParams(
+	sort: ActiveSort,
+	filters: Filters,
+): Record<string, string> {
 	try {
 		const qp: Record<string, string> = {};
-		if (store.activeSort?.length === 2) {
-			qp.sort = store.activeSort[0];
-			qp.sortDir = store.activeSort[1] === "UP" ? "asc" : "desc";
+		if (sort?.length === 2) {
+			qp.sort = sort[0];
+			qp.sortDir = sort[1] === "UP" ? "asc" : "desc";
 		}
-		if (store.activeFilters) {
-			const t = store.activeFilters?.type?.join(",");
+		if (filters) {
+			const t = filters?.type?.join(",");
 			if (t) {
 				qp["type"] = t;
 			}
-			const s = store.activeFilters?.status?.join(",");
+			const s = filters?.status?.join(",");
 			if (s) {
 				qp["status"] = s;
 			}
-			if (store.activeFilters?.year) {
-				qp["year"] = String(store.activeFilters.year);
+			if (filters?.year) {
+				qp["year"] = String(filters.year);
 			}
-			if (store.activeFilters?.minRating) {
-				qp["minRating"] = String(store.activeFilters.minRating);
+			if (filters?.minRating) {
+				qp["minRating"] = String(filters.minRating);
 			}
-			if (store.activeFilters?.maxRating) {
-				qp["maxRating"] = String(store.activeFilters.maxRating);
+			if (filters?.maxRating) {
+				qp["maxRating"] = String(filters.maxRating);
 			}
-			if (store.activeFilters?.query) {
-				qp["query"] = store.activeFilters.query;
+			if (filters?.query) {
+				qp["query"] = filters.query;
 			}
-			if (store.activeFilters?.genre) {
-				qp["genre"] = store.activeFilters.genre;
+			if (filters?.genre) {
+				qp["genre"] = filters.genre;
 			}
-			if (store.activeFilters?.productionStatus) {
-				qp["productionStatus"] = store.activeFilters.productionStatus;
+			if (filters?.productionStatus) {
+				qp["productionStatus"] = filters.productionStatus;
 			}
 		}
-		_store.sortAndFiltersForQueryParams = qp;
+		return qp;
 	} catch (err) {
-		console.error("updateSortAndFiltersForQueryParams: Failed!", err);
-		_store.sortAndFiltersForQueryParams = {};
+		console.error("computeSortAndFiltersForQueryParams: Failed!", err);
+		return {};
 	}
-};
+}
 
 /**
  * Expose store to app through getters/setters
@@ -138,7 +141,6 @@ export const store = {
 			}
 		}
 		console.debug("Store: Saved activeSort:", v);
-		updateSortAndFiltersForQueryParams();
 	},
 	get activeFilters() {
 		return _store.activeFilters;
@@ -163,7 +165,7 @@ export const store = {
 				Boolean(this.activeFilters.minRating) ||
 				Boolean(this.activeFilters.maxRating) ||
 				Boolean(this.activeFilters.genre) ||
-				Boolean(this.activeFilters.productionStatus))
+				Boolean(this.activeFilters.productionStatus)),
 		);
 	},
 	get secondaryFilterCount(): number {
@@ -189,13 +191,15 @@ export const store = {
 		};
 		if (browser) {
 			try {
-				localStorage.setItem("activeFilterReal", JSON.stringify(_store.activeFilters));
+				localStorage.setItem(
+					"activeFilterReal",
+					JSON.stringify(_store.activeFilters),
+				);
 			} catch (e) {
 				console.warn("Store: Failed to save activeFilters:", e);
 			}
 		}
 		console.debug("Store: Saved activeFilters:", _store.activeFilters);
-		updateSortAndFiltersForQueryParams();
 	},
 	/**
 	 * Return our `activeSort` and `activeFilters` in an object
@@ -203,7 +207,10 @@ export const store = {
 	 * http requests.
 	 */
 	get sortAndFiltersForQueryParams() {
-		return _store.sortAndFiltersForQueryParams;
+		return computeSortAndFiltersForQueryParams(
+			_store.activeSort,
+			_store.activeFilters,
+		);
 	},
 	get appTheme() {
 		return _store.appTheme;
@@ -266,7 +273,10 @@ export const store = {
 		if (browser) {
 			try {
 				if (v) {
-					localStorage.setItem("wlDetailedView", JSON.stringify(_store.wlDetailedView));
+					localStorage.setItem(
+						"wlDetailedView",
+						JSON.stringify(_store.wlDetailedView),
+					);
 					console.debug("Store: Saved wlDetailedView:", v);
 				} else {
 					localStorage.removeItem("wlDetailedView");
@@ -352,7 +362,10 @@ function rehydrateStore() {
 				$state.snapshot(store.activeSort),
 			);
 		} catch (err) {
-			console.warn("rehydrateStore: Failed to parse activeFilter from localStorage, resetting", err);
+			console.warn(
+				"rehydrateStore: Failed to parse activeFilter from localStorage, resetting",
+				err,
+			);
 			localStorage.removeItem("activeFilter");
 		}
 	}
@@ -365,24 +378,29 @@ function rehydrateStore() {
 				type: Array.isArray(parsed?.type) ? parsed.type : [],
 				status: Array.isArray(parsed?.status) ? parsed.status : [],
 				year: typeof parsed?.year === "number" ? parsed.year : undefined,
-				minRating: typeof parsed?.minRating === "number" ? parsed.minRating : undefined,
-				maxRating: typeof parsed?.maxRating === "number" ? parsed.maxRating : undefined,
+				minRating:
+					typeof parsed?.minRating === "number" ? parsed.minRating : undefined,
+				maxRating:
+					typeof parsed?.maxRating === "number" ? parsed.maxRating : undefined,
 				query: typeof parsed?.query === "string" ? parsed.query : undefined,
 				genre: typeof parsed?.genre === "string" ? parsed.genre : undefined,
-				productionStatus: typeof parsed?.productionStatus === "string" ? parsed.productionStatus : undefined,
+				productionStatus:
+					typeof parsed?.productionStatus === "string"
+						? parsed.productionStatus
+						: undefined,
 			};
 			console.debug(
 				"rehydrateStore: Restored activeFilters:",
 				$state.snapshot(store.activeFilters),
 			);
 		} catch (err) {
-			console.warn("rehydrateStore: Failed to parse activeFilterReal from localStorage, resetting", err);
+			console.warn(
+				"rehydrateStore: Failed to parse activeFilterReal from localStorage, resetting",
+				err,
+			);
 			localStorage.removeItem("activeFilterReal");
 		}
 	}
-	// After restoring activeSort and activeFilter, set
-	// an initial value for our related query param state.
-	updateSortAndFiltersForQueryParams();
 	// Restore appTheme
 	const theme = localStorage.getItem("theme") as Theme;
 	if (theme) {
@@ -411,7 +429,10 @@ function rehydrateStore() {
 				$state.snapshot(store.wlDetailedView),
 			);
 		} catch (err) {
-			console.warn("rehydrateStore: Failed to parse wlDetailedView from localStorage, resetting", err);
+			console.warn(
+				"rehydrateStore: Failed to parse wlDetailedView from localStorage, resetting",
+				err,
+			);
 			localStorage.removeItem("wlDetailedView");
 		}
 	}

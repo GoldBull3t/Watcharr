@@ -3,6 +3,7 @@ package task
 import (
 	"errors"
 	"log/slog"
+	"runtime/debug"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
@@ -85,6 +86,13 @@ func SetupTasks(cfg *config.ServerConfig, db *gorm.DB, notifiers ...CalendarNoti
 			},
 			dd: 24 * time.Hour,
 		},
+		"Memory Scavenger": {
+			f: func() {
+				debug.FreeOSMemory()
+				slog.Debug("Memory Scavenger: Returned unused memory pages to OS")
+			},
+			dd: 10 * time.Minute,
+		},
 	}
 
 	if len(notifiers) > 0 && notifiers[0] != nil {
@@ -152,14 +160,13 @@ func GetAllTasks(cfg *config.ServerConfig) []AllTasksResponse {
 
 // Get task (job) from scheduler by name.
 func GetTask(name string) *gocron.Job {
-	var job *gocron.Job
 	for _, j := range taskScheduler.Jobs() {
 		if j.Name() == name {
-			job = &j
-			break
+			job := j
+			return &job
 		}
 	}
-	return job
+	return nil
 }
 
 // Reschedule a task by name.

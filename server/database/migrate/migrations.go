@@ -350,4 +350,27 @@ var migrations = []Migration{
 			return nil
 		},
 	},
+	{
+		// Adding indexes for content title and game name to optimize library search queries (LIKE filter).
+		ID: "202610172355_0008",
+		Up: func(tx *gorm.DB) error {
+			migID := "202610172355_0008"
+			slog.Info("Migration is starting.", "mig", migID)
+
+			queries := []string{
+				"CREATE INDEX IF NOT EXISTS idx_contents_title ON contents(title);",
+				"CREATE INDEX IF NOT EXISTS idx_games_name ON games(name);",
+			}
+
+			for _, q := range queries {
+				if res := tx.Exec(q); res.Error != nil {
+					slog.Error("Creating search index failed!", "mig", migID, "query", q, "error", res.Error)
+					return res.Error
+				}
+			}
+
+			slog.Info("Search indexes created successfully.", "mig", migID)
+			return nil
+		},
+	},
 }

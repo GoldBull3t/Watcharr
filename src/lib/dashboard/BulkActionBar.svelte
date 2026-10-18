@@ -6,7 +6,9 @@
 
 	interface Props {
 		selectedCount: number;
+		totalCount?: number;
 		onSelectAll: () => void;
+		onSelectAllEverywhere?: () => void;
 		onClear: () => void;
 		onUpdateStatus: (status: WatchedStatus) => void;
 		onUpdateRating?: (rating: number) => void;
@@ -16,7 +18,9 @@
 
 	let {
 		selectedCount,
+		totalCount,
 		onSelectAll,
+		onSelectAllEverywhere,
 		onClear,
 		onUpdateStatus,
 		onUpdateRating,
@@ -26,6 +30,7 @@
 
 	let statusMenuOpen = $state(false);
 	let rateMenuOpen = $state(false);
+	let isConfirmingDelete = $state(false);
 	let hoveredScore = $state<number | undefined>();
 	let statusWrapEl: HTMLDivElement | undefined = $state();
 	let rateWrapEl: HTMLDivElement | undefined = $state();
@@ -38,10 +43,17 @@
 		if (rateMenuOpen && rateWrapEl && !rateWrapEl.contains(target)) {
 			rateMenuOpen = false;
 		}
+		if (isConfirmingDelete) {
+			isConfirmingDelete = false;
+		}
 	}
 
 	function handleWindowKeyDown(e: KeyboardEvent) {
 		if (e.key === "Escape") {
+			if (isConfirmingDelete) {
+				isConfirmingDelete = false;
+				return;
+			}
 			if (statusMenuOpen || rateMenuOpen) {
 				statusMenuOpen = false;
 				rateMenuOpen = false;
@@ -49,6 +61,16 @@
 				onClose();
 			}
 		}
+	}
+
+	function handleDeleteClick(e: MouseEvent) {
+		e.stopPropagation();
+		if (!isConfirmingDelete) {
+			isConfirmingDelete = true;
+			return;
+		}
+		isConfirmingDelete = false;
+		onDelete();
 	}
 
 	function selectStatus(s: WatchedStatus) {
@@ -73,9 +95,7 @@
 	);
 
 	const starCount = $derived(isOutOf5 ? 5 : 10);
-	const starList = $derived(
-		Array.from({ length: starCount }, (_, i) => i + 1),
-	);
+	const starList = $derived(Array.from({ length: starCount }, (_, i) => i + 1));
 </script>
 
 <svelte:window onclick={handleWindowClick} onkeydown={handleWindowKeyDown} />
@@ -87,14 +107,28 @@
 			<div class="dock-group selection-group">
 				<div class="count-tag">
 					<span class="num">{selectedCount}</span>
-					<span class="lbl">selected</span>
+					<span class="lbl">{selectedCount === 1 ? "selecionado" : "selecionados"}</span>
 				</div>
-				<button class="ghost-btn" onclick={onSelectAll} title="Select all loaded items">
-					All
+				<button
+					class="ghost-btn"
+					onclick={onSelectAll}
+					title="Selecionar itens carregados no ecrã"
+				>
+					Carregados
 				</button>
+				{#if totalCount && totalCount > selectedCount && onSelectAllEverywhere}
+					<span class="bullet">•</span>
+					<button
+						class="ghost-btn all-bib-btn"
+						onclick={onSelectAllEverywhere}
+						title={`Selecionar todos os ${totalCount} itens da biblioteca`}
+					>
+						Todos ({totalCount})
+					</button>
+				{/if}
 				<span class="bullet">•</span>
-				<button class="ghost-btn" onclick={onClear} title="Deselect all">
-					Clear
+				<button class="ghost-btn" onclick={onClear} title="Limpar seleção">
+					Limpar
 				</button>
 			</div>
 
@@ -199,7 +233,11 @@
 						</button>
 
 						{#if rateMenuOpen}
-							<div class="dock-flyout rate-flyout" role="dialog" aria-label="Rate selected items">
+							<div
+								class="dock-flyout rate-flyout"
+								role="dialog"
+								aria-label="Rate selected items"
+							>
 								<div class="rate-popover-header">
 									<span>Rate {selectedCount} items</span>
 									{#if hoveredScore}
@@ -242,7 +280,9 @@
 											{@const val = isOutOf5 ? s * 2 : s}
 											<button
 												class="star-btn"
-												class:highlighted={hoveredScore ? s <= hoveredScore : false}
+												class:highlighted={hoveredScore
+													? s <= hoveredScore
+													: false}
 												onmouseenter={() => (hoveredScore = s)}
 												onmouseleave={() => (hoveredScore = undefined)}
 												onclick={() => applyRating(val)}
@@ -261,9 +301,14 @@
 				{/if}
 
 				<!-- Remove Button -->
-				<button class="dock-pill-btn btn-delete" onclick={onDelete} title="Remove items">
+				<button
+					class="dock-pill-btn btn-delete"
+					class:confirming={isConfirmingDelete}
+					onclick={handleDeleteClick}
+					title={isConfirmingDelete ? "Clique novamente para confirmar a eliminação" : "Remover itens"}
+				>
 					<Icon i="trash" wh={13} />
-					<span>Remove</span>
+					<span>{isConfirmingDelete ? `Eliminar (${selectedCount})?` : "Eliminar"}</span>
 				</button>
 			</div>
 
@@ -303,6 +348,15 @@
 		to {
 			opacity: 1;
 			transform: translate(-50%, 0) scale(1);
+		}
+	}
+
+	@keyframes pulseDanger {
+		0%, 100% {
+			box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6);
+		}
+		50% {
+			box-shadow: 0 0 0 5px rgba(239, 68, 68, 0);
 		}
 	}
 
@@ -398,6 +452,15 @@
 				&:hover {
 					color: #ffffff;
 				}
+
+				&.all-bib-btn {
+					color: #818cf8;
+					font-weight: 700;
+					&:hover {
+						color: #a5b4fc;
+						text-decoration: underline;
+					}
+				}
 			}
 
 			.bullet {
@@ -479,6 +542,14 @@
 					background: #ef4444;
 					border-color: #ef4444;
 					color: #ffffff;
+				}
+
+				&.confirming {
+					background: #dc2626 !important;
+					border-color: #f87171 !important;
+					color: #ffffff !important;
+					font-weight: 700 !important;
+					animation: pulseDanger 1.2s infinite ease-in-out;
 				}
 			}
 		}

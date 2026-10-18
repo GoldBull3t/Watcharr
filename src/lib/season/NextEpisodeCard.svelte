@@ -189,6 +189,7 @@
 							src={`https://www.themoviedb.org/t/p/w500/${currentEpisodeDetails.still_path}`}
 							alt={currentEpisodeDetails.name || "Episode thumbnail"}
 							loading="lazy"
+							decoding="async"
 						/>
 					{:else}
 						<div class="thumb-fallback">

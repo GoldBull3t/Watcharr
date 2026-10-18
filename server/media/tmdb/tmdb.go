@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	gocache "github.com/robfig/go-cache"
@@ -98,6 +99,30 @@ func (t *TMDB) apiRequest(ep string, p map[string]string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Check for rate limit (429) and retry once after backing off
+	if res.StatusCode == http.StatusTooManyRequests {
+		retryAfter := 1 * time.Second
+		if ra := res.Header.Get("Retry-After"); ra != "" {
+			if s, err := strconv.Atoi(ra); err == nil && s > 0 {
+				retryAfter = time.Duration(s) * time.Second
+			}
+		}
+		slog.Warn("TMDB rate limit hit (429), retrying after delay", "retryAfter", retryAfter)
+		time.Sleep(retryAfter)
+
+		// Retry request
+		resRetry, errRetry := client.Get(base.String())
+		if errRetry == nil {
+			defer resRetry.Body.Close()
+			if resRetry.StatusCode == 200 {
+				bodyRetry, errRetryBody := io.ReadAll(resRetry.Body)
+				if errRetryBody == nil {
+					return bodyRetry, nil
+				}
+			}
+		}
+	}
+
 	if res.StatusCode != 200 {
 		slog.Error("TMDB non 200 status code:", "status_code", res.StatusCode)
 		return nil, errors.New(string(body))

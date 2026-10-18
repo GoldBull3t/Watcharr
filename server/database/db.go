@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"log/slog"
 	"path"
 	"time"
@@ -21,9 +22,16 @@ import (
 // sense, so our tests stay accurate to prod.
 func Open() (*gorm.DB, error) {
 	slog.Info("Open: Opening new database connection")
+	dsn := fmt.Sprintf(
+		"%s?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=cache_size(-16000)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(67108864)",
+		path.Join(config.DataPath, "watcharr.db"),
+	)
 	db, err := gorm.Open(
-		sqlite.Open(path.Join(config.DataPath, "watcharr.db")),
-		&gorm.Config{TranslateError: true},
+		sqlite.Open(dsn),
+		&gorm.Config{
+			TranslateError: true,
+			PrepareStmt:    true,
+		},
 	)
 	if err != nil {
 		slog.Error("Open: Opening database failed.")
@@ -114,11 +122,11 @@ func configure(db *gorm.DB) error {
 	}
 	slog.Info("configure: Configured synchronous to NORMAL (1).")
 
-	// Page cache size: allocate up to 64MB (-64000 KiB) in RAM for query caching
-	if res := db.Exec("PRAGMA cache_size = -64000"); res.Error != nil {
+	// Page cache size: allocate up to 16MB (-16000 KiB) in RAM for query caching (more than enough to hold thousands of media rows with 100% cache hits)
+	if res := db.Exec("PRAGMA cache_size = -16000"); res.Error != nil {
 		slog.Warn("configure: Configuring cache_size failed!", "error", res.Error)
 	} else {
-		slog.Info("configure: Configured cache_size to 64MB.")
+		slog.Info("configure: Configured cache_size to 16MB.")
 	}
 
 	// Temp store: store temp tables, sorting indices and views in RAM rather than disk
@@ -128,15 +136,15 @@ func configure(db *gorm.DB) error {
 		slog.Info("configure: Configured temp_store to MEMORY.")
 	}
 
-	// Pool configuration: SQLite works best with controlled pool sizing to avoid lock contention
+	// Pool configuration: SQLite works best with lean pool sizing to avoid idle buffer overhead
 	sqlDB, err := db.DB()
 	if err != nil {
 		slog.Error("configure: Failed to get underlying sql.DB!", "error", err)
 		return err
 	}
-	sqlDB.SetMaxOpenConns(10)
-	sqlDB.SetMaxIdleConns(5)
-	sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB.SetMaxOpenConns(5)
+	sqlDB.SetMaxIdleConns(2)
+	sqlDB.SetConnMaxLifetime(30 * time.Minute)
 
 	return nil
 }
@@ -166,29 +174,6 @@ func optimize(db *gorm.DB) error {
 	}
 	slog.Info("optimize: Optimize pragma succeeded.",
 		"took", time.Since(timeBeforeQuery))
-
-	// Vacuum.
-	// > VACUUM rebuilds the database file, repacking it into a minimal amount
-	// > of disk space.
-	// https://sqlite.org/lang_vacuum.html
-	timeBeforeQuery = time.Now()
-	if res := db.Exec("VACUUM"); res.Error != nil {
-		slog.Error("optimize: Vacuum failed!")
-		return res.Error
-	}
-	slog.Info("optimize: Vacuumed successfully.",
-		"took", time.Since(timeBeforeQuery))
-
-	// WAL Checkpoint (aka commit anything in the WAL to the main db).
-	// Do this after vacuum too to ensure we have a clean slate for this
-	// startup.
-	// https://sqlite.org/pragma.html#pragma_wal_checkpoint
-	timeBeforeQuery = time.Now()
-	if res := db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); res.Error != nil {
-		slog.Error("optimize: Checkpoint failed!")
-		return res.Error
-	}
-	slog.Info("optimize: Checkpointed.", "took", time.Since(timeBeforeQuery))
 
 	slog.Info("optimize: Done.")
 	return nil

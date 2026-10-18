@@ -5,6 +5,8 @@
 package img
 
 import (
+	"net/http"
+	"os"
 	"path"
 
 	"github.com/gin-gonic/gin"
@@ -23,22 +25,26 @@ func NewRouter(br *router.BaseRouter) *Router {
 }
 
 func (r *Router) AddRoutes() {
+	imgPath := path.Join(config.DataPath, "img")
 	img := r.br.Router.Group("/img").
 		Use(func(c *gin.Context) {
 			// The two following headers are preventative since this group
-			// (the static route below) hosts user uploaded content, which can
-			// potentially include malicious data. We are trying to protect
-			// against XSS attacks here by telling the browser to:
-			//  - Not sniff content; and
-			//  - Not execute JS; and
-			//  - treat the content as if it was a separate domain (so if eg
-			//    somehow js runs, it won't be in same context as our tokens).
-			// RESOURCE: web.dev/articles/securely-hosting-user-data
+			// hosts content which can potentially include untrusted data.
 			c.Header("X-Content-Type-Options", "nosniff")
 			c.Header("Content-Security-Policy", "default-src 'none'; sandbox")
+			c.Header("Cache-Control", "public, max-age=2592000, immutable")
 			c.Next()
 		})
 
-	// Serve up img folder.
-	img.Static("/", path.Join(config.DataPath, "img"))
+	// Serve locally if exists, otherwise fallback redirect to TMDB CDN seamlessly
+	img.GET("/*filepath", func(c *gin.Context) {
+		fp := c.Param("filepath")
+		localFile := path.Join(imgPath, fp)
+		if _, err := os.Stat(localFile); err == nil {
+			c.File(localFile)
+			return
+		}
+		// Fallback to TMDB CDN so posters render immediately even while downloading
+		c.Redirect(http.StatusTemporaryRedirect, "https://image.tmdb.org/t/p/w500"+fp)
+	})
 }

@@ -26,6 +26,10 @@ type TraktImportRequest struct {
 	ApiKey string `json:"apiKey"`
 }
 
+var traktHttpClient = &http.Client{
+	Timeout: 20 * time.Second,
+}
+
 type TraktUser struct {
 	Username string `json:"username"`
 	Private  bool   `json:"private"`
@@ -471,12 +475,12 @@ func (t *TraktService) traktAPIRequest(
 	req.Header.Add("trakt-api-key", traktApiKey)
 	req.Header.Add("trakt-api-version", "2")
 	req.Header.Add("Content-type", "application/json")
-	res, err := http.DefaultClient.Do(req)
+	res, err := traktHttpClient.Do(req)
 	if err != nil {
 		return map[string][]string{}, err
 	}
+	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
-	res.Body.Close()
 	if err != nil {
 		return map[string][]string{}, err
 	}

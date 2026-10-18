@@ -3,108 +3,103 @@ import { page } from "$app/state";
 export interface ToolTipOptions {
 	/**
 	 * Infinite scroll threshold.
-	 * Distance from bottom.
+	 * Distance from bottom in pixels to trigger prefetch.
+	 * Defaults to 800px (or 75% of viewport height).
 	 */
 	threshold?: number;
 	/**
-	 * Ran when we reach the end of scroll.
-	 * This callback should load the new data.
+	 * Ran when user scrolls near the end.
+	 * This callback should load the new page of data.
 	 */
 	callback: () => Promise<void>;
 }
 
 /**
- * Infinite scroll helper.
+ * High-performance Infinite Scroll with predictive prefetching.
  *
- * **Ensure:**
- * - `destroy()` is ran after the component
- * this is used in is destroyed.
- * - `dataLoaded()` is ran after a page of data
- * is loaded.
- * - `opts.callback()` has its own 'isLoading' logic
- * to prevent itself from running extra times while
- * still loading a previous request. This will be the
- * thing stopping extra scrolls while data is still
- * loading from causing extra data requests, etc.
+ * Features:
+ * - RAF (requestAnimationFrame) throttling to eliminate scroll event jank.
+ * - Dynamic prefetch distance (triggers when ~75% through current viewport, before reaching absolute bottom).
+ * - Concurrency guard preventing multiple duplicate fetch triggers.
+ * - Accurate cross-browser scrollHeight calculations.
  */
 export default function infScroll(opts: ToolTipOptions) {
-	const { threshold = 150, callback } = opts;
+	const { threshold = 800, callback } = opts;
 
-	// Store current pathname at point of infScroll
-	// initialization, this ensures we have a point
-	// of reference for our fix below (that ensures
-	// we don't allow asking for next data load if
-	// user navigates to a different page).
 	const startPagePathLower = page.url?.pathname?.toLowerCase();
 
-	const addEvents = () => {
-		console.debug("infScroll->addEvents()");
-		window.addEventListener("scroll", run);
-		window.addEventListener("resize", run);
+	let isRunning = false;
+	let rafId: number | null = null;
+
+	const getEffectiveThreshold = () => {
+		if (typeof window === "undefined") return threshold;
+		return Math.max(threshold, Math.round(window.innerHeight * 0.75));
 	};
 
-	const removeEvents = () => {
-		console.debug("infScroll->removeEvents()");
-		window.removeEventListener("scroll", run);
-		window.removeEventListener("resize", run);
-	};
-
-	const isAtBottom = () => {
-		return (
-			window.innerHeight + Math.round(window.scrollY) + threshold >=
-			document.body.offsetHeight
+	const isNearBottom = () => {
+		if (typeof window === "undefined" || typeof document === "undefined") return false;
+		const scrollPos = window.innerHeight + Math.round(window.scrollY);
+		const scrollTarget = Math.max(
+			document.documentElement.scrollHeight,
+			document.body.offsetHeight,
 		);
+		return scrollPos + getEffectiveThreshold() >= scrollTarget;
 	};
 
 	const run = async () => {
-		if (isAtBottom()) {
-			console.log("infiniteScroll: Reached end");
-			removeEvents();
-			await callback();
-			addEvents();
-			console.log("infiniteScroll: Callback ran");
-		} else {
-			console.debug("infiniteScroll: Not at bottom");
+		if (isRunning) return;
+		if (isNearBottom()) {
+			isRunning = true;
+			try {
+				await callback();
+			} finally {
+				isRunning = false;
+			}
 		}
 	};
 
+	const onScrollOrResize = () => {
+		if (rafId !== null) return;
+		rafId = window.requestAnimationFrame(() => {
+			rafId = null;
+			run();
+		});
+	};
+
+	const addEvents = () => {
+		window.addEventListener("scroll", onScrollOrResize, { passive: true });
+		window.addEventListener("resize", onScrollOrResize, { passive: true });
+	};
+
+	const removeEvents = () => {
+		if (rafId !== null) {
+			window.cancelAnimationFrame(rafId);
+			rafId = null;
+		}
+		window.removeEventListener("scroll", onScrollOrResize);
+		window.removeEventListener("resize", onScrollOrResize);
+	};
+
 	/**
-	 * This needs to be called after data is loaded.
-	 * It runs the infScroll logic incase the user is
-	 * already at the bottom after initial data load
-	 * without scroll/resize (eg: using high dpi screen).
+	 * Run after data is loaded to ensure that if the newly rendered
+	 * cards still do not fill the screen (or user has high DPI),
+	 * the next page is fetched without waiting for scroll.
 	 */
 	const dataLoaded = () => {
-		// If results don't fill the page enough to enable scrolling,
-		// the user could be stuck and not be able to get more results
-		// to show, run `infiniteScroll` to load more if we can.
-		// Smol timeout to give ui time to render so end of page calc
-		// can be accurate.
 		setTimeout(() => {
-			// Quick fix, if user navigates away from search page while response is loading,
-			// we don't want to call infiniteScroll or we could end up loading all pages
-			// in the background.
 			if (startPagePathLower === page.url?.pathname?.toLowerCase()) {
-				console.debug(
-					"infiniteScroll->dataLoaded(): Still at bottom.. asking for more data.",
-				);
 				run();
-			} else {
-				console.debug(
-					"infiniteScroll->dataLoaded(): No longer on initial page, not calling infiniteScroll.",
-				);
 			}
-		}, 250);
+		}, 180);
 	};
 
 	addEvents();
 
 	return {
-		isAtBottom,
+		isAtBottom: isNearBottom,
 		run,
 		dataLoaded,
 		destroy: () => {
-			console.debug("infScroll->destroy()");
 			removeEvents();
 		},
 	};

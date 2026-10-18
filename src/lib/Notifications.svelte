@@ -59,10 +59,7 @@
 			</button>
 
 			{#if n.showProgress && n.time && n.type !== "loading"}
-				<div
-					class="progress-bar"
-					style="animation-duration: {n.time}ms;"
-				></div>
+				<div class="progress-bar" style="animation-duration: {n.time}ms;"></div>
 			{/if}
 		</div>
 	{/each}

@@ -105,10 +105,8 @@
 		{#each episodes as ep (ep.id || ep.episode_number)}
 			{@const status = watchedMap.get(ep.episode_number)}
 			{@const isFinished = status === "FINISHED"}
-			{@const isNext =
-				nextUpEpisode?.episode_number === ep.episode_number}
-			{@const isHovered =
-				activeHoveredEp?.episode_number === ep.episode_number}
+			{@const isNext = nextUpEpisode?.episode_number === ep.episode_number}
+			{@const isHovered = activeHoveredEp?.episode_number === ep.episode_number}
 			<button
 				type="button"
 				class="segment-pill"
@@ -401,4 +399,3 @@
 		border: 0;
 	}
 </style>
-

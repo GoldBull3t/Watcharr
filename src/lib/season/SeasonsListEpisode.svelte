@@ -110,13 +110,17 @@
 	}
 </script>
 
-<li id={`ep-${ep.season_number}-${ep.episode_number}`} class={isHidden ? "dont-spoil" : ""}>
+<li
+	id={`ep-${ep.season_number}-${ep.episode_number}`}
+	class={isHidden ? "dont-spoil" : ""}
+>
 	<div class="thumb-container">
 		{#if ep.still_path}
 			<img
 				src={`https://www.themoviedb.org/t/p/w500/${ep.still_path}`}
-				alt=""
+				alt={ep.name || `Episode ${ep.episode_number}`}
 				loading="lazy"
+				decoding="async"
 			/>
 		{:else}
 			<div class="no-still">

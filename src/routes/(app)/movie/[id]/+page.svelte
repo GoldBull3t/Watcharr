@@ -36,6 +36,7 @@
 	import Genres from "@/lib/content/Genres.svelte";
 	import MovieCollection from "@/lib/content/MovieCollection.svelte";
 	import MediaLightbox from "@/lib/content/MediaLightbox.svelte";
+	import FranchiseBadgeLink from "@/lib/franchise/FranchiseBadgeLink.svelte";
 
 	let { data } = $props();
 
@@ -64,7 +65,11 @@
 					if (resp.name && resp.ids.tmdb) {
 						contentExistsOnJellyfin("movie", resp.name, resp.ids.tmdb).then(
 							(j) => {
-								if (!controller.signal.aborted && j?.hasContent && j?.url !== "") {
+								if (
+									!controller.signal.aborted &&
+									j?.hasContent &&
+									j?.url !== ""
+								) {
 									jellyfinUrl = j.url;
 								}
 							},
@@ -240,7 +245,7 @@
 								</div>
 							{/if}
 						</div>
- 
+
 						{#if movie?.watched?.tags && movie.watched.tags.length > 0}
 							<div class="applied-tags-row">
 								<span class="tags-label">
@@ -295,6 +300,15 @@
 		{/if}
 
 		<div class="page">
+			{#if data.movieId && movie}
+				<FranchiseBadgeLink
+					mediaType="movie"
+					tmdbId={data.movieId}
+					collectionId={movie.collection?.id}
+					collectionName={movie.collection?.name}
+				/>
+			{/if}
+
 			{#if data.movieId}
 				<FollowedThoughts mediaType="movie" mediaId={data.movieId} />
 			{/if}

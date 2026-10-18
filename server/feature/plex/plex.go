@@ -376,11 +376,11 @@ func (s *Service) GetPlexIdentity(host string) (PlexIdentity, error) {
 	if err != nil {
 		return PlexIdentity{}, err
 	}
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return PlexIdentity{}, err
 	}
-	defer resp.Body.Close()
 	var pi PlexIdentity
 	err = json.Unmarshal(body, &pi)
 	if err != nil {
@@ -402,11 +402,11 @@ func (s *Service) FetchPlexAccountFromToken(token string) (PlexUser, error) {
 	if err != nil {
 		return PlexUser{}, err
 	}
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return PlexUser{}, err
 	}
-	defer resp.Body.Close()
 	var pa PlexAccountResponse
 	err = json.Unmarshal(body, &pa)
 	if err != nil {
@@ -451,11 +451,11 @@ func (s *Service) GetPlexLibraries(plexAuth string) (PlexLibrariesResponse, erro
 	if err != nil {
 		return PlexLibrariesResponse{}, err
 	}
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return PlexLibrariesResponse{}, err
 	}
-	defer resp.Body.Close()
 	var pl PlexLibrariesResponse
 	err = json.Unmarshal(body, &pl)
 	if err != nil {
@@ -476,11 +476,11 @@ func (s *Service) GetPlexLibraryItems(plexAuth string, libraryKey string) (PlexL
 	if err != nil {
 		return PlexLibraryItemsResponse{}, err
 	}
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return PlexLibraryItemsResponse{}, err
 	}
-	defer resp.Body.Close()
 	var pl PlexLibraryItemsResponse
 	err = json.Unmarshal(body, &pl)
 	if err != nil {
@@ -501,11 +501,11 @@ func (s *Service) GetPlexLibraryItemSeasons(plexAuth string, ratingKey string) (
 	if err != nil {
 		return PlexLibraryItemSeasonsResponse{}, err
 	}
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return PlexLibraryItemSeasonsResponse{}, err
 	}
-	defer resp.Body.Close()
 	var pl PlexLibraryItemSeasonsResponse
 	err = json.Unmarshal(body, &pl)
 	if err != nil {
@@ -526,11 +526,11 @@ func (s *Service) GetPlexLibraryItemEpisodes(plexAuth string, ratingKey string) 
 	if err != nil {
 		return PlexLibraryItemEpisodesResponse{}, err
 	}
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return PlexLibraryItemEpisodesResponse{}, err
 	}
-	defer resp.Body.Close()
 	var pl PlexLibraryItemEpisodesResponse
 	err = json.Unmarshal(body, &pl)
 	if err != nil {
@@ -555,11 +555,11 @@ func (s *Service) GetPlexHomeServerAuthToken(plexAuth string, userClientId strin
 	if err != nil {
 		return "", err
 	}
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
 	var pl PlexClientResources
 	err = json.Unmarshal(body, &pl)
 	if err != nil {

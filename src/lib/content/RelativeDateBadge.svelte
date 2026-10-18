@@ -4,10 +4,7 @@
   with semantic color accents (Emerald, Amber, Indigo, Slate).
 -->
 <script lang="ts">
-	import {
-		getRelativeDateInfo,
-		type DateUrgency,
-	} from "@/lib/util/helpers";
+	import { getRelativeDateInfo, type DateUrgency } from "@/lib/util/helpers";
 	import Icon from "@/lib/Icon.svelte";
 
 	interface Props {
@@ -37,9 +34,13 @@
 			: undefined}
 	>
 		{#if showDot && (info.urgency === "today" || info.urgency === "tomorrow")}
-			<span class="status-pulse-dot" class:is-today={info.urgency === "today"}></span>
+			<span class="status-pulse-dot" class:is-today={info.urgency === "today"}
+			></span>
 		{:else if showIcon}
-			<Icon i={info.urgency === "today" ? "clock" : "calendar"} wh={size === "sm" ? 11 : 12} />
+			<Icon
+				i={info.urgency === "today" ? "clock" : "calendar"}
+				wh={size === "sm" ? 11 : 12}
+			/>
 		{/if}
 
 		{#if prefix}
@@ -184,4 +185,3 @@
 		}
 	}
 </style>
-
