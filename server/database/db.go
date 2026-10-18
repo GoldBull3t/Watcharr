@@ -123,10 +123,10 @@ func configure(db *gorm.DB) error {
 	slog.Info("configure: Configured synchronous to NORMAL (1).")
 
 	// Page cache size: allocate up to 16MB (-16000 KiB) in RAM for query caching (more than enough to hold thousands of media rows with 100% cache hits)
-	if res := db.Exec("PRAGMA cache_size = -16000"); res.Error != nil {
+	if res := db.Exec("PRAGMA cache_size = -4000"); res.Error != nil {
 		slog.Warn("configure: Configuring cache_size failed!", "error", res.Error)
 	} else {
-		slog.Info("configure: Configured cache_size to 16MB.")
+		slog.Info("configure: Configured cache_size to 4MB.")
 	}
 
 	// Temp store: store temp tables, sorting indices and views in RAM rather than disk
