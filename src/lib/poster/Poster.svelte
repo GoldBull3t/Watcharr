@@ -19,7 +19,6 @@
 	import { resolve } from "$app/paths";
 	import Icon from "../Icon.svelte";
 	import { formatPublicRating, formatVoteCount } from "../rating/helpers";
-	import { viewTransition } from "@/lib/util/viewTransition.svelte";
 	import CliffhangerWarningModal from "../content/CliffhangerWarningModal.svelte";
 
 	interface Props {
@@ -116,11 +115,7 @@
 			type,
 		};
 	});
-	let isTransitionTarget = $derived(
-		meta?.type && meta?.id
-			? viewTransition.isActive(meta.type, meta.id)
-			: false,
-	);
+
 	const poster = $derived.by(() => {
 		if (media.poster?.path) {
 			return `${baseURL}/${media.poster.path}`;
@@ -420,10 +415,7 @@
 		style={posterActive && (tiltX !== 0 || tiltY !== 0)
 			? `transform: perspective(800px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) translateY(-5px) scale3d(1.025, 1.025, 1.025);`
 			: undefined}
-		style:view-transition-name={isTransitionTarget &&
-		(!poster || posterImgLoaded === -1)
-			? "active-poster"
-			: undefined}
+
 		bind:this={containerEl}
 	>
 		{@render children?.()}
@@ -450,9 +442,7 @@
 				decoding="async"
 				src={poster}
 				alt={media.name || "Poster"}
-				style:view-transition-name={isTransitionTarget && posterImgLoaded !== -1
-					? "active-poster"
-					: undefined}
+
 				class:loaded={posterImgLoaded === 1}
 				onload={() => {
 					posterImgLoaded = 1;
@@ -501,9 +491,7 @@
 					e.preventDefault();
 					return;
 				}
-				if (meta?.type && meta?.id) {
-					viewTransition.setActive(meta.type, meta.id);
-				}
+
 				if (posterActive && link) goto(resolve(link));
 			}}
 			onkeyup={handleInnerKeyUp}
@@ -513,11 +501,7 @@
 				data-sveltekit-preload-data="tap"
 				href={link ? resolve(link) : undefined}
 				class="small-scrollbar"
-				onclick={() => {
-					if (meta?.type && meta?.id) {
-						viewTransition.setActive(meta.type, meta.id);
-					}
-				}}
+
 			>
 				<h2>
 					{media.name}

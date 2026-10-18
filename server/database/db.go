@@ -23,7 +23,7 @@ import (
 func Open() (*gorm.DB, error) {
 	slog.Info("Open: Opening new database connection")
 	dsn := fmt.Sprintf(
-		"%s?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=cache_size(-16000)&_pragma=temp_store(MEMORY)&_pragma=mmap_size(67108864)",
+		"%s?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=cache_size(-2000)&_pragma=temp_store(FILE)&_pragma=mmap_size(0)",
 		path.Join(config.DataPath, "watcharr.db"),
 	)
 	db, err := gorm.Open(
@@ -122,18 +122,25 @@ func configure(db *gorm.DB) error {
 	}
 	slog.Info("configure: Configured synchronous to NORMAL (1).")
 
-	// Page cache size: allocate up to 16MB (-16000 KiB) in RAM for query caching (more than enough to hold thousands of media rows with 100% cache hits)
-	if res := db.Exec("PRAGMA cache_size = -4000"); res.Error != nil {
+	// Page cache size: allocate up to 2MB (-2000 KiB) in RAM for query caching
+	if res := db.Exec("PRAGMA cache_size = -2000"); res.Error != nil {
 		slog.Warn("configure: Configuring cache_size failed!", "error", res.Error)
 	} else {
-		slog.Info("configure: Configured cache_size to 4MB.")
+		slog.Info("configure: Configured cache_size to 2MB.")
 	}
 
-	// Temp store: store temp tables, sorting indices and views in RAM rather than disk
-	if res := db.Exec("PRAGMA temp_store = MEMORY"); res.Error != nil {
+	// Temp store: store temp tables, sorting indices and views on disk to conserve container RAM
+	if res := db.Exec("PRAGMA temp_store = FILE"); res.Error != nil {
 		slog.Warn("configure: Configuring temp_store failed!", "error", res.Error)
 	} else {
-		slog.Info("configure: Configured temp_store to MEMORY.")
+		slog.Info("configure: Configured temp_store to FILE.")
+	}
+
+	// Disable mmap to avoid holding mapped pages in container RSS
+	if res := db.Exec("PRAGMA mmap_size = 0"); res.Error != nil {
+		slog.Warn("configure: Configuring mmap_size failed!", "error", res.Error)
+	} else {
+		slog.Info("configure: Configured mmap_size to 0.")
 	}
 
 	// Pool configuration: SQLite works best with lean pool sizing to avoid idle buffer overhead
@@ -142,9 +149,9 @@ func configure(db *gorm.DB) error {
 		slog.Error("configure: Failed to get underlying sql.DB!", "error", err)
 		return err
 	}
-	sqlDB.SetMaxOpenConns(5)
-	sqlDB.SetMaxIdleConns(2)
-	sqlDB.SetConnMaxLifetime(30 * time.Minute)
+	sqlDB.SetMaxOpenConns(2)
+	sqlDB.SetMaxIdleConns(1)
+	sqlDB.SetConnMaxLifetime(10 * time.Minute)
 
 	return nil
 }
@@ -174,6 +181,13 @@ func optimize(db *gorm.DB) error {
 	}
 	slog.Info("optimize: Optimize pragma succeeded.",
 		"took", time.Since(timeBeforeQuery))
+
+	// Shrink memory: return unused page cache to the operating system
+	if res := db.Exec("PRAGMA shrink_memory"); res.Error != nil {
+		slog.Warn("optimize: shrink_memory failed!", "error", res.Error)
+	} else {
+		slog.Info("optimize: Shrunk SQLite in-memory cache.")
+	}
 
 	slog.Info("optimize: Done.")
 	return nil
@@ -206,6 +220,13 @@ func TaskOptimize(db *gorm.DB) error {
 	}
 	slog.Info("TaskOptimize: Optimize pragma succeeded.",
 		"took", time.Since(timeBeforeQuery))
+
+	// Shrink memory: return unused page cache to the operating system
+	if res := db.Exec("PRAGMA shrink_memory"); res.Error != nil {
+		slog.Warn("TaskOptimize: shrink_memory failed!", "error", res.Error)
+	} else {
+		slog.Info("TaskOptimize: Shrunk SQLite in-memory cache.")
+	}
 
 	slog.Info("TaskOptimize: Done.")
 	return nil

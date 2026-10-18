@@ -88,10 +88,13 @@ func SetupTasks(cfg *config.ServerConfig, db *gorm.DB, notifiers ...CalendarNoti
 		},
 		"Memory Scavenger": {
 			f: func() {
+				if db != nil {
+					db.Exec("PRAGMA shrink_memory")
+				}
 				debug.FreeOSMemory()
 				slog.Debug("Memory Scavenger: Returned unused memory pages to OS")
 			},
-			dd: 10 * time.Minute,
+			dd: 3 * time.Minute,
 		},
 	}
 

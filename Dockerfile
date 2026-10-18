@@ -43,7 +43,8 @@ WORKDIR /
 # Install ca-certificates and tzdata for HTTPS & timezones
 RUN apk --no-cache add ca-certificates tzdata
 
-ENV GOMEMLIMIT=45MiB
+ENV GOMEMLIMIT=35MiB \
+    GODEBUG=madvdontneed=1
 
 COPY --from=server /server/watcharr /
 COPY --from=ui /app/build /ui

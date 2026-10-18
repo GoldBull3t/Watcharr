@@ -67,12 +67,10 @@ var version string
 
 func main() {
 	startTime := time.Now()
-	debug.SetMemoryLimit(40 * 1024 * 1024)
-
-	// Tune Go runtime memory footprint: GC at 60% growth prevents RAM bloat,
-	// and soft limit of 180MB keeps working set tightly managed.
-	debug.SetGCPercent(60)
-	debug.SetMemoryLimit(180 * 1024 * 1024)
+	// Tune Go runtime memory footprint for ultra-lightweight containers:
+	// GC at 30% growth prevents RAM accumulation, soft limit keeps working set tightly bounded (~35MB).
+	debug.SetGCPercent(30)
+	debug.SetMemoryLimit(35 * 1024 * 1024)
 
 	err := godotenv.Load()
 	if err != nil {

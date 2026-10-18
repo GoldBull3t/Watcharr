@@ -20,6 +20,9 @@ import (
 
 var imageDownloadClient = &http.Client{
 	Timeout: 20 * time.Second,
+	Transport: &http.Transport{
+		DisableKeepAlives: true,
+	},
 }
 
 // Download file over http (used for downloading poster images)

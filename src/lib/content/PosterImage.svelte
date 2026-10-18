@@ -26,7 +26,6 @@
 
 <style lang="scss">
 	img {
-		view-transition-name: active-poster;
 		width: 260px;
 		max-width: 100%;
 		aspect-ratio: 2 / 3;
