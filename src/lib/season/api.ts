@@ -71,6 +71,25 @@ export async function updateWatchedSeason(
 
 		try {
 			const hookResp = r?.statusChangedHookResponse;
+			const updatedEps = r?.watchedEpisodes || hookResp?.watchedEpisodes;
+			if (updatedEps && updatedEps.length > 0) {
+				if (!watchedItem.watchedEpisodes) {
+					watchedItem.watchedEpisodes = [];
+				}
+				for (const we of updatedEps) {
+					const idx = watchedItem.watchedEpisodes.findIndex(
+						(e) =>
+							e.seasonNumber === we.seasonNumber &&
+							e.episodeNumber === we.episodeNumber,
+					);
+					if (idx !== -1) {
+						watchedItem.watchedEpisodes[idx] = we;
+					} else {
+						watchedItem.watchedEpisodes.push(we);
+					}
+				}
+				watchedItem.watchedEpisodes = [...watchedItem.watchedEpisodes];
+			}
 			if (hookResp && Object.keys(hookResp).length > 0) {
 				if (hookResp.errors && hookResp.errors.length > 0) {
 					console.error(
@@ -180,6 +199,25 @@ export async function updateWatchedEpisode(
 
 		try {
 			const hookResp = r?.statusChangedHookResponse;
+			const updatedEps = r?.watchedEpisodes || hookResp?.watchedEpisodes;
+			if (updatedEps && updatedEps.length > 0) {
+				if (!watchedItem.watchedEpisodes) {
+					watchedItem.watchedEpisodes = [];
+				}
+				for (const we of updatedEps) {
+					const idx = watchedItem.watchedEpisodes.findIndex(
+						(e) =>
+							e.seasonNumber === we.seasonNumber &&
+							e.episodeNumber === we.episodeNumber,
+					);
+					if (idx !== -1) {
+						watchedItem.watchedEpisodes[idx] = we;
+					} else {
+						watchedItem.watchedEpisodes.push(we);
+					}
+				}
+				watchedItem.watchedEpisodes = [...watchedItem.watchedEpisodes];
+			}
 			if (hookResp && Object.keys(hookResp).length > 0) {
 				if (hookResp.errors && hookResp.errors.length > 0) {
 					console.error(
