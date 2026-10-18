@@ -393,9 +393,9 @@
 				}
 
 				&.status {
-					width: 45px;
-					min-height: 40px;
-					height: 40px;
+					width: 48px;
+					min-height: 42px;
+					height: 42px;
 					overflow: visible;
 					position: relative;
 
