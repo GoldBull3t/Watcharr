@@ -114,15 +114,20 @@
 						: false
 					: false}
 				<div class="tag-row {inManageMode ? 'manage-row' : ''}">
-					<Tag
-						tag={t}
-						size="sm"
-						onClick={() => {
-							if (!inManageMode && typeof onTagClick === "function") {
-								onTagClick(t, isSelected);
-							}
-						}}
-					/>
+					<div class="tag-with-indicator">
+						<Tag
+							tag={t}
+							size="sm"
+							onClick={() => {
+								if (!inManageMode && typeof onTagClick === "function") {
+									onTagClick(t, isSelected);
+								}
+							}}
+						/>
+						{#if t.isPublic}
+							<span class="public-tag-indicator" title="Lista Pública">🌐</span>
+						{/if}
+					</div>
 
 					{#if inManageMode}
 						<div class="manage-actions">
@@ -285,6 +290,18 @@
 
 			&.manage-row {
 				background: rgba(255, 255, 255, 0.02);
+			}
+
+			.tag-with-indicator {
+				display: inline-flex;
+				align-items: center;
+				gap: 4px;
+
+				.public-tag-indicator {
+					font-size: 11px;
+					opacity: 0.85;
+					cursor: default;
+				}
 			}
 
 			.selected-check {

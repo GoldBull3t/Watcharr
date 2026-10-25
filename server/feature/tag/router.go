@@ -25,6 +25,9 @@ func NewRouter(br *router.BaseRouter, service *Service) *Router {
 }
 
 func (r *Router) AddRoutes() {
+	// Public unauthenticated route for shareable thematic lists
+	r.br.Router.GET("/tag/public/:id", r.GetPublicTag)
+
 	tag := r.br.Router.Group("/tag").Use(authmiddleware.AuthRequired(r.br.Cfg))
 
 	tag.GET("", r.GetTags)
@@ -32,7 +35,47 @@ func (r *Router) AddRoutes() {
 	tag.GET(":id/watched", router.PaginatedRequest(true), r.GetTagWatched)
 	tag.POST("", r.CreateTag)
 	tag.PUT(":id", r.UpdateTag)
+	tag.PUT(":id/visibility", r.ToggleVisibility)
 	tag.DELETE(":id", r.DeleteTag)
+}
+
+// GetPublicTag returns a public thematic list without requiring authentication
+func (r *Router) GetPublicTag(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid list id"})
+		return
+	}
+	resp, err := r.service.GetPublicTag(uint(id))
+	if err != nil {
+		if err.Error() == "this list is private" {
+			c.JSON(http.StatusForbidden, router.ErrorResponse{Error: err.Error()})
+			return
+		}
+		c.JSON(http.StatusNotFound, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// ToggleVisibility updates the public/private shareable status of a tag
+func (r *Router) ToggleVisibility(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid id"})
+		return
+	}
+	var req domain.TagVisibilityRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid visibility payload"})
+		return
+	}
+	if err := r.service.ToggleVisibility(userId, uint(id), req.IsPublic); err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "isPublic": req.IsPublic})
 }
 
 // Get all of our tags.

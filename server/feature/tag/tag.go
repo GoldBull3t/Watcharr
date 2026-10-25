@@ -144,10 +144,14 @@ func (s *Service) GetTagByNameAndColor(
 	return *tag, nil
 }
 
-// Let user create a tag.
+// Let user create a tag or custom thematic list.
 func (s *Service) AddTag(userId uint, tr domain.TagAddRequest) (entity.Tag, error) {
 	if tr.Name == "" {
 		return entity.Tag{}, errors.New("tag must have a name")
+	}
+	isPublic := false
+	if tr.IsPublic != nil {
+		isPublic = *tr.IsPublic
 	}
 	tag := entity.Tag{
 		UserID:      userId,
@@ -155,6 +159,7 @@ func (s *Service) AddTag(userId uint, tr domain.TagAddRequest) (entity.Tag, erro
 		Color:       tr.Color,
 		BgColor:     tr.BgColor,
 		Description: tr.Description,
+		IsPublic:    isPublic,
 	}
 	res := s.db.Create(&tag)
 	if res.Error != nil {
@@ -165,18 +170,21 @@ func (s *Service) AddTag(userId uint, tr domain.TagAddRequest) (entity.Tag, erro
 	return tag, nil
 }
 
-// Let user update one of their tags (replaces).
+// Let user update one of their tags or thematic lists.
 func (s *Service) UpdateTag(userId uint, tagId uint, tr domain.TagAddRequest) error {
 	if tr.Name == "" {
 		return errors.New("tag must have a name")
 	}
-	tag := entity.Tag{
-		Name:        tr.Name,
-		Color:       tr.Color,
-		BgColor:     tr.BgColor,
-		Description: tr.Description,
+	updates := map[string]any{
+		"name":        tr.Name,
+		"color":       tr.Color,
+		"bg_color":    tr.BgColor,
+		"description": tr.Description,
 	}
-	res := s.db.Where("id = ? AND user_id = ?", tagId, userId).Select("name", "color", "bg_color", "description").Updates(&tag)
+	if tr.IsPublic != nil {
+		updates["is_public"] = *tr.IsPublic
+	}
+	res := s.db.Model(&entity.Tag{}).Where("id = ? AND user_id = ?", tagId, userId).Updates(updates)
 	if res.Error != nil {
 		slog.Error("Error updating tag in database", "error", res.Error.Error())
 		return errors.New("failed updating tag in database")
@@ -185,8 +193,60 @@ func (s *Service) UpdateTag(userId uint, tagId uint, tr domain.TagAddRequest) er
 		slog.Error("updateTag: Zero rows affected.. tag likely does not exist", "tag_id", tagId, "user_id", userId)
 		return errors.New("tag does not exist")
 	}
-	slog.Debug("updateTag:", "updated_tag", tag)
+	slog.Debug("updateTag:", "tag_id", tagId, "updates", updates)
 	return nil
+}
+
+// ToggleVisibility updates the public/private shareable status of a tag/list.
+func (s *Service) ToggleVisibility(userId uint, tagId uint, isPublic bool) error {
+	res := s.db.Model(&entity.Tag{}).Where("id = ? AND user_id = ?", tagId, userId).Update("is_public", isPublic)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return errors.New("tag does not exist")
+	}
+	return nil
+}
+
+// GetPublicTag returns a public thematic list with author info and its watched media items.
+func (s *Service) GetPublicTag(tagId uint) (domain.PublicTagResponse, error) {
+	tag := new(entity.Tag)
+	res := s.db.
+		Model(&entity.Tag{}).
+		Where("id = ?", tagId).
+		Preload("Watched").
+		Preload("Watched.Content").
+		Preload("Watched.Game").
+		Preload("Watched.Game.Poster").
+		Find(&tag)
+	if res.Error != nil || tag.ID == 0 {
+		return domain.PublicTagResponse{}, errors.New("list not found")
+	}
+
+	if !tag.IsPublic {
+		return domain.PublicTagResponse{}, errors.New("this list is private")
+	}
+
+	var user entity.User
+	authorName := "Watcharr User"
+	if err := s.db.Select("username").Where("id = ?", tag.UserID).First(&user).Error; err == nil && user.Username != "" {
+		authorName = user.Username
+	}
+
+	mediaItems := domain.NewWatchedGetPageResponse(tag.Watched)
+
+	return domain.PublicTagResponse{
+		ID:          tag.ID,
+		Name:        tag.Name,
+		Color:       tag.Color,
+		BgColor:     tag.BgColor,
+		Description: tag.Description,
+		IsPublic:    tag.IsPublic,
+		AuthorName:  authorName,
+		TotalItems:  len(mediaItems),
+		Items:       mediaItems,
+	}, nil
 }
 
 // Let user delete their own tag.

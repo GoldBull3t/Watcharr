@@ -1130,6 +1130,7 @@ export interface Tag extends dbModel {
 	color: string;
 	bgColor: string;
 	description?: string;
+	isPublic?: boolean;
 }
 
 export interface TagAddRequest {
@@ -1137,6 +1138,19 @@ export interface TagAddRequest {
 	color: string;
 	bgColor: string;
 	description?: string;
+	isPublic?: boolean;
+}
+
+export interface PublicTagResponse {
+	id: number;
+	name: string;
+	color: string;
+	bgColor: string;
+	description?: string;
+	isPublic: boolean;
+	authorName: string;
+	totalItems: number;
+	items: Media[];
 }
 
 export type CalendarFilter = "library" | "all";

@@ -15,9 +15,10 @@
 		PaginatedLoaderRunFnAction,
 	} from "@/lib/util/paginatedLoader.svelte";
 	import { clearActiveFilters, store } from "@/store.svelte.js";
-	import type { Media, PaginationResponse } from "@/types";
+	import type { Media, PaginationResponse, PublicTagResponse } from "@/types";
 	import { onDestroy, untrack } from "svelte";
 	import { splitTagEmoji, hexToRgba } from "@/lib/tag/tagUtil";
+	import { notify } from "@/lib/util/notify";
 
 	let meta = $derived.by(() => {
 		return {
@@ -30,8 +31,85 @@
 	let tagDeleteModalShown = $state(false);
 	let tagSearchText = $state(store.activeFilters?.query || "");
 
+	// State for viewing a public thematic list (when visitor is not the owner)
+	let publicTag = $state<PublicTagResponse | undefined>(undefined);
+	let publicLoading = $state(false);
+	let publicError = $state<string | undefined>(undefined);
+	let parsedPublicTag = $derived(
+		publicTag ? splitTagEmoji(publicTag.name) : undefined,
+	);
+
 	const scroll = infScroll({ callback: onScrollToBottom });
 	const dataLoader = paginatedLoader<Media, undefined>(load);
+
+	async function fetchPublicTag(id: number) {
+		publicLoading = true;
+		publicError = undefined;
+		try {
+			const r = await req.get<PublicTagResponse>(`/tag/public/${id}`);
+			publicTag = r.data;
+		} catch (err: any) {
+			console.error("fetchPublicTag error:", err);
+			publicError = "Esta lista é privada ou não existe.";
+		} finally {
+			publicLoading = false;
+		}
+	}
+
+	$effect(() => {
+		if (!tag && meta.tagId) {
+			untrack(() => {
+				fetchPublicTag(meta.tagId);
+			});
+		}
+	});
+
+	async function copyShareLink() {
+		const url = `${window.location.origin}/tag/${tag ? tag.id : meta.tagId}`;
+		try {
+			await navigator.clipboard.writeText(url);
+			if (tag && !tag.isPublic) {
+				notify({
+					text: "Link copiado! Lembra-te de tornar a lista pública para amigos acederem.",
+					type: "info",
+				});
+			} else {
+				notify({
+					text: "Link da lista copiado para a área de transferência!",
+					type: "success",
+				});
+			}
+		} catch (e) {
+			notify({
+				text: "Não foi possível copiar o link.",
+				type: "error",
+			});
+		}
+	}
+
+	async function toggleVisibility() {
+		if (!tag) return;
+		const nextVal = !tag.isPublic;
+		try {
+			await req.put(`/tag/${tag.id}/visibility`, { isPublic: nextVal });
+			tag.isPublic = nextVal;
+			const idx = store.tags.findIndex((t) => t.id === tag.id);
+			if (idx !== -1) {
+				store.tags[idx].isPublic = nextVal;
+			}
+			notify({
+				text: nextVal
+					? "Lista agora é pública e partilhável!"
+					: "Lista agora é privada.",
+				type: "success",
+			});
+		} catch (e) {
+			notify({
+				text: "Falha ao alterar a visibilidade da lista.",
+				type: "error",
+			});
+		}
+	}
 
 	let nextLoadParams: {
 		page: number;
@@ -196,6 +274,17 @@
 					{dataLoader.state.data?.length || 0}
 					{dataLoader.state.data?.length === 1 ? "item" : "items"}
 				</span>
+				{#if tag.isPublic}
+					<span class="visibility-badge public" title="Qualquer pessoa com o link pode visualizar esta lista">
+						<span>🌐</span>
+						<span>Lista Pública</span>
+					</span>
+				{:else}
+					<span class="visibility-badge private" title="Apenas tu podes visualizar esta lista">
+						<span>🔒</span>
+						<span>Privada</span>
+					</span>
+				{/if}
 			</div>
 
 			<h1 class="tag-title">
@@ -217,6 +306,27 @@
 			{/if}
 
 			<div class="tag-actions-row">
+				<button
+					class="btn secondary tag-btn"
+					onclick={copyShareLink}
+					title="Copiar link direto para partilhar"
+				>
+					<Icon i="website" wh={14} />
+					<span>Partilhar Lista</span>
+				</button>
+				<button
+					class="btn secondary tag-btn {tag.isPublic ? '' : 'highlight-public-btn'}"
+					onclick={toggleVisibility}
+					title={tag.isPublic ? "Tornar Privada" : "Tornar Pública"}
+				>
+					{#if tag.isPublic}
+						<Icon i="lock-closed" wh={14} />
+						<span>Tornar Privada</span>
+					{:else}
+						<span>🌐</span>
+						<span>Tornar Pública</span>
+					{/if}
+				</button>
 				<button
 					class="btn secondary tag-btn"
 					onclick={() => (tagEditModalShown = true)}
@@ -455,13 +565,90 @@
 			/>
 		</div>
 	{/if}
+{:else if publicLoading}
+	<div class="loader-wrap">
+		<Spinner />
+	</div>
+{:else if publicTag}
+	<!-- Public Thematic List Hero -->
+	<header
+		class="tag-hero"
+		style={`--tag-accent: ${publicTag.bgColor || "#36BA98"}; --tag-color: ${publicTag.color || "#ffffff"}; --tag-glow: ${hexToRgba(publicTag.bgColor, 0.25)};`}
+	>
+		<div class="hero-ambient-glow"></div>
+		<div class="hero-content">
+			<div class="tag-badge-row">
+				<div
+					class="tag-pill-badge"
+					style={`background-color: ${publicTag.bgColor}; color: ${publicTag.color}; border: 1px solid ${hexToRgba(publicTag.bgColor, 0.45)}; box-shadow: 0 0 12px ${hexToRgba(publicTag.bgColor, 0.25)};`}
+				>
+					{#if parsedPublicTag?.emoji}
+						<span class="badge-emoji">{parsedPublicTag.emoji}</span>
+					{:else}
+						<Icon i="tag" wh={16} />
+					{/if}
+					<span>{parsedPublicTag?.label || publicTag.name}</span>
+				</div>
+				<span class="tag-count-chip">
+					{publicTag.totalItems || publicTag.items?.length || 0}
+					{(publicTag.totalItems || publicTag.items?.length || 0) === 1 ? "item" : "items"}
+				</span>
+				<span class="visibility-badge public">
+					<span>🌐</span>
+					<span>Lista Pública</span>
+				</span>
+				<span class="author-badge">
+					Criada por <strong>{publicTag.authorName}</strong>
+				</span>
+			</div>
+
+			<h1 class="tag-title">
+				{#if parsedPublicTag?.emoji}
+					<span class="title-emoji">{parsedPublicTag.emoji}</span>
+				{/if}
+				<span>{parsedPublicTag?.label || publicTag.name}</span>
+			</h1>
+
+			{#if publicTag.description}
+				<p class="tag-description">{publicTag.description}</p>
+			{/if}
+
+			<div class="tag-actions-row">
+				<button
+					class="btn secondary tag-btn"
+					onclick={copyShareLink}
+					title="Copiar link de partilha"
+				>
+					<Icon i="website" wh={14} />
+					<span>Partilhar Lista</span>
+				</button>
+			</div>
+		</div>
+	</header>
+
+	<!-- Public List Grid -->
+	<PosterList>
+		{#if publicTag.items && publicTag.items.length > 0}
+			{#each publicTag.items as item (item.id || item.tmdbId)}
+				<Poster media={item} fluidSize={true} />
+			{/each}
+		{:else}
+			<div class="empty-list">
+				<div class="empty-icon-wrap">
+					<Icon i="tag" wh={48} />
+				</div>
+				<h2 class="norm">Esta lista está vazia</h2>
+				<p class="empty-desc">O criador ainda não adicionou títulos a esta lista.</p>
+			</div>
+		{/if}
+	</PosterList>
 {:else}
 	<div class="tag-not-found">
-		<Icon i="close-circle" wh={48} />
-		<h2>Tag Not Found</h2>
-		<p>The tag you are looking for does not exist or may have been deleted.</p>
+		<Icon i="lock-closed" wh={48} />
+		<h2>{publicError ? "Lista Privada ou Inexistente" : "Tag Not Found"}</h2>
+		<p>{publicError || "The tag you are looking for does not exist or may have been deleted."}</p>
 		<button class="btn primary" onclick={() => goto(resolve("/"))}>
-			Return to Library
+			Voltar ao Início
 		</button>
 	</div>
 {/if}
@@ -598,6 +785,57 @@
 			font-weight: 500;
 			border-radius: 8px;
 			cursor: pointer;
+		}
+	}
+
+	.visibility-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		font-size: 11px;
+		font-weight: 600;
+		padding: 3px 10px;
+		border-radius: 12px;
+		letter-spacing: 0.3px;
+		text-transform: uppercase;
+
+		&.public {
+			background: rgba(54, 186, 152, 0.15);
+			color: #36ba98;
+			border: 1px solid rgba(54, 186, 152, 0.35);
+		}
+
+		&.private {
+			background: rgba(255, 255, 255, 0.06);
+			color: rgba(255, 255, 255, 0.6);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+		}
+	}
+
+	.author-badge {
+		display: inline-flex;
+		align-items: center;
+		font-size: 12px;
+		color: rgba(255, 255, 255, 0.6);
+		background: rgba(255, 255, 255, 0.04);
+		padding: 3px 10px;
+		border-radius: 12px;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+
+		strong {
+			color: #ffffff;
+			font-weight: 600;
+			margin-left: 3px;
+		}
+	}
+
+	.btn.highlight-public-btn {
+		border-color: rgba(54, 186, 152, 0.4);
+		background: rgba(54, 186, 152, 0.1);
+		color: #36ba98;
+
+		&:hover {
+			background: rgba(54, 186, 152, 0.2);
 		}
 	}
 

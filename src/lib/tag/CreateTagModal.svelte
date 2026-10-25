@@ -33,6 +33,7 @@
 	let selectedEmoji = $state<string | undefined>(undefined);
 	let tagLabel = $state("");
 	let tagDescription = $state("");
+	let isPublic = $state(false);
 	let bgColor = $state(randomPreset.bgColor);
 	let textColor = $state(randomPreset.textColor);
 	let autoContrast = $state(true);
@@ -101,6 +102,7 @@
 				color: textColor,
 				bgColor,
 				description: tagDescription,
+				isPublic,
 			} as TagAddRequest);
 			store.tags.push(resp);
 			notify({ id: nid, text: "Tag Created!", type: "success" });
@@ -130,11 +132,13 @@
 				color: textColor,
 				bgColor,
 				description: tagDescription,
+				isPublic,
 			} as TagAddRequest);
 			existingTag!.name = finalName;
 			existingTag!.color = textColor;
 			existingTag!.bgColor = bgColor;
 			existingTag!.description = tagDescription;
+			existingTag!.isPublic = isPublic;
 			notify({ id: nid, text: "Tag Updated!", type: "success" });
 			onClose();
 		} catch (err) {
@@ -177,6 +181,7 @@
 			bgColor = existingTag.bgColor;
 			customHexInput = existingTag.bgColor;
 			tagDescription = existingTag.description || "";
+			isPublic = existingTag.isPublic || false;
 			autoContrast = false; // Preserve existing custom text color
 		}
 	});
@@ -349,6 +354,20 @@
 					name="description"
 					placeholder="e.g. Must-watch horror for spooky season..."
 					bind:value={tagDescription}
+				/>
+			</Setting>
+
+			<!-- Public Sharing Setting -->
+			<Setting
+				title="Lista Pública & Partilhável"
+				desc="Permite a qualquer pessoa aceder e ver esta lista temática através de um link direto."
+				row
+			>
+				<input
+					type="checkbox"
+					name="isPublic"
+					bind:checked={isPublic}
+					style="width: 20px; height: 20px; accent-color: #6366f1; cursor: pointer;"
 				/>
 			</Setting>
 

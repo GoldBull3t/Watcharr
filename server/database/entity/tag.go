@@ -14,6 +14,8 @@ type Tag struct {
 	BgColor string `json:"bgColor"`
 	// Optional description for custom lists and collections.
 	Description string `json:"description,omitempty"`
+	// If the tag / thematic list is publicly visible and shareable via direct URL.
+	IsPublic bool `json:"isPublic"`
 	// All watched items.
 	Watched []Watched `json:"watched,omitempty" gorm:"many2many:watched_tags;"`
 }
