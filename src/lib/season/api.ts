@@ -71,7 +71,7 @@ export async function updateWatchedSeason(
 
 		try {
 			const hookResp = r?.statusChangedHookResponse;
-			const updatedEps = r?.watchedEpisodes || hookResp?.watchedEpisodes;
+			const updatedEps = (r as any)?.watchedEpisodes || (hookResp as any)?.watchedEpisodes;
 			if (updatedEps && updatedEps.length > 0) {
 				if (!watchedItem.watchedEpisodes) {
 					watchedItem.watchedEpisodes = [];
@@ -199,7 +199,7 @@ export async function updateWatchedEpisode(
 
 		try {
 			const hookResp = r?.statusChangedHookResponse;
-			const updatedEps = r?.watchedEpisodes || hookResp?.watchedEpisodes;
+			const updatedEps = (r as any)?.watchedEpisodes || (hookResp as any)?.watchedEpisodes;
 			if (updatedEps && updatedEps.length > 0) {
 				if (!watchedItem.watchedEpisodes) {
 					watchedItem.watchedEpisodes = [];
