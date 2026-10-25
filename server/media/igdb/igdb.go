@@ -28,8 +28,11 @@ const (
 	// Fields that we select for "search" services.
 	fieldsForSearch = `name,
 cover.image_id,
+artworks.image_id,
 version_title,
 summary,
+rating,
+rating_count,
 first_release_date`
 )
 
@@ -334,11 +337,18 @@ func (i *IGDB) GameDetails(id string) (GameDetailsResponse, error) {
 			artworks.width,
 			artworks.height,
 			artworks.image_id,
+			screenshots.width,
+			screenshots.height,
+			screenshots.image_id,
 			game_type,
 			platforms.name,
 			game_modes.name,
 			genres.id,
 			genres.name,
+			themes.id,
+			themes.name,
+			player_perspectives.id,
+			player_perspectives.name,
 			involved_companies.developer,
 			involved_companies.publisher,
 			involved_companies.porting,
@@ -351,6 +361,8 @@ func (i *IGDB) GameDetails(id string) (GameDetailsResponse, error) {
 			involved_companies.company.websites.url,
 			rating,
 			rating_count,
+			aggregated_rating,
+			aggregated_rating_count,
 			status,
 			url,
 			websites.trusted,
@@ -362,6 +374,9 @@ func (i *IGDB) GameDetails(id string) (GameDetailsResponse, error) {
 			similar_games.name,
 			similar_games.summary,
 			similar_games.cover.image_id,
+			similar_games.artworks.image_id,
+			similar_games.rating,
+			similar_games.rating_count,
 			similar_games.first_release_date;
 		where id = `+id+";",
 		&resp,
@@ -370,11 +385,42 @@ func (i *IGDB) GameDetails(id string) (GameDetailsResponse, error) {
 		slog.Error("GameDetails: Request failed!", "error", err)
 		return GameDetailsResponse{}, errors.New("request failed")
 	}
+	if len(resp) > 0 {
+		if ttb, err := i.GameTimeToBeat(id); err == nil && (ttb.Normally > 0 || ttb.Hastily > 0 || ttb.Completely > 0) {
+			resp[0].TimeToBeat = &ttb
+		}
+	}
 	GameStore.Set(cacheKey, resp, time.Hour*24)
 	if len(resp) > 0 {
 		return resp[0], nil
 	}
 	return GameDetailsResponse{}, errors.New("no game details recieved")
+}
+
+func (i *IGDB) GameTimeToBeat(gameId string) (GameTimeToBeatResponse, error) {
+	var resp []GameTimeToBeatResponse
+	cacheKey := cache.CreateCacheKey("GameTimeToBeat", gameId)
+	if cache.GetCache(GameStore, cacheKey, &resp) {
+		if len(resp) > 0 {
+			return resp[0], nil
+		}
+		return GameTimeToBeatResponse{}, nil
+	}
+	err := i.req(
+		igdbHost,
+		"/game_time_to_beats",
+		map[string]string{},
+		"fields hastily, normally, completely, count; where game_id = "+gameId+";",
+		&resp,
+	)
+	if err != nil {
+		return GameTimeToBeatResponse{}, err
+	}
+	GameStore.Set(cacheKey, resp, time.Hour*24)
+	if len(resp) > 0 {
+		return resp[0], nil
+	}
+	return GameTimeToBeatResponse{}, nil
 }
 
 // Basic game details for when we are using them only to update our cache.
@@ -397,6 +443,7 @@ func (i *IGDB) GameDetailsBasic(id string) (GameDetailsBasicResponse, error) {
 		`fields 
 			name,
 			cover.image_id,
+			artworks.image_id,
 			summary,
 			storyline,
 			first_release_date,
@@ -404,8 +451,12 @@ func (i *IGDB) GameDetailsBasic(id string) (GameDetailsBasicResponse, error) {
 			platforms.name,
 			game_modes.name,
 			genres.name,
+			involved_companies.developer,
+			involved_companies.publisher,
+			involved_companies.company.name,
 			rating,
 			rating_count,
+			aggregated_rating,
 			status;
 		where id = `+id+";",
 		&resp,
@@ -413,6 +464,11 @@ func (i *IGDB) GameDetailsBasic(id string) (GameDetailsBasicResponse, error) {
 	if err != nil {
 		slog.Error("IGDB GameDetails request failed!", "error", err)
 		return GameDetailsBasicResponse{}, errors.New("request failed")
+	}
+	if len(resp) > 0 {
+		if ttb, err := i.GameTimeToBeat(id); err == nil && ttb.Normally > 0 {
+			resp[0].TimeToBeatNormal = ttb.Normally
+		}
 	}
 	GameStore.Set(cacheKey, resp, time.Hour*24)
 	if len(resp) > 0 {

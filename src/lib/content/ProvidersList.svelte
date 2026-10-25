@@ -264,6 +264,7 @@
 						href={provider.link}
 						{mediaTitle}
 						type={provider.type}
+						logoPath={provider.logoPath}
 					/>
 				{/each}
 			</div>

@@ -49,6 +49,7 @@
 	import CancellationGuardBadge from "@/lib/content/CancellationGuardBadge.svelte";
 	import CliffhangerWarningModal from "@/lib/content/CliffhangerWarningModal.svelte";
 	import FranchiseBadgeLink from "@/lib/franchise/FranchiseBadgeLink.svelte";
+	import ExternalRatingsBar from "@/lib/content/ExternalRatingsBar.svelte";
 
 	let { data } = $props();
 
@@ -253,8 +254,21 @@
 						/>
 
 						<span class="quick-info">
+							{#if show.certification}
+								<span class="runtime-pill cert-pill">
+									{show.certification}
+								</span>
+							{/if}
+							{#if show.runtime}
+								<span class="runtime-pill">
+									<Icon i="clock" wh={13} />
+									~{show.runtime} min/ep
+								</span>
+							{/if}
 							<Genres genres={show.genres} />
 						</span>
+
+						<ExternalRatingsBar media={show} />
 
 						<ExpandableText text={show.summary} style="margin-bottom: 18px;" />
 
@@ -504,6 +518,19 @@
 				flex-wrap: wrap;
 				gap: 10px;
 				margin-bottom: 8px;
+
+				.runtime-pill {
+					display: inline-flex;
+					align-items: center;
+					gap: 5px;
+					font-size: 13px;
+					font-weight: 600;
+					color: rgba(255, 255, 255, 0.7);
+					background: rgba(255, 255, 255, 0.08);
+					border: 1px solid rgba(255, 255, 255, 0.12);
+					border-radius: 999px;
+					padding: 3px 10px;
+				}
 			}
 
 			.btns {

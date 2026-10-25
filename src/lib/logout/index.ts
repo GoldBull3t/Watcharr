@@ -11,4 +11,18 @@ import { clearAllStores } from "@/store.svelte";
 export function clearWatcharrData() {
 	localStorage.removeItem("token");
 	clearAllStores();
+	if (typeof window !== "undefined" && "caches" in window) {
+		caches
+			.keys()
+			.then((keys) => {
+				for (const key of keys) {
+					if (key.includes("api-cache") || key.includes("local-images-cache")) {
+						caches.delete(key);
+					}
+				}
+			})
+			.catch(() => {
+				// ignore cache clear errors
+			});
+	}
 }

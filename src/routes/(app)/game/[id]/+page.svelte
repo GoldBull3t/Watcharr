@@ -22,6 +22,8 @@
 	import { activityRemovedHook } from "@/lib/activity/activity.js";
 	import Genres from "@/lib/content/Genres.svelte";
 	import SimilarContent from "@/lib/content/SimilarContent.svelte";
+	import ExternalRatingsBar from "@/lib/content/ExternalRatingsBar.svelte";
+	import HorizontalList from "@/lib/HorizontalList.svelte";
 
 	let { data } = $props();
 
@@ -125,11 +127,19 @@
 
 						<span class="quick-info">
 							<Genres genres={game.genres} />
-							<span></span>
+							{#if game.themes && game.themes.length > 0}
+								<Genres genres={game.themes} />
+							{/if}
 							<Genres genres={game.gameModes} />
 						</span>
 
-						<ExpandableText text={game.summary} style="margin-bottom: 18px;" />
+						<ExternalRatingsBar media={game} />
+
+						<ExpandableText text={game.summary} style="margin-bottom: 12px;" />
+
+						{#if game.storyline && game.storyline !== game.summary}
+							<ExpandableText text={game.storyline} style="margin-bottom: 18px;" />
+						{/if}
 
 						<div class="btns">
 							<ViewTrailerButton videos={game.videos} mediaTitle={game.name} />
@@ -213,6 +223,25 @@
 		<div class="page">
 			{#if data.gameId}
 				<FollowedThoughts mediaType="game" mediaId={data.gameId} />
+			{/if}
+
+			{#if game.screenshots && game.screenshots.length > 0}
+				<HorizontalList title="Screenshots">
+					{#each game.screenshots.slice(0, 16) as shot (shot)}
+						<a
+							href={`https://images.igdb.com/igdb/image/upload/t_1080p/${shot}.jpg`}
+							target="_blank"
+							rel="noreferrer noopener external"
+							class="game-screenshot-card"
+						>
+							<img
+								src={`https://images.igdb.com/igdb/image/upload/t_screenshot_med/${shot}.jpg`}
+								alt={game.name}
+								loading="lazy"
+							/>
+						</a>
+					{/each}
+				</HorizontalList>
 			{/if}
 
 			{#if game.similar && game.similar?.length > 0}
@@ -326,6 +355,29 @@
 
 		@media screen and (max-width: 500px) {
 			padding: 20px;
+		}
+
+		.game-screenshot-card {
+			display: block;
+			flex-shrink: 0;
+			width: 280px;
+			height: 158px;
+			border-radius: 12px;
+			overflow: hidden;
+			border: 1px solid rgba(255, 255, 255, 0.12);
+			background: rgba(15, 23, 42, 0.6);
+			transition: transform 160ms ease, border-color 160ms ease;
+
+			&:hover {
+				transform: translateY(-2px) scale(1.02);
+				border-color: rgba(255, 255, 255, 0.28);
+			}
+
+			img {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+			}
 		}
 	}
 </style>

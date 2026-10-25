@@ -3,8 +3,14 @@ package domain
 type MediaVideoType string
 
 const (
-	MediaVideoTypeTrailer MediaVideoType = "trailer"
-	MediaVideoTypeOther   MediaVideoType = "other"
+	MediaVideoTypeTrailer         MediaVideoType = "trailer"
+	MediaVideoTypeTeaser          MediaVideoType = "teaser"
+	MediaVideoTypeClip            MediaVideoType = "clip"
+	MediaVideoTypeFeaturette      MediaVideoType = "featurette"
+	MediaVideoTypeBehindTheScenes MediaVideoType = "behind_the_scenes"
+	MediaVideoTypeBloopers        MediaVideoType = "bloopers"
+	MediaVideoTypeOpeningCredits  MediaVideoType = "opening_credits"
+	MediaVideoTypeOther           MediaVideoType = "other"
 )
 
 // A video (trailer, etc).

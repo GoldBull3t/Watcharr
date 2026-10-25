@@ -4,6 +4,7 @@
 	import type { Media } from "@/types";
 	import { getMediaLink, getPosterImage } from "./mediaHelpers";
 	import { formatPublicRating } from "@/lib/rating/helpers";
+	import { t } from "@/lib/i18n";
 
 	interface Props {
 		items: Media[];
@@ -12,16 +13,16 @@
 	let { items }: Props = $props();
 </script>
 
-<section class="continue-watching-section" aria-label="Continue watching">
+<section class="continue-watching-section" aria-label={t("dashboard.continue_watching")}>
 	<div class="section-header">
 		<div class="title-cluster">
 			<span class="header-icon-wrap">
 				<Icon i="play" wh={12} />
 			</span>
-			<h3 class="norm">Continue Watching</h3>
+			<h3 class="norm">{t("dashboard.continue_watching")}</h3>
 			<span class="count-badge">{items.length}</span>
 		</div>
-		<span class="section-subtitle"> In progress across your collection </span>
+		<span class="section-subtitle"> {t("dashboard.continue_watching_subtitle")} </span>
 	</div>
 	<div class="continue-rail small-scrollbar">
 		{#each items.slice(0, 16) as item (item.ids.tmdb || item.ids.igdb || item.name)}
@@ -68,7 +69,7 @@
 					{#if item.watched?.watchingSeason}
 						<span class="progress-pill">{item.watched.watchingSeason}</span>
 					{:else}
-						<span class="status-pill">Watching</span>
+						<span class="status-pill">{t("status.watching")}</span>
 					{/if}
 				</div>
 			</a>

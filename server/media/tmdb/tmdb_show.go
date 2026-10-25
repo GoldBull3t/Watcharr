@@ -81,12 +81,24 @@ func (t *TMDB) ShowCredits(id string, optParams ...map[string]string) (ContentCr
 			params[k] = v
 		}
 	}
+	cacheKey := cache.CreateCacheKey("ShowCredits", id, params)
 	resp := new(ContentCredits)
+	if cache.GetCache(ContentStore, cacheKey, &resp) {
+		return *resp, nil
+	}
+	// Prefer aggregate_credits so the cast list includes actors across ALL seasons with episode counts
+	aggResp := new(AggregateCredits)
+	if err := t.req("/tv/"+id+"/aggregate_credits", params, &aggResp); err == nil && len(aggResp.Cast) > 0 {
+		converted := aggResp.ToContentCredits()
+		ContentStore.Set(cacheKey, &converted, time.Hour*24)
+		return converted, nil
+	}
 	err := t.req("/tv/"+id+"/credits", params, &resp)
 	if err != nil {
 		slog.Error("ShowCredits: Request failed!", "error", err)
 		return ContentCredits{}, errors.New("request failed")
 	}
+	ContentStore.Set(cacheKey, resp, time.Hour*24)
 	return *resp, nil
 }
 

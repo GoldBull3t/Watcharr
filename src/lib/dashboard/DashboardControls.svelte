@@ -188,7 +188,7 @@
 				<Icon i="search" wh={14} />
 				<input
 					type="text"
-					placeholder="Search library..."
+					placeholder={t("dashboard.search_placeholder")}
 					value={librarySearchText}
 					oninput={handleLibrarySearchInput}
 					aria-label="Filter library by title"
@@ -221,7 +221,7 @@
 					aria-label="Open secondary filters"
 				>
 					<Icon i="filter" wh={14} />
-					<span class="toggle-label">Filter</span>
+					<span class="toggle-label">{t("dashboard.filter")}</span>
 					{#if store.secondaryFilterCount > 0}
 						<span class="filter-count-badge">{store.secondaryFilterCount}</span>
 					{/if}
@@ -247,7 +247,7 @@
 					aria-label="Sort order"
 				>
 					<Icon i="sort" wh={14} />
-					<span class="toggle-label">Sort</span>
+					<span class="toggle-label">{t("dashboard.sort")}</span>
 					{#if store.activeSort?.length === 2 && store.activeSort[1] && JSON.stringify(store.activeSort) !== JSON.stringify(defaultSort)}
 						<span class="sort-active-dot"></span>
 					{/if}
@@ -273,7 +273,7 @@
 					aria-label="Detailed view options"
 				>
 					<Icon i="eye" wh={14} />
-					<span class="toggle-label">Details</span>
+					<span class="toggle-label">{t("dashboard.details")}</span>
 				</button>
 				{#if detailedMenuShown}
 					<DetailedMenu />
@@ -292,7 +292,7 @@
 				aria-label="Bulk selection mode"
 			>
 				<Icon i="check" wh={14} />
-				<span class="toggle-label">Bulk</span>
+				<span class="toggle-label">{t("dashboard.bulk")}</span>
 			</button>
 
 			<div class="toolbar-separator"></div>

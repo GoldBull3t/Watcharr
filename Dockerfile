@@ -46,7 +46,7 @@ RUN apk --no-cache add ca-certificates tzdata
 ENV GOMEMLIMIT=35MiB \
     GODEBUG=madvdontneed=1
 
-COPY --from=server /server/watcharr /
+COPY --from=server /server/watcharr /watcharr
 COPY --from=ui /app/build /ui
 
 EXPOSE 3080

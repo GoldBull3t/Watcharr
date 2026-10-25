@@ -1,12 +1,22 @@
 services:
   watcharr:
-    # The :latest tag is used for simplicity, it is recommended
-    # to use an actual version, then when updating check the releases for changelogs.
-    image: ghcr.io/sbondco/watcharr:latest
+    # Build directly from this fork (Single Go binary + Static SPA, Zero Node.js)
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: my-watcharr:latest
     container_name: watcharr
     ports:
-      - 3080:3080
+      - "3080:3080"
+    environment:
+      # Optional: Preconfigure keys via environment if preferred
+      # - OMDB_API_KEY=your_omdb_key
+      # - MDBLIST_API_KEY=your_mdblist_key
+      # - TMDB_KEY=your_tmdb_key
+      # - TWITCH_CLIENT_ID=your_twitch_client_id
+      # - TWITCH_CLIENT_SECRET=your_twitch_client_secret
+      - TZ=UTC
     volumes:
-      # Contains all of watcharr data (database & cache)
+      # Contains all watcharr data (database & cache)
       - ./data:/data
     restart: unless-stopped

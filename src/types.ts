@@ -438,17 +438,69 @@ export interface CancellationInfo {
 	yearsSinceAir?: number;
 }
 
+export interface MediaNetwork {
+	id?: number;
+	name: string;
+	logoPath?: string;
+	originCountry?: string;
+}
+
+export interface MediaCreator {
+	id?: number;
+	name: string;
+	profilePath?: string;
+}
+
+export interface MediaEpisodeSummary {
+	seasonNumber: number;
+	episodeNumber: number;
+	name?: string;
+	airDate?: string;
+	runtime?: number;
+	overview?: string;
+}
+
+export interface MediaTimeToBeat {
+	hastily?: number;
+	normally?: number;
+	completely?: number;
+	count?: number;
+}
+
+export interface ExternalRatings {
+	imdbRating?: string;
+	imdbVotes?: string;
+	rottenTomatoes?: string;
+	rottenTomatoesAudience?: string;
+	metacritic?: string;
+	letterboxd?: string;
+	trakt?: string;
+	tvmaze?: string;
+	anilist?: string;
+	malId?: number;
+	animationStudio?: string;
+	sourceMaterial?: string;
+	awards?: string;
+	boxOffice?: string;
+	networkSchedule?: string;
+}
+
 export interface Media {
 	type?: MediaTypeE;
 	ids: MediaIDs;
 	name?: string;
 	summary?: string;
+	tagline?: string;
+	originalTitle?: string;
+	originalLanguage?: string;
+	certification?: string;
 	poster?: Image;
 	extPosterPath?: string;
 	rating?: number;
 	ratingCount?: number;
 	watched?: Watched;
 	similar?: Media[];
+	recommendations?: Media[];
 	releaseDate?: string;
 	releaseDateLast?: string;
 	status?: string;
@@ -457,9 +509,30 @@ export interface Media {
 	homepage?: string;
 	videos?: MediaVideo[];
 	runtime?: number;
+	budget?: number;
+	revenue?: number;
+	numberOfEpisodes?: number;
+	numberOfSeasons?: number;
+	networks?: MediaNetwork[];
+	productionCompanies?: MediaNetwork[];
+	createdBy?: MediaCreator[];
+	lastEpisode?: MediaEpisodeSummary;
+	nextEpisode?: MediaEpisodeSummary;
+	externalRatings?: ExternalRatings;
 	providers?: MediaProvider[];
 	providersFullListLink?: string;
 	gameModes?: MediaGenre[];
+	themes?: MediaGenre[];
+	storyline?: string;
+	criticRating?: number;
+	criticRatingCount?: number;
+	platforms?: string[];
+	developers?: string[];
+	publishers?: string[];
+	playerPerspectives?: string[];
+	screenshots?: string[];
+	artworks?: string[];
+	timeToBeat?: MediaTimeToBeat;
 	seasons?: MediaSeason[];
 	isShowAnime?: boolean;
 	collection?: MediaCollection;
@@ -497,16 +570,26 @@ export interface MediaGenre {
 export enum MediaProviderType {
 	Sub = "sub",
 	Free = "free",
+	Ads = "ads",
+	Rent = "rent",
+	Buy = "buy",
 }
 
 export interface MediaProvider {
 	name: string;
 	type?: MediaProviderType;
 	link?: string;
+	logoPath?: string;
 }
 
 export enum MediaVideoType {
 	trailer = "trailer",
+	teaser = "teaser",
+	clip = "clip",
+	featurette = "featurette",
+	behind_the_scenes = "behind_the_scenes",
+	bloopers = "bloopers",
+	opening_credits = "opening_credits",
 	other = "other",
 }
 
@@ -765,6 +848,8 @@ export interface ServerConfig {
 	USE_EMBY: boolean;
 	SIGNUP_ENABLED: boolean;
 	TMDB_KEY?: string;
+	OMDB_KEY?: string;
+	MDBLIST_KEY?: string;
 	PLEX_HOST?: string;
 	PLEX_MACHINE_ID?: string;
 	SONARR?: SonarrSettings[];
@@ -919,7 +1004,17 @@ export interface ArrDetailsResponse {
 export interface ArrInfoResponse {
 	hasFile: boolean;
 	isAvailable: boolean;
+	sizeOnDisk?: number;
+	qualityName?: string;
 	added: string;
+	statistics?: {
+		seasonCount: number;
+		episodeFileCount: number;
+		episodeCount: number;
+		totalEpisodeCount: number;
+		sizeOnDisk: number;
+		percentOfEpisodes: number;
+	};
 }
 
 export interface ServerFeatures {

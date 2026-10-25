@@ -23,7 +23,7 @@
 	let { type, tmdbId, openRequestModal }: Props = $props();
 
 	let existingRequest: ArrRequestResponse | undefined;
-	let info: ArrInfoResponse | undefined;
+	let info: ArrInfoResponse | undefined = $state();
 	// The status, extra added string types are set in this file.
 	let status:
 		| ArrDetailsResponse
@@ -32,6 +32,29 @@
 		| ArrRequestStatus
 		| undefined = $state();
 	let estimatedCompletionIn: string | undefined = $state();
+
+	function formatDiskSize(bytes?: number): string {
+		if (!bytes || bytes <= 0) return "";
+		const gb = bytes / (1024 * 1024 * 1024);
+		if (gb >= 1) return `${gb.toFixed(1)} GB`;
+		const mb = bytes / (1024 * 1024);
+		return `${mb.toFixed(0)} MB`;
+	}
+
+	let availableLabel = $derived.by(() => {
+		if (!info) return "Available";
+		const parts: string[] = ["Available"];
+		if (info.qualityName) {
+			parts.push(info.qualityName);
+		} else if (info.statistics && info.statistics.totalEpisodeCount > 0) {
+			parts.push(`${info.statistics.episodeFileCount}/${info.statistics.totalEpisodeCount} eps`);
+		}
+		const sizeStr = formatDiskSize(info.sizeOnDisk);
+		if (sizeStr) {
+			parts.push(`(${sizeStr})`);
+		}
+		return parts.join(" • ");
+	});
 
 	async function getInfo() {
 		try {
@@ -206,7 +229,7 @@
 		</span>
 	</button>
 {:else if status === "available" || status === "FOUND"}
-	<button disabled>Available</button>
+	<button disabled>{availableLabel}</button>
 {:else if status === "PENDING"}
 	<button disabled>Pending</button>
 {:else if status === "APPROVED"}

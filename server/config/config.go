@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"strings"
+	"sync"
 	"time"
 	"uuid"
 
@@ -41,6 +43,8 @@ type TrustedHeaderAuthSetting struct {
 	// of the auth service?
 	LogoutUrl string `json:"logoutUrl"`
 }
+
+var cfgMu sync.RWMutex
 
 type ServerConfig struct {
 	// Used to sign JWT tokens. Make sure to make
@@ -77,6 +81,12 @@ type ServerConfig struct {
 	// If unprovided, the default Watcharr API key will be used.
 	TMDB_KEY string `json:",omitempty"`
 
+	// Optional: OMDb API Key for IMDb, Rotten Tomatoes, Metacritic & Awards.
+	OMDB_KEY string `json:",omitempty"`
+
+	// Optional: MDBList API Key for Letterboxd, Trakt, Rotten Tomatoes, IMDb & Metacritic scores.
+	MDBLIST_KEY string `json:",omitempty"`
+
 	// Optional: Point to Plex install to enable plex features.
 	PLEX_HOST string `json:",omitempty"`
 
@@ -111,6 +121,8 @@ type ServerConfig struct {
 // but I feel more comfortable removing it anyways (+ this is
 // not editable on frontend, so not needed).
 func (c *ServerConfig) GetSafe() ServerConfig {
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
 	return ServerConfig{
 		SIGNUP_ENABLED:           c.SIGNUP_ENABLED,
 		DEFAULT_COUNTRY:          c.DEFAULT_COUNTRY,
@@ -120,6 +132,8 @@ func (c *ServerConfig) GetSafe() ServerConfig {
 		JELLYFIN_WEBHOOK_KEY:     c.JELLYFIN_WEBHOOK_KEY,
 		USE_EMBY:                 c.USE_EMBY,
 		TMDB_KEY:                 c.TMDB_KEY,
+		OMDB_KEY:                 c.OMDB_KEY,
+		MDBLIST_KEY:              c.MDBLIST_KEY,
 		PLEX_HOST:                c.PLEX_HOST,
 		PLEX_MACHINE_ID:          c.PLEX_MACHINE_ID,
 		DEBUG:                    c.DEBUG,
@@ -132,12 +146,59 @@ func (c *ServerConfig) GetSafe() ServerConfig {
 	}
 }
 
+func (c *ServerConfig) GetDefaultLanguage() string {
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+	if c.DEFAULT_LANGUAGE != "" {
+		return c.DEFAULT_LANGUAGE
+	}
+	return "en-US"
+}
+
+func (c *ServerConfig) GetOMDBKey() string {
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+	if c.OMDB_KEY != "" {
+		return c.OMDB_KEY
+	}
+	return strings.TrimSpace(os.Getenv("OMDB_API_KEY"))
+}
+
+func (c *ServerConfig) GetMDBListKey() string {
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+	if c.MDBLIST_KEY != "" {
+		return c.MDBLIST_KEY
+	}
+	return strings.TrimSpace(os.Getenv("MDBLIST_API_KEY"))
+}
+
+func (c *ServerConfig) GetTaskSchedule(name string) int {
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+	if c.TASK_SCHEDULE == nil {
+		return 0
+	}
+	return c.TASK_SCHEDULE[name]
+}
+
+func (c *ServerConfig) SetTaskSchedule(name string, seconds int) {
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
+	if c.TASK_SCHEDULE == nil {
+		c.TASK_SCHEDULE = map[string]int{}
+	}
+	c.TASK_SCHEDULE[name] = seconds
+}
+
 type ServerConfigGetByName struct {
 	Value any `json:"value"`
 }
 
 // Get config item by name.
 func (c *ServerConfig) Get(s string) (ServerConfigGetByName, error) {
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
 	switch s {
 	case "DEFAULT_COUNTRY":
 		return ServerConfigGetByName{Value: c.DEFAULT_COUNTRY}, nil
@@ -155,6 +216,10 @@ func (c *ServerConfig) Get(s string) (ServerConfigGetByName, error) {
 		return ServerConfigGetByName{Value: c.SIGNUP_ENABLED}, nil
 	case "TMDB_KEY":
 		return ServerConfigGetByName{Value: c.TMDB_KEY}, nil
+	case "OMDB_KEY":
+		return ServerConfigGetByName{Value: c.OMDB_KEY}, nil
+	case "MDBLIST_KEY":
+		return ServerConfigGetByName{Value: c.MDBLIST_KEY}, nil
 	case "PLEX_HOST":
 		return ServerConfigGetByName{Value: c.PLEX_HOST}, nil
 	case "PLEX_MACHINE_ID":
@@ -173,24 +238,78 @@ func (c *ServerConfig) UpdateConfig(k string, v any) error {
 	if v == nil {
 		return errors.New("invalid value")
 	}
-	if k == "JELLYFIN_HOST" {
-		c.JELLYFIN_HOST = v.(string)
-	} else if k == "USE_EMBY" {
-		c.USE_EMBY = v.(bool)
-	} else if k == "SIGNUP_ENABLED" {
-		c.SIGNUP_ENABLED = v.(bool)
-	} else if k == "TMDB_KEY" {
-		c.TMDB_KEY = v.(string)
-	} else if k == "DEBUG" {
-		c.DEBUG = v.(bool)
+	cfgMu.Lock()
+	switch k {
+	case "JELLYFIN_HOST":
+		str, ok := v.(string)
+		if !ok {
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		c.JELLYFIN_HOST = str
+	case "USE_EMBY":
+		b, ok := v.(bool)
+		if !ok {
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		c.USE_EMBY = b
+	case "SIGNUP_ENABLED":
+		b, ok := v.(bool)
+		if !ok {
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		c.SIGNUP_ENABLED = b
+	case "TMDB_KEY":
+		str, ok := v.(string)
+		if !ok {
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		c.TMDB_KEY = str
+	case "OMDB_KEY":
+		str, ok := v.(string)
+		if !ok {
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		c.OMDB_KEY = strings.TrimSpace(str)
+	case "MDBLIST_KEY":
+		str, ok := v.(string)
+		if !ok {
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		c.MDBLIST_KEY = strings.TrimSpace(str)
+	case "DEBUG":
+		b, ok := v.(bool)
+		if !ok {
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		c.DEBUG = b
 		logging.Level(c.DEBUG)
-	} else if k == "DEFAULT_COUNTRY" {
-		c.DEFAULT_COUNTRY = v.(string)
-	} else if k == "DEFAULT_LANGUAGE" {
-		c.DEFAULT_LANGUAGE = v.(string)
-	} else {
+	case "DEFAULT_COUNTRY":
+		str, ok := v.(string)
+		if !ok {
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		c.DEFAULT_COUNTRY = str
+	case "DEFAULT_LANGUAGE":
+		str, ok := v.(string)
+		if !ok {
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		c.DEFAULT_LANGUAGE = str
+	default:
+		cfgMu.Unlock()
 		return errors.New("invalid setting")
 	}
+	cfgMu.Unlock()
+
 	err := c.Write()
 	if err != nil {
 		slog.Error("updateConfig: Failed to write updated config!", "error", err)
@@ -208,6 +327,7 @@ type SetJellyfinWebhookEnabledResponse struct {
 func (c *ServerConfig) SetJellyfinWebhookEnabled(
 	v bool,
 ) (SetJellyfinWebhookEnabledResponse, error) {
+	cfgMu.Lock()
 	c.JELLYFIN_WEBHOOK_ENABLED = v
 	if c.JELLYFIN_WEBHOOK_ENABLED && c.JELLYFIN_WEBHOOK_KEY == uuid.Nil() {
 		// If we are enabling the webhook and we don't already have a key,
@@ -216,6 +336,8 @@ func (c *ServerConfig) SetJellyfinWebhookEnabled(
 		// jellyfin with the new key when they re-enable.
 		c.JELLYFIN_WEBHOOK_KEY = uuid.New()
 	}
+	key := c.JELLYFIN_WEBHOOK_KEY
+	cfgMu.Unlock()
 
 	if err := c.Write(); err != nil {
 		slog.Error("SetJellyfinWebhookEnabled: Failed to write config!",
@@ -225,17 +347,24 @@ func (c *ServerConfig) SetJellyfinWebhookEnabled(
 	}
 
 	return SetJellyfinWebhookEnabledResponse{
-		JELLYFIN_WEBHOOK_KEY: c.JELLYFIN_WEBHOOK_KEY,
+		JELLYFIN_WEBHOOK_KEY: key,
 	}, nil
 }
 
-// Write current Config to file
+// Write current Config to file atomically via a temporary file.
 func (c *ServerConfig) Write() error {
-	barej, err := json.MarshalIndent(*c, "", "\t")
+	cfgMu.RLock()
+	barej, err := json.MarshalIndent(c, "", "\t")
+	cfgMu.RUnlock()
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path.Join(DataPath, "watcharr.json"), barej, 0600)
+	cfgPath := path.Join(DataPath, "watcharr.json")
+	tmpPath := cfgPath + ".tmp"
+	if err := os.WriteFile(tmpPath, barej, 0600); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, cfgPath)
 }
 
 func (c *ServerConfig) SaveTwitchConfig(newt igdb.IGDB) error {

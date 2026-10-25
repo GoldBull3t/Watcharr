@@ -13,7 +13,7 @@ import (
 const TokenMaxAge = 2 * time.Minute
 
 func CreateOneUseToken(db *gorm.DB, t entity.TokenType, userId uint) (string, error) {
-	token, err := util.GenerateString(8)
+	token, err := util.GenerateString(24)
 	if err != nil {
 		slog.Error("createOneUseToken: Failed to generate string!", "error", err)
 		return "", errors.New("failed to generate token")

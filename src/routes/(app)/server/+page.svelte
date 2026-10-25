@@ -41,6 +41,8 @@
 	let jfDisabled = $state(false);
 	let jfWebhookEnabledDisabled = $state(false);
 	let tmdbkDisabled = $state(false);
+	let omdbkDisabled = $state(false);
+	let mdblistkDisabled = $state(false);
 	let plexHostDisabled = $state(false);
 	let countryDisabled = $state(false);
 	let languageDisabled = $state(false);
@@ -316,6 +318,44 @@
 								});
 							}}
 							disabled={tmdbkDisabled}
+						/>
+					</Setting>
+					<Setting
+						title="OMDb API Key"
+						desc="Optional: Provide an OMDb API Key (omdbapi.com) to display IMDb, Rotten Tomatoes, Metacritic scores, Box Office and Oscars/Awards."
+					>
+						<input
+							type="password"
+							placeholder="OMDb API Key"
+							bind:value={serverConfig.OMDB_KEY}
+							onblur={() => {
+								omdbkDisabled = true;
+								updateServerConfig("OMDB_KEY", serverConfig!.OMDB_KEY, () => {
+									omdbkDisabled = false;
+								});
+							}}
+							disabled={omdbkDisabled}
+						/>
+					</Setting>
+					<Setting
+						title="MDBList API Key"
+						desc="Optional: Provide an MDBList API Key (mdblist.com) to display Letterboxd, Trakt, Rotten Tomatoes (Critics & Popcornmeter), IMDb and Metacritic scores."
+					>
+						<input
+							type="password"
+							placeholder="MDBList API Key"
+							bind:value={serverConfig.MDBLIST_KEY}
+							onblur={() => {
+								mdblistkDisabled = true;
+								updateServerConfig(
+									"MDBLIST_KEY",
+									serverConfig!.MDBLIST_KEY,
+									() => {
+										mdblistkDisabled = false;
+									},
+								);
+							}}
+							disabled={mdblistkDisabled}
 						/>
 					</Setting>
 					<Setting

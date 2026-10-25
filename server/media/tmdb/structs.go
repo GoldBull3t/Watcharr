@@ -107,10 +107,16 @@ type SearchMultiResult struct {
 
 func (t *SearchMultiResult) AsMedia() domain.Media {
 	m := t.SearchResult.AsMedia()
+	m.ExtBackdropPath = t.BackdropPath
+	m.OriginalLanguage = t.OriginalLanguage
 
 	m.Name = t.Title
+	m.OriginalTitle = t.OriginalTitle
 	if t.Name != "" {
 		m.Name = t.Name
+	}
+	if t.OriginalName != "" {
+		m.OriginalTitle = t.OriginalName
 	}
 
 	var tmdbReleaseDate string
@@ -154,6 +160,9 @@ type SearchMovieResult struct {
 func (t *SearchMovieResult) AsMedia() domain.Media {
 	m := t.SearchResult.AsMedia()
 	m.Name = t.Title
+	m.OriginalTitle = t.OriginalTitle
+	m.OriginalLanguage = t.OriginalLanguage
+	m.ExtBackdropPath = t.BackdropPath
 	if releaseDate, err := time.Parse("2006-01-02", t.ReleaseDate); err == nil {
 		m.ReleaseDate = releaseDate
 	} else {
@@ -186,6 +195,9 @@ type SearchShowsResult struct {
 func (t *SearchShowsResult) AsMedia() domain.Media {
 	m := t.SearchResult.AsMedia()
 	m.Name = t.Name
+	m.OriginalTitle = t.OriginalName
+	m.OriginalLanguage = t.OriginalLanguage
+	m.ExtBackdropPath = t.BackdropPath
 	if releaseDate, err := time.Parse("2006-01-02", t.FirstAirDate); err == nil {
 		m.ReleaseDate = releaseDate
 	} else {
@@ -304,12 +316,14 @@ func (t *ContentDetails) AsMedia() domain.Media {
 		IDs: domain.MediaIDs{
 			TMDB: t.ID,
 		},
-		Summary:         t.Overview,
-		ExtPosterPath:   t.PosterPath,
-		ExtBackdropPath: t.BackdropPath,
-		Rating:          uint(t.VoteAverage * 10),
-		RatingCount:     uint(t.VoteCount),
-		Homepage:        t.Homepage,
+		Summary:          t.Overview,
+		Tagline:          t.Tagline,
+		OriginalLanguage: t.OriginalLanguage,
+		ExtPosterPath:    t.PosterPath,
+		ExtBackdropPath:  t.BackdropPath,
+		Rating:           uint(t.VoteAverage * 10),
+		RatingCount:      uint(t.VoteCount),
+		Homepage:         t.Homepage,
 	}
 	// Genres
 	for _, g := range t.Genres {
@@ -318,39 +332,86 @@ func (t *ContentDetails) AsMedia() domain.Media {
 			Name: g.Name,
 		})
 	}
-	// Videos
-	for i := range t.Videos.Results {
-		v := &t.Videos.Results[i]
-		// Currently we only care about trailers
-		if strings.ToLower(v.Type) != "trailer" {
+	// Production companies
+	for _, pc := range t.ProductionCompanies {
+		if pc.Name == "" {
 			continue
 		}
-		// Is best?
+		m.ProductionCompanies = append(m.ProductionCompanies, domain.MediaNetwork{
+			ID:            pc.ID,
+			Name:          pc.Name,
+			LogoPath:      pc.LogoPath,
+			OriginCountry: pc.OriginCountry,
+		})
+	}
+	// Videos (Trailers, Teasers, Clips, Featurettes, Behind the Scenes, Opening Credits, Bloopers)
+	hasBest := false
+	for i := range t.Videos.Results {
+		v := &t.Videos.Results[i]
+		if v.Key == "" || (v.Site != "" && !strings.EqualFold(v.Site, "YouTube")) {
+			continue
+		}
+		vTypeLower := strings.ToLower(strings.TrimSpace(v.Type))
+		var mediaVType domain.MediaVideoType
+		switch vTypeLower {
+		case "trailer":
+			mediaVType = domain.MediaVideoTypeTrailer
+		case "teaser":
+			mediaVType = domain.MediaVideoTypeTeaser
+		case "clip":
+			mediaVType = domain.MediaVideoTypeClip
+		case "featurette":
+			mediaVType = domain.MediaVideoTypeFeaturette
+		case "behind the scenes":
+			mediaVType = domain.MediaVideoTypeBehindTheScenes
+		case "bloopers":
+			mediaVType = domain.MediaVideoTypeBloopers
+		case "opening credits":
+			mediaVType = domain.MediaVideoTypeOpeningCredits
+		default:
+			mediaVType = domain.MediaVideoTypeOther
+		}
 		isBest := false
-		if v.Official && strings.ToLower(v.Name) == "official trailer" {
+		if mediaVType == domain.MediaVideoTypeTrailer && v.Official && strings.Contains(strings.ToLower(v.Name), "official trailer") && !hasBest {
 			isBest = true
+			hasBest = true
 		}
 		m.Videos = append(m.Videos, domain.MediaVideo{
 			ID:   v.Key,
 			Name: v.Name,
-			// Currently we only care about trailers
-			Type: domain.MediaVideoTypeTrailer,
+			Type: mediaVType,
 			Best: isBest,
 		})
 	}
-	// Watch providers
-	for _, v := range t.WatchProvidersTransformed.Free {
-		m.Providers = append(m.Providers, domain.MediaProvider{
-			Name: v.ProviderName,
-			Type: domain.MediaProviderTypeFree,
-		})
+	if !hasBest {
+		for i := range m.Videos {
+			if m.Videos[i].Type == domain.MediaVideoTypeTrailer {
+				m.Videos[i].Best = true
+				break
+			}
+		}
 	}
-	for _, v := range t.WatchProvidersTransformed.Flatrate {
-		m.Providers = append(m.Providers, domain.MediaProvider{
-			Name: v.ProviderName,
-			Type: domain.MediaProviderTypeSub,
-		})
+	// Watch providers (Flatrate/Sub, Free, Ads, Rent, Buy)
+	seenProviders := make(map[string]bool)
+	addProviders := func(list []WatchProvider, pType domain.MediaProviderType) {
+		for _, v := range list {
+			key := strings.ToLower(v.ProviderName) + "|" + string(pType)
+			if seenProviders[key] {
+				continue
+			}
+			seenProviders[key] = true
+			m.Providers = append(m.Providers, domain.MediaProvider{
+				Name:     v.ProviderName,
+				Type:     pType,
+				LogoPath: v.LogoPath,
+			})
+		}
 	}
+	addProviders(t.WatchProvidersTransformed.Flatrate, domain.MediaProviderTypeSub)
+	addProviders(t.WatchProvidersTransformed.Free, domain.MediaProviderTypeFree)
+	addProviders(t.WatchProvidersTransformed.Ads, domain.MediaProviderTypeAds)
+	addProviders(t.WatchProvidersTransformed.Rent, domain.MediaProviderTypeRent)
+	addProviders(t.WatchProvidersTransformed.Buy, domain.MediaProviderTypeBuy)
 	m.ProvidersFullListLink = t.WatchProvidersTransformed.Link
 	return m
 }
@@ -365,6 +426,36 @@ type TMDBBelongsToCollection struct {
 	Name         string `json:"name"`
 	PosterPath   string `json:"poster_path"`
 	BackdropPath string `json:"backdrop_path"`
+}
+
+type MovieReleaseDates struct {
+	Results []struct {
+		Iso31661     string `json:"iso_3166_1"`
+		ReleaseDates []struct {
+			Certification string `json:"certification"`
+			Type          int    `json:"type"`
+			ReleaseDate   string `json:"release_date"`
+		} `json:"release_dates"`
+	} `json:"results"`
+}
+
+func (r *MovieReleaseDates) ExtractCertification(preferredCountry string) string {
+	candidates := []string{strings.ToUpper(preferredCountry), "PT", "US", "GB", "BR"}
+	for _, country := range candidates {
+		if country == "" {
+			continue
+		}
+		for _, res := range r.Results {
+			if strings.EqualFold(res.Iso31661, country) {
+				for _, rd := range res.ReleaseDates {
+					if cert := strings.TrimSpace(rd.Certification); cert != "" {
+						return cert
+					}
+				}
+			}
+		}
+	}
+	return ""
 }
 
 type MovieDetails struct {
@@ -383,15 +474,22 @@ type MovieDetails struct {
 	Status MovieStatus `json:"status"`
 
 	// Extra items because we use `append_to_response` on the request
-	ExternalIds ExternalIdsMovie `json:"external_ids"`
-	Similar     MovieSimilar     `json:"similar"`
+	ExternalIds     ExternalIdsMovie  `json:"external_ids"`
+	Similar         MovieSimilar      `json:"similar"`
+	Recommendations MovieSimilar      `json:"recommendations"`
+	ReleaseDates    MovieReleaseDates `json:"release_dates"`
 }
 
 func (t *MovieDetails) AsMedia() domain.Media {
 	m := t.ContentDetails.AsMedia()
 	m.Type = domain.MediaTypeTMDBMovie
 	m.Name = t.Title
+	m.OriginalTitle = t.OriginalTitle
 	m.Runtime = uint(t.Runtime)
+	m.Budget = t.Budget
+	m.Revenue = t.Revenue
+	m.Status = string(t.Status)
+	m.Certification = t.ReleaseDates.ExtractCertification("")
 	if releaseDate, err := time.Parse("2006-01-02", t.ReleaseDate); err == nil {
 		m.ReleaseDate = releaseDate
 	} else {
@@ -399,6 +497,9 @@ func (t *MovieDetails) AsMedia() domain.Media {
 	}
 	// IDS
 	m.IDs.IMDB = t.ExternalIds.ImdbID
+	if m.IDs.IMDB == "" {
+		m.IDs.IMDB = t.ImdbID
+	}
 	m.IDs.Wikidata = t.ExternalIds.WikidataID
 	if t.BelongsToCollection != nil && t.BelongsToCollection.ID > 0 {
 		m.Collection = &domain.MediaCollection{
@@ -408,9 +509,22 @@ func (t *MovieDetails) AsMedia() domain.Media {
 			BackdropPath: t.BelongsToCollection.BackdropPath,
 		}
 	}
-	// Convert similar items to media too.
+	// Combine Recommendations (higher quality) + Similar, deduplicated
+	seenSimilar := make(map[int]bool)
+	for i := range t.Recommendations.Results {
+		recMedia := t.Recommendations.Results[i].AsMedia()
+		m.Recommendations = append(m.Recommendations, recMedia)
+		if !seenSimilar[recMedia.IDs.TMDB] {
+			seenSimilar[recMedia.IDs.TMDB] = true
+			m.Similar = append(m.Similar, recMedia)
+		}
+	}
 	for i := range t.Similar.Results {
-		m.Similar = append(m.Similar, t.Similar.Results[i].AsMedia())
+		simMedia := t.Similar.Results[i].AsMedia()
+		if !seenSimilar[simMedia.IDs.TMDB] {
+			seenSimilar[simMedia.IDs.TMDB] = true
+			m.Similar = append(m.Similar, simMedia)
+		}
 	}
 	return m
 }
@@ -503,12 +617,15 @@ func (t *MovieSimilarResult) AsMedia() domain.Media {
 		IDs: domain.MediaIDs{
 			TMDB: t.ID,
 		},
-		Type:          domain.MediaTypeTMDBMovie,
-		Name:          t.Title,
-		Summary:       t.Overview,
-		ExtPosterPath: t.PosterPath,
-		Rating:        uint(t.VoteAverage * 10),
-		RatingCount:   uint(t.VoteCount),
+		Type:             domain.MediaTypeTMDBMovie,
+		Name:             t.Title,
+		OriginalTitle:    t.OriginalTitle,
+		OriginalLanguage: t.OriginalLanguage,
+		Summary:          t.Overview,
+		ExtPosterPath:    t.PosterPath,
+		ExtBackdropPath:  t.BackdropPath,
+		Rating:           uint(t.VoteAverage * 10),
+		RatingCount:      uint(t.VoteCount),
 	}
 	if releaseDate, err := time.Parse("2006-01-02", t.ReleaseDate); err == nil {
 		m.ReleaseDate = releaseDate
@@ -522,6 +639,30 @@ func (t *MovieSimilarResult) AsMedia() domain.Media {
 // Show Details
 //
 
+type ShowContentRatings struct {
+	Results []struct {
+		Iso31661 string `json:"iso_3166_1"`
+		Rating   string `json:"rating"`
+	} `json:"results"`
+}
+
+func (r *ShowContentRatings) ExtractCertification(preferredCountry string) string {
+	candidates := []string{strings.ToUpper(preferredCountry), "PT", "US", "GB", "BR"}
+	for _, country := range candidates {
+		if country == "" {
+			continue
+		}
+		for _, res := range r.Results {
+			if strings.EqualFold(res.Iso31661, country) {
+				if cert := strings.TrimSpace(res.Rating); cert != "" {
+					return cert
+				}
+			}
+		}
+	}
+	return ""
+}
+
 type TMDBEpisodeBasic struct {
 	AirDate        string  `json:"air_date"`
 	EpisodeNumber  int     `json:"episode_number"`
@@ -529,6 +670,7 @@ type TMDBEpisodeBasic struct {
 	Name           string  `json:"name"`
 	Overview       string  `json:"overview"`
 	ProductionCode string  `json:"production_code"`
+	Runtime        int     `json:"runtime"`
 	SeasonNumber   int     `json:"season_number"`
 	StillPath      string  `json:"still_path"`
 	VoteAverage    float64 `json:"vote_average"`
@@ -576,16 +718,36 @@ type ShowDetails struct {
 	Status ShowStatus `json:"status"`
 
 	// Extra items because we use `append_to_response` on the request
-	ExternalIds ExternalIdsShow `json:"external_ids"`
-	Keywords    Keywords        `json:"keywords"`
-	Similar     ShowSimilar     `json:"similar"`
+	ExternalIds     ExternalIdsShow    `json:"external_ids"`
+	Keywords        Keywords           `json:"keywords"`
+	Similar         ShowSimilar        `json:"similar"`
+	Recommendations ShowSimilar        `json:"recommendations"`
+	ContentRatings  ShowContentRatings `json:"content_ratings"`
+}
+
+func (t *ShowDetails) EffectiveRuntime() uint32 {
+	if len(t.EpisodeRunTime) > 0 && t.EpisodeRunTime[0] > 0 {
+		return uint32(t.EpisodeRunTime[0])
+	}
+	if t.LastEpisodeToAir.Runtime > 0 {
+		return uint32(t.LastEpisodeToAir.Runtime)
+	}
+	if t.NextEpisodeToAir != nil && t.NextEpisodeToAir.Runtime > 0 {
+		return uint32(t.NextEpisodeToAir.Runtime)
+	}
+	return 0
 }
 
 func (t *ShowDetails) AsMedia() domain.Media {
 	m := t.ContentDetails.AsMedia()
 	m.Type = domain.MediaTypeTMDBShow
 	m.Name = t.Name
+	m.OriginalTitle = t.OriginalName
 	m.Status = string(t.Status)
+	m.Runtime = uint(t.EffectiveRuntime())
+	m.NumberOfEpisodes = t.NumberOfEpisodes
+	m.NumberOfSeasons = t.NumberOfSeasons
+	m.Certification = t.ContentRatings.ExtractCertification("")
 	if c := domain.GetCliffhangerInfo(t.ID); c != nil {
 		m.Cancellation = c
 	}
@@ -601,13 +763,68 @@ func (t *ShowDetails) AsMedia() domain.Media {
 			"name", m.Name,
 			"error", err)
 	}
+	// Networks & Creators
+	for _, n := range t.Networks {
+		if n.Name == "" {
+			continue
+		}
+		m.Networks = append(m.Networks, domain.MediaNetwork{
+			ID:            n.ID,
+			Name:          n.Name,
+			LogoPath:      n.LogoPath,
+			OriginCountry: n.OriginCountry,
+		})
+	}
+	for _, cb := range t.CreatedBy {
+		if cb.Name == "" {
+			continue
+		}
+		m.CreatedBy = append(m.CreatedBy, domain.MediaCreator{
+			ID:          cb.ID,
+			Name:        cb.Name,
+			ProfilePath: cb.ProfilePath,
+		})
+	}
+	if t.LastEpisodeToAir.ID > 0 {
+		m.LastEpisode = &domain.MediaEpisodeSummary{
+			SeasonNumber:  t.LastEpisodeToAir.SeasonNumber,
+			EpisodeNumber: t.LastEpisodeToAir.EpisodeNumber,
+			Name:          t.LastEpisodeToAir.Name,
+			AirDate:       t.LastEpisodeToAir.AirDate,
+			Runtime:       t.LastEpisodeToAir.Runtime,
+			Overview:      t.LastEpisodeToAir.Overview,
+		}
+	}
+	if t.NextEpisodeToAir != nil && t.NextEpisodeToAir.ID > 0 {
+		m.NextEpisode = &domain.MediaEpisodeSummary{
+			SeasonNumber:  t.NextEpisodeToAir.SeasonNumber,
+			EpisodeNumber: t.NextEpisodeToAir.EpisodeNumber,
+			Name:          t.NextEpisodeToAir.Name,
+			AirDate:       t.NextEpisodeToAir.AirDate,
+			Runtime:       t.NextEpisodeToAir.Runtime,
+			Overview:      t.NextEpisodeToAir.Overview,
+		}
+	}
 	// IDS
 	m.IDs.IMDB = t.ExternalIds.ImdbID
 	m.IDs.Wikidata = t.ExternalIds.WikidataID
 	m.IDs.TVDB = t.ExternalIds.TvdbID
-	// Convert similar items to media too.
+	// Combine Recommendations (higher quality) + Similar, deduplicated
+	seenSimilar := make(map[int]bool)
+	for i := range t.Recommendations.Results {
+		recMedia := t.Recommendations.Results[i].AsMedia()
+		m.Recommendations = append(m.Recommendations, recMedia)
+		if !seenSimilar[recMedia.IDs.TMDB] {
+			seenSimilar[recMedia.IDs.TMDB] = true
+			m.Similar = append(m.Similar, recMedia)
+		}
+	}
 	for i := range t.Similar.Results {
-		m.Similar = append(m.Similar, t.Similar.Results[i].AsMedia())
+		simMedia := t.Similar.Results[i].AsMedia()
+		if !seenSimilar[simMedia.IDs.TMDB] {
+			seenSimilar[simMedia.IDs.TMDB] = true
+			m.Similar = append(m.Similar, simMedia)
+		}
 	}
 	// Seasons
 	for _, v := range t.Seasons {
@@ -629,6 +846,14 @@ func (t *ShowDetails) AsMedia() domain.Media {
 		if v.ID == 210024 {
 			m.IsShowAnime = true
 			break
+		}
+	}
+	if !m.IsShowAnime && t.OriginalLanguage == "ja" {
+		for _, g := range t.Genres {
+			if g.ID == 16 {
+				m.IsShowAnime = true
+				break
+			}
 		}
 	}
 	return m
@@ -714,12 +939,15 @@ func (t *ShowSimilarResult) AsMedia() domain.Media {
 		IDs: domain.MediaIDs{
 			TMDB: t.ID,
 		},
-		Type:          domain.MediaTypeTMDBShow,
-		Name:          t.Name,
-		Summary:       t.Overview,
-		ExtPosterPath: t.PosterPath,
-		Rating:        uint(t.VoteAverage * 10),
-		RatingCount:   uint(t.VoteCount),
+		Type:             domain.MediaTypeTMDBShow,
+		Name:             t.Name,
+		OriginalTitle:    t.OriginalName,
+		OriginalLanguage: t.OriginalLanguage,
+		Summary:          t.Overview,
+		ExtPosterPath:    t.PosterPath,
+		ExtBackdropPath:  t.BackdropPath,
+		Rating:           uint(t.VoteAverage * 10),
+		RatingCount:      uint(t.VoteCount),
 	}
 	if releaseDate, err := time.Parse("2006-01-02", t.FirstAirDate); err == nil {
 		m.ReleaseDate = releaseDate
@@ -877,6 +1105,111 @@ type ContentCredits struct {
 	} `json:"crew"`
 }
 
+type AggregateCredits struct {
+	ID   int `json:"id"`
+	Cast []struct {
+		Adult              bool    `json:"adult"`
+		Gender             int     `json:"gender"`
+		ID                 int     `json:"id"`
+		KnownForDepartment string  `json:"known_for_department"`
+		Name               string  `json:"name"`
+		OriginalName       string  `json:"original_name"`
+		Popularity         float64 `json:"popularity"`
+		ProfilePath        string  `json:"profile_path"`
+		TotalEpisodeCount  int     `json:"total_episode_count"`
+		Order              int     `json:"order"`
+		Roles              []struct {
+			CreditID     string `json:"credit_id"`
+			Character    string `json:"character"`
+			EpisodeCount int    `json:"episode_count"`
+		} `json:"roles"`
+	} `json:"cast"`
+	Crew []struct {
+		Adult              bool    `json:"adult"`
+		Gender             int     `json:"gender"`
+		ID                 int     `json:"id"`
+		KnownForDepartment string  `json:"known_for_department"`
+		Name               string  `json:"name"`
+		OriginalName       string  `json:"original_name"`
+		Popularity         float64 `json:"popularity"`
+		ProfilePath        string  `json:"profile_path"`
+		Department         string  `json:"department"`
+		TotalEpisodeCount  int     `json:"total_episode_count"`
+		Jobs               []struct {
+			CreditID     string `json:"credit_id"`
+			Job          string `json:"job"`
+			EpisodeCount int    `json:"episode_count"`
+		} `json:"jobs"`
+	} `json:"crew"`
+}
+
+func (a *AggregateCredits) ToContentCredits() ContentCredits {
+	cc := ContentCredits{ID: a.ID}
+	for _, c := range a.Cast {
+		var character, creditID string
+		if len(c.Roles) > 0 {
+			creditID = c.Roles[0].CreditID
+			character = c.Roles[0].Character
+		}
+		cc.Cast = append(cc.Cast, struct {
+			Adult              bool    `json:"adult"`
+			Gender             int     `json:"gender"`
+			ID                 int     `json:"id"`
+			KnownForDepartment string  `json:"known_for_department"`
+			Name               string  `json:"name"`
+			OriginalName       string  `json:"original_name"`
+			Popularity         float64 `json:"popularity"`
+			ProfilePath        string  `json:"profile_path"`
+			CastID             int     `json:"cast_id"`
+			Character          string  `json:"character"`
+			CreditID           string  `json:"credit_id"`
+			Order              int     `json:"order"`
+		}{
+			Adult:              c.Adult,
+			Gender:             c.Gender,
+			ID:                 c.ID,
+			KnownForDepartment: c.KnownForDepartment,
+			Name:               c.Name,
+			OriginalName:       c.OriginalName,
+			Popularity:         c.Popularity,
+			ProfilePath:        c.ProfilePath,
+			Character:          character,
+			CreditID:           creditID,
+			Order:              c.Order,
+		})
+	}
+	for _, cr := range a.Crew {
+		for _, j := range cr.Jobs {
+			cc.Crew = append(cc.Crew, struct {
+				Adult              bool    `json:"adult"`
+				Gender             int     `json:"gender"`
+				ID                 int     `json:"id"`
+				KnownForDepartment string  `json:"known_for_department"`
+				Name               string  `json:"name"`
+				OriginalName       string  `json:"original_name"`
+				Popularity         float64 `json:"popularity"`
+				ProfilePath        string  `json:"profile_path"`
+				CreditID           string  `json:"credit_id"`
+				Department         string  `json:"department"`
+				Job                string  `json:"job"`
+			}{
+				Adult:              cr.Adult,
+				Gender:             cr.Gender,
+				ID:                 cr.ID,
+				KnownForDepartment: cr.KnownForDepartment,
+				Name:               cr.Name,
+				OriginalName:       cr.OriginalName,
+				Popularity:         cr.Popularity,
+				ProfilePath:        cr.ProfilePath,
+				CreditID:           j.CreditID,
+				Department:         cr.Department,
+				Job:                j.Job,
+			})
+		}
+	}
+	return cc
+}
+
 //
 // Discover All Trending
 //
@@ -914,10 +1247,16 @@ type TrendingCombinedResult struct {
 
 func (t *TrendingCombinedResult) AsMedia() domain.Media {
 	m := t.SearchResult.AsMedia()
+	m.ExtBackdropPath = t.BackdropPath
+	m.OriginalLanguage = t.OriginalLanguage
 
 	m.Name = t.Title
+	m.OriginalTitle = t.OriginalTitle
 	if t.Name != "" {
 		m.Name = t.Name
+	}
+	if t.OriginalName != "" {
+		m.OriginalTitle = t.OriginalName
 	}
 
 	var tmdbReleaseDate string
@@ -986,12 +1325,15 @@ func (t *DiscoverMoviesResult) AsMedia() domain.Media {
 		IDs: domain.MediaIDs{
 			TMDB: t.ID,
 		},
-		Type:          domain.MediaTypeTMDBMovie,
-		Name:          t.Title,
-		Summary:       t.Overview,
-		ExtPosterPath: t.PosterPath,
-		Rating:        uint(t.VoteAverage * 10),
-		RatingCount:   uint(t.VoteCount),
+		Type:             domain.MediaTypeTMDBMovie,
+		Name:             t.Title,
+		OriginalTitle:    t.OriginalTitle,
+		OriginalLanguage: t.OriginalLanguage,
+		Summary:          t.Overview,
+		ExtPosterPath:    t.PosterPath,
+		ExtBackdropPath:  t.BackdropPath,
+		Rating:           uint(t.VoteAverage * 10),
+		RatingCount:      uint(t.VoteCount),
 	}
 	if releaseDate, err := time.Parse("2006-01-02", t.ReleaseDate); err == nil {
 		m.ReleaseDate = releaseDate
@@ -1030,12 +1372,15 @@ func (t *DiscoverShowsResult) AsMedia() domain.Media {
 		IDs: domain.MediaIDs{
 			TMDB: t.ID,
 		},
-		Type:          domain.MediaTypeTMDBShow,
-		Name:          t.Name,
-		Summary:       t.Overview,
-		ExtPosterPath: t.PosterPath,
-		Rating:        uint(t.VoteAverage * 10),
-		RatingCount:   uint(t.VoteCount),
+		Type:             domain.MediaTypeTMDBShow,
+		Name:             t.Name,
+		OriginalTitle:    t.OriginalName,
+		OriginalLanguage: t.OriginalLanguage,
+		Summary:          t.Overview,
+		ExtPosterPath:    t.PosterPath,
+		ExtBackdropPath:  t.BackdropPath,
+		Rating:           uint(t.VoteAverage * 10),
+		RatingCount:      uint(t.VoteCount),
 	}
 	if releaseDate, err := time.Parse("2006-01-02", t.FirstAirDate); err == nil {
 		m.ReleaseDate = releaseDate
@@ -1103,6 +1448,12 @@ type WatchProviders struct {
 	Flatrate []WatchProvider `json:"flatrate"`
 	// Free providers
 	Free []WatchProvider `json:"free"`
+	// Ad-supported free providers
+	Ads []WatchProvider `json:"ads"`
+	// Rental providers
+	Rent []WatchProvider `json:"rent"`
+	// Digital purchase providers
+	Buy []WatchProvider `json:"buy"`
 	// Link to view all streaming options on tmdb
 	Link string `json:"link"`
 }
@@ -1110,6 +1461,7 @@ type WatchProviders struct {
 type WatchProvider struct {
 	ProviderID      int    `json:"provider_id"`
 	ProviderName    string `json:"provider_name"`
+	LogoPath        string `json:"logo_path"`
 	DisplayPriority int    `json:"display_priority"`
 }
 

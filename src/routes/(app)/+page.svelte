@@ -26,6 +26,7 @@
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { getMediaLink } from "@/lib/dashboard/mediaHelpers";
+	import { t } from "@/lib/i18n";
 
 	const scroll = infScroll({ callback: onScrollToBottom });
 	const dataLoader = paginatedLoader<Media, undefined>(load);
@@ -327,85 +328,109 @@
 	}
 
 	async function bulkUpdateStatus(newStatus: WatchedStatus) {
-		if (selectedIds.length === 0) return;
+		const isAll = selectedAllInLibrary;
+		if (selectedIds.length === 0 && !isAll) return;
+
+		const idsToUpdate = [...selectedIds];
+		const count = isAll
+			? dataLoader.state.totalResults || idsToUpdate.length
+			: idsToUpdate.length;
+
+		selectedIds = [];
+		selectedAllInLibrary = false;
+		bulkMode = false;
+
+		// Optimistic UI update
+		if (dataLoader.state.data) {
+			const idSet = new Set(idsToUpdate);
+			for (const w of dataLoader.state.data) {
+				if (w?.watched && (isAll || idSet.has(w.watched.id))) {
+					w.watched.status = newStatus;
+				}
+			}
+		}
+
 		const nid = notify({
-			text: `Updating ${selectedIds.length} items...`,
+			text: t("dashboard.bulk_updating", { count }),
 			type: "loading",
 		});
-		const promises = selectedIds.map(async (id) => {
-			const item = dataLoader.state.data?.find((w) => w?.watched?.id === id);
-			if (item?.watched) {
-				const cType =
-					item.type === MediaTypeE.tmdbMovie
-						? "movie"
-						: item.type === MediaTypeE.tmdbShow
-							? "tv"
-							: "game";
-				const cId = item.ids?.tmdb || item.ids?.igdb || 0;
-				await updateWatched(item.watched, {
-					contentId: cId,
-					contentType: cType,
-					status: newStatus,
-				});
-				item.watched.status = newStatus;
-				return true;
-			}
-			return false;
-		});
-		const results = await Promise.allSettled(promises);
-		const successCount = results.filter(
-			(r) => r.status === "fulfilled" && r.value === true,
-		).length;
-		notify({
-			id: nid,
-			text: `Updated ${successCount} items to ${newStatus}`,
-			type: "success",
-		});
-		selectedIds = [];
-		dataLoader.reset();
-		dataLoader.runFn();
-		loadContinueWatching();
+
+		try {
+			await req.put("/watched/bulk", {
+				ids: isAll ? undefined : idsToUpdate,
+				all: isAll,
+				status: newStatus,
+			});
+			notify({
+				id: nid,
+				text: t("dashboard.bulk_updated_status", { count, status: newStatus }),
+				type: "success",
+			});
+		} catch (err) {
+			console.error("bulkUpdateStatus failed:", err);
+			notify({
+				id: nid,
+				text: t("dashboard.bulk_error"),
+				type: "error",
+			});
+		} finally {
+			dataLoader.reset();
+			dataLoader.runFn();
+			loadContinueWatching();
+		}
 	}
 
 	async function bulkUpdateRating(newRating: number) {
-		if (selectedIds.length === 0) return;
+		const isAll = selectedAllInLibrary;
+		if (selectedIds.length === 0 && !isAll) return;
+
+		const idsToUpdate = [...selectedIds];
+		const count = isAll
+			? dataLoader.state.totalResults || idsToUpdate.length
+			: idsToUpdate.length;
+
+		selectedIds = [];
+		selectedAllInLibrary = false;
+		bulkMode = false;
+
+		// Optimistic UI update
+		if (dataLoader.state.data) {
+			const idSet = new Set(idsToUpdate);
+			for (const w of dataLoader.state.data) {
+				if (w?.watched && (isAll || idSet.has(w.watched.id))) {
+					w.watched.rating = newRating;
+				}
+			}
+		}
+
 		const nid = notify({
-			text: `Rating ${selectedIds.length} items...`,
+			text: t("dashboard.bulk_rating", { count }),
 			type: "loading",
 		});
-		const promises = selectedIds.map(async (id) => {
-			const item = dataLoader.state.data?.find((w) => w?.watched?.id === id);
-			if (item?.watched) {
-				const cType =
-					item.type === MediaTypeE.tmdbMovie
-						? "movie"
-						: item.type === MediaTypeE.tmdbShow
-							? "tv"
-							: "game";
-				const cId = item.ids?.tmdb || item.ids?.igdb || 0;
-				await updateWatched(item.watched, {
-					contentId: cId,
-					contentType: cType,
-					rating: newRating,
-				});
-				item.watched.rating = newRating;
-				return true;
-			}
-			return false;
-		});
-		const results = await Promise.allSettled(promises);
-		const successCount = results.filter(
-			(r) => r.status === "fulfilled" && r.value === true,
-		).length;
-		notify({
-			id: nid,
-			text: `Rated ${successCount} items`,
-			type: "success",
-		});
-		selectedIds = [];
-		dataLoader.reset();
-		dataLoader.runFn();
-		loadContinueWatching();
+
+		try {
+			await req.put("/watched/bulk", {
+				ids: isAll ? undefined : idsToUpdate,
+				all: isAll,
+				rating: newRating,
+			});
+			notify({
+				id: nid,
+				text: t("dashboard.bulk_rated", { count }),
+				type: "success",
+			});
+		} catch (err) {
+			console.error("bulkUpdateRating failed:", err);
+			notify({
+				id: nid,
+				text: t("dashboard.bulk_error"),
+				type: "error",
+			});
+		} finally {
+			dataLoader.reset();
+			dataLoader.runFn();
+			loadContinueWatching();
+		}
 	}
 
 	async function bulkDeleteItems() {
@@ -436,7 +461,7 @@
 
 		// 3. Immediate progress notification
 		const nid = notify({
-			text: `A remover ${count} ${count === 1 ? "item" : "itens"}...`,
+			text: t("dashboard.bulk_removing", { count }),
 			type: "loading",
 		});
 
@@ -448,14 +473,14 @@
 			}
 			notify({
 				id: nid,
-				text: `${count} ${count === 1 ? "item removido" : "itens removidos"} com sucesso!`,
+				text: t("dashboard.bulk_removed", { count }),
 				type: "success",
 			});
 		} catch (err) {
 			console.error("bulkDeleteItems failed:", err);
 			notify({
 				id: nid,
-				text: "Erro ao remover itens selecionados.",
+				text: t("dashboard.bulk_error"),
 				type: "error",
 			});
 		} finally {
@@ -556,8 +581,8 @@
 			density={gridDensity}
 		/>
 	{:else if viewMode === "grid"}
-		<PosterList density={gridDensity}>
-			{#if dataLoader.state.data?.length > 0}
+		{#if dataLoader.state.data?.length > 0}
+			<PosterList density={gridDensity}>
 				{#each dataLoader.state.data as w, i (w ? `${w.type}-${w.watched?.id || w.ids?.tmdb || w.ids?.igdb || i}` : i)}
 					{#if w}
 						<Poster
@@ -591,10 +616,10 @@
 						</Poster>
 					{/if}
 				{/each}
-			{:else if !dataLoader.state.reqLoading && !dataLoader.state.reqLoadError}
-				<EmptyLibrary />
-			{/if}
-		</PosterList>
+			</PosterList>
+		{:else if !dataLoader.state.reqLoading && !dataLoader.state.reqLoadError}
+			<EmptyLibrary />
+		{/if}
 	{:else}
 		<!-- List View Mode -->
 		{#if dataLoader.state.data?.length > 0}

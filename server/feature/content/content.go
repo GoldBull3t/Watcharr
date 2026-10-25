@@ -124,7 +124,14 @@ func (s *Service) saveContent(c *entity.Content, onlyUpdate bool) error {
 			DoUpdates: clause.AssignmentColumns([]string{
 				"title",
 				"poster_path",
+				"backdrop_path",
 				"overview",
+				"tagline",
+				"original_title",
+				"original_language",
+				"homepage",
+				"certification",
+				"networks",
 				"release_date",
 				"popularity",
 				"vote_average",
@@ -166,17 +173,15 @@ func (s *Service) CacheContentShow(
 	onlyUpdate bool,
 ) (entity.Content, error) {
 	slog.Debug("CacheContentShow", "content", content)
-	var (
-		releaseDate time.Time
-		runtime     uint32
-	)
+	var releaseDate time.Time
 	var dateFormat = "2006-01-02"
 	releaseDate, err := time.Parse(dateFormat, content.FirstAirDate)
 	if err != nil {
 		slog.Error("Failed to parse tv release date", "error", err)
 	}
-	if len(content.EpisodeRunTime) > 0 {
-		runtime = uint32(content.EpisodeRunTime[0])
+	runtime := content.EffectiveRuntime()
+	if runtime == 0 {
+		runtime = 42
 	}
 
 	var showGenres string
@@ -187,11 +192,27 @@ func (s *Service) CacheContentShow(
 		showGenres += g.Name
 	}
 
+	var showNetworks string
+	for i, n := range content.Networks {
+		if i > 0 {
+			showNetworks += ", "
+		}
+		showNetworks += n.Name
+	}
+
 	c := entity.Content{
 		TmdbID:           content.ID,
 		Title:            content.Name,
 		Overview:         content.Overview,
+		Tagline:          content.Tagline,
+		OriginalTitle:    content.OriginalName,
+		OriginalLanguage: content.OriginalLanguage,
+		Homepage:         content.Homepage,
+		Certification:    content.ContentRatings.ExtractCertification(""),
+		Networks:         showNetworks,
 		PosterPath:       content.PosterPath,
+		BackdropPath:     content.BackdropPath,
+		ImdbID:           content.ExternalIds.ImdbID,
 		Type:             entity.SHOW,
 		ReleaseDate:      &releaseDate,
 		Popularity:       content.Popularity,
@@ -235,22 +256,33 @@ func (s *Service) CacheContentMovie(
 		movieGenres += g.Name
 	}
 
+	imdbID := content.ImdbID
+	if imdbID == "" {
+		imdbID = content.ExternalIds.ImdbID
+	}
+
 	c := entity.Content{
-		TmdbID:      content.ID,
-		Title:       content.Title,
-		Overview:    content.Overview,
-		PosterPath:  content.PosterPath,
-		Type:        entity.MOVIE,
-		ReleaseDate: &releaseDate,
-		Popularity:  content.Popularity,
-		VoteAverage: content.VoteAverage,
-		VoteCount:   content.VoteCount,
-		ImdbID:      content.ImdbID,
-		Status:      string(content.Status),
-		Budget:      content.Budget,
-		Revenue:     content.Revenue,
-		Runtime:     content.Runtime,
-		Genres:      movieGenres,
+		TmdbID:           content.ID,
+		Title:            content.Title,
+		Overview:         content.Overview,
+		Tagline:          content.Tagline,
+		OriginalTitle:    content.OriginalTitle,
+		OriginalLanguage: content.OriginalLanguage,
+		Homepage:         content.Homepage,
+		Certification:    content.ReleaseDates.ExtractCertification(""),
+		PosterPath:       content.PosterPath,
+		BackdropPath:     content.BackdropPath,
+		Type:             entity.MOVIE,
+		ReleaseDate:      &releaseDate,
+		Popularity:       content.Popularity,
+		VoteAverage:      content.VoteAverage,
+		VoteCount:        content.VoteCount,
+		ImdbID:           imdbID,
+		Status:           string(content.Status),
+		Budget:           content.Budget,
+		Revenue:          content.Revenue,
+		Runtime:          content.Runtime,
+		Genres:           movieGenres,
 	}
 
 	err = s.saveContent(&c, onlyUpdate)
@@ -281,6 +313,9 @@ func (s *Service) GetOrCacheContent(
 			resp, err := s.tmdb.MovieDetails(tmdb.MovieDetailsOptions{
 				ID:             tmdbId,
 				DontRunDBCache: true,
+				Params: map[string]string{
+					"append_to_response": "release_dates,external_ids",
+				},
 			})
 			if err != nil {
 				slog.Error("GetOrCacheContent: MovieDetails failed.",
@@ -299,6 +334,9 @@ func (s *Service) GetOrCacheContent(
 			resp, err := s.tmdb.ShowDetails(tmdb.ShowDetailsOptions{
 				ID:             tmdbId,
 				DontRunDBCache: true,
+				Params: map[string]string{
+					"append_to_response": "external_ids,content_ratings",
+				},
 			})
 			if err != nil {
 				slog.Error("GetOrCacheContent: ShowDetails failed.",
@@ -321,4 +359,39 @@ func (s *Service) GetOrCacheContent(
 
 	}
 	return content, nil
+}
+
+// BackfillMissingMetadata gently enriches existing Content rows that are missing backdrop_path or imdb_id.
+func (s *Service) BackfillMissingMetadata() {
+	var missing []entity.Content
+	if err := s.db.Where("backdrop_path = '' OR backdrop_path IS NULL").Limit(40).Find(&missing).Error; err != nil || len(missing) == 0 {
+		return
+	}
+	slog.Info("BackfillMissingMetadata: Enriching cached content items", "count", len(missing))
+	for _, item := range missing {
+		idStr := strconv.Itoa(item.TmdbID)
+		switch item.Type {
+		case entity.MOVIE:
+			if resp, err := s.tmdb.MovieDetails(tmdb.MovieDetailsOptions{
+				ID:             idStr,
+				DontRunDBCache: true,
+				Params: map[string]string{
+					"append_to_response": "release_dates,external_ids",
+				},
+			}); err == nil {
+				_, _ = s.CacheContentMovie(resp, true)
+			}
+		case entity.SHOW:
+			if resp, err := s.tmdb.ShowDetails(tmdb.ShowDetailsOptions{
+				ID:             idStr,
+				DontRunDBCache: true,
+				Params: map[string]string{
+					"append_to_response": "external_ids,content_ratings",
+				},
+			}); err == nil {
+				_, _ = s.CacheContentShow(resp, true)
+			}
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
 }

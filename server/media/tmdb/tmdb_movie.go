@@ -81,12 +81,17 @@ func (t *TMDB) MovieCredits(id string, optParams ...map[string]string) (ContentC
 			params[k] = v
 		}
 	}
+	cacheKey := cache.CreateCacheKey("MovieCredits", id, params)
 	resp := new(ContentCredits)
+	if cache.GetCache(ContentStore, cacheKey, &resp) {
+		return *resp, nil
+	}
 	err := t.req("/movie/"+id+"/credits", params, &resp)
 	if err != nil {
 		slog.Error("MovieCredits: Request failed!", "error", err)
 		return ContentCredits{}, errors.New("request failed")
 	}
+	ContentStore.Set(cacheKey, resp, time.Hour*24)
 	return *resp, nil
 }
 

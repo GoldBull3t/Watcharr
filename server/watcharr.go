@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -67,10 +68,17 @@ var version string
 
 func main() {
 	startTime := time.Now()
-	// Tune Go runtime memory footprint for ultra-lightweight containers:
-	// GC at 30% growth prevents RAM accumulation, soft limit keeps working set tightly bounded (~35MB).
-	debug.SetGCPercent(30)
-	debug.SetMemoryLimit(35 * 1024 * 1024)
+
+	// Tune Go runtime memory footprint: GC at 60% growth prevents RAM bloat,
+	// and soft limit (default 180MB, configurable via WATCHARR_MEMORY_LIMIT_MB) keeps working set tightly managed.
+	debug.SetGCPercent(60)
+	memLimitMB := int64(180)
+	if envMem := os.Getenv("WATCHARR_MEMORY_LIMIT_MB"); envMem != "" {
+		if parsed, err := strconv.ParseInt(envMem, 10, 64); err == nil && parsed >= 64 {
+			memLimitMB = parsed
+		}
+	}
+	debug.SetMemoryLimit(memLimitMB * 1024 * 1024)
 
 	err := godotenv.Load()
 	if err != nil {
@@ -195,8 +203,7 @@ func main() {
 		v.RegisterValidation("validdiscoverfilter", domain.ValidDiscoverFilter)
 	}
 
-	gine.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"*"},
+	corsCfg := cors.Config{
 		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders: []string{
 			"Content-Type",
@@ -215,40 +222,22 @@ func main() {
 		},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
-	}))
+	}
+	if allowedOriginsEnv := strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS")); allowedOriginsEnv != "" {
+		origins := strings.Split(allowedOriginsEnv, ",")
+		for i := range origins {
+			origins[i] = strings.TrimSpace(origins[i])
+		}
+		corsCfg.AllowOrigins = origins
+	} else {
+		corsCfg.AllowOriginFunc = func(origin string) bool {
+			return true
+		}
+	}
+	gine.Use(cors.New(corsCfg))
+
 	if isProd {
-		// Serve static frontend files with SPA fallback
-		gine.NoRoute(func(c *gin.Context) {
-			// Do not intercept non-existent /api/ endpoints with index.html
-			if strings.HasPrefix(c.Request.URL.Path, "/api") {
-				c.JSON(http.StatusNotFound, gin.H{"error": "route not found"})
-				return
-			}
-
-			// Clean requested path inside ui directory
-			reqPath := filepath.Clean(strings.TrimPrefix(c.Request.URL.Path, "/"))
-			targetFile := filepath.Join("ui", reqPath)
-
-			// If file exists on disk and is not a directory, serve it directly
-			if fi, err := os.Stat(targetFile); err == nil && !fi.IsDir() {
-				// Cache immutable Vite/SvelteKit assets
-				if strings.Contains(c.Request.URL.Path, "/_app/immutable/") {
-					c.Header("Cache-Control", "public, max-age=31536000, immutable")
-				}
-				c.File(targetFile)
-				return
-			}
-
-			// SPA Fallback: serve index.html for all frontend routes
-			indexPath := filepath.Join("ui", "index.html")
-			if _, err := os.Stat(indexPath); err == nil {
-				c.Header("Cache-Control", "no-cache")
-				c.File(indexPath)
-				return
-			}
-
-			c.String(http.StatusNotFound, "UI not found")
-		})
+		registerStaticUI(gine)
 	}
 	api := gine.Group("/api")
 	api.Use(gzip.Gzip(gzip.DefaultCompression))
@@ -279,7 +268,7 @@ func main() {
 
 	tmdbService := tmdb.NewTMDB(cfg.TMDB_KEY)
 	tmdbService.DefaultLanguage = func() string {
-		return cfg.DEFAULT_LANGUAGE
+		return cfg.GetDefaultLanguage()
 	}
 
 	contentService := content.NewService(db, tmdbService)
@@ -396,10 +385,15 @@ func main() {
 	}
 
 	go taskl.SetupTasks(cfg, db, calendarService)
+	go contentService.BackfillMissingMetadata()
 
 	srv := &http.Server{
-		Addr:    "0.0.0.0:3080",
-		Handler: gine.Handler(),
+		Addr:              "0.0.0.0:3080",
+		Handler:           gine.Handler(),
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	go func() {
@@ -416,6 +410,9 @@ func main() {
 	<-quit
 	slog.Info("Shutting down Watcharr gracefully...")
 
+	// Stop recurring background tasks before closing HTTP/DB
+	taskl.ShutdownTasks()
+
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
 
@@ -431,7 +428,67 @@ func main() {
 	slog.Info("Watcharr exited cleanly.")
 }
 
+// registerStaticUI serves the prebuilt static SvelteKit SPA directly from Go without Node.js.
+func registerStaticUI(gine *gin.Engine) {
+	uiDir := ""
+	for _, candidate := range []string{"ui", "../build", "build"} {
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			if _, err := os.Stat(filepath.Join(candidate, "index.html")); err == nil {
+				uiDir = candidate
+				break
+			}
+			// Fallback if build/client exists
+			clientSub := filepath.Join(candidate, "client")
+			if infoSub, err := os.Stat(clientSub); err == nil && infoSub.IsDir() {
+				uiDir = clientSub
+				break
+			}
+		}
+	}
 
+	if uiDir == "" {
+		slog.Warn("registerStaticUI: No static UI directory found (checked ./ui and ./build). Serving API only.")
+		return
+	}
+
+	absUIDir, err := filepath.Abs(uiDir)
+	if err != nil {
+		absUIDir = uiDir
+	}
+	indexFile := filepath.Join(absUIDir, "index.html")
+	slog.Info("Serving static SPA UI directly from Go", "dir", absUIDir)
+
+	gine.NoRoute(func(c *gin.Context) {
+		reqPath := c.Request.URL.Path
+		if strings.HasPrefix(reqPath, "/api/") || reqPath == "/api" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
+			return
+		}
+
+		// Clean and resolve path safely inside absUIDir
+		cleanRel := filepath.Clean(strings.TrimPrefix(reqPath, "/"))
+		if cleanRel != "." && cleanRel != "" && !strings.HasPrefix(cleanRel, "..") {
+			targetPath := filepath.Join(absUIDir, cleanRel)
+			if strings.HasPrefix(targetPath, absUIDir) {
+				if info, err := os.Stat(targetPath); err == nil && !info.IsDir() {
+					if strings.HasPrefix(reqPath, "/_app/immutable/") {
+						c.Header("Cache-Control", "public, max-age=31536000, immutable")
+					} else if reqPath == "/sw.js" || strings.HasPrefix(reqPath, "/workbox-") || reqPath == "/manifest.webmanifest" || reqPath == "/_app/version.json" {
+						c.Header("Cache-Control", "no-cache")
+					} else {
+						c.Header("Cache-Control", "public, max-age=86400")
+					}
+					c.File(targetPath)
+					return
+				}
+			}
+		}
+
+		// SPA fallback to index.html for client-side routes
+		c.Header("Cache-Control", "no-cache")
+		c.File(indexFile)
+	})
+}
 
 func ensureDirExists(dir string) error {
 	err := os.MkdirAll(dir, 0764)

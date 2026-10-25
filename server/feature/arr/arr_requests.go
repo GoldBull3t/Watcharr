@@ -238,6 +238,14 @@ func getRadarrRequestInfo(cfg *config.ServerConfig, db *gorm.DB, requestId uint)
 		}
 		return arr.MovieSerie{}, errors.New("failed to get info")
 	}
+	if resp.MovieFile != nil {
+		if resp.MovieFile.Quality.Quality.Name != "" {
+			resp.QualityName = resp.MovieFile.Quality.Quality.Name
+		}
+		if resp.SizeOnDisk == 0 && resp.MovieFile.Size > 0 {
+			resp.SizeOnDisk = resp.MovieFile.Size
+		}
+	}
 	return resp, nil
 }
 
@@ -270,6 +278,14 @@ func getSonarrRequestInfo(cfg *config.ServerConfig, db *gorm.DB, requestId uint)
 			}
 		}
 		return arr.MovieSerie{}, errors.New("failed to get info")
+	}
+	if resp.Statistics != nil {
+		if resp.Statistics.EpisodeFileCount > 0 {
+			resp.HasFile = true
+		}
+		if resp.SizeOnDisk == 0 && resp.Statistics.SizeOnDisk > 0 {
+			resp.SizeOnDisk = resp.Statistics.SizeOnDisk
+		}
 	}
 	return resp, nil
 }

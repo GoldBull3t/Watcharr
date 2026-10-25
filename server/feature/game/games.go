@@ -67,14 +67,20 @@ func (s *Service) saveGame(c *entity.Game, onlyUpdate bool) error {
 			DoUpdates: clause.AssignmentColumns([]string{
 				"name",
 				"cover_id",
+				"backdrop_id",
 				"summary",
 				"storyline",
 				"release_date",
 				"rating",
 				"rating_count",
+				"aggregated_rating",
+				"time_to_beat_normal",
 				"status",
 				"game_modes",
 				"genres",
+				"platforms",
+				"developers",
+				"publishers",
 			}),
 		}).Create(&c)
 		if res.Error != nil {
@@ -91,10 +97,16 @@ func (s *Service) saveGame(c *entity.Game, onlyUpdate bool) error {
 func (s *Service) cacheGame(g igdb.GameDetailsBasicResponse, onlyUpdate bool) (entity.Game, error) {
 	slog.Debug("cacheGame", "game_details", g)
 	var (
-		gameModes string
-		genres    string
-		platforms string
+		gameModes  string
+		genres     string
+		platforms  string
+		developers string
+		publishers string
+		backdropID string
 	)
+	if len(g.Artworks) > 0 {
+		backdropID = g.Artworks[0].ImageID
+	}
 	if len(g.GameModes) > 0 {
 		for _, v := range g.GameModes {
 			gameModes += v.Name + "|"
@@ -110,20 +122,36 @@ func (s *Service) cacheGame(g igdb.GameDetailsBasicResponse, onlyUpdate bool) (e
 			platforms += v.Name + "|"
 		}
 	}
+	for _, ic := range g.InvolvedCompanies {
+		if ic.Company.Name == "" {
+			continue
+		}
+		if ic.Developer {
+			developers += ic.Company.Name + "|"
+		}
+		if ic.Publisher {
+			publishers += ic.Company.Name + "|"
+		}
+	}
 	c := entity.Game{
-		IgdbID:      g.ID,
-		Name:        g.Name,
-		CoverID:     g.Cover.ImageID,
-		Summary:     g.Summary,
-		Storyline:   g.Storyline,
-		ReleaseDate: &g.FirstReleaseDate.Time,
-		Rating:      (g.Rating),
-		RatingCount: g.RatingCount,
-		Status:      g.Status,
-		Category:    g.Category,
-		GameModes:   gameModes,
-		Genres:      genres,
-		Platforms:   platforms,
+		IgdbID:           g.ID,
+		Name:             g.Name,
+		CoverID:          g.Cover.ImageID,
+		BackdropID:       backdropID,
+		Summary:          g.Summary,
+		Storyline:        g.Storyline,
+		ReleaseDate:      &g.FirstReleaseDate.Time,
+		Rating:           (g.Rating),
+		RatingCount:      g.RatingCount,
+		AggregatedRating: g.AggregatedRating,
+		TimeToBeatNormal: g.TimeToBeatNormal,
+		Status:           g.Status,
+		Category:         g.Category,
+		GameModes:        gameModes,
+		Genres:           genres,
+		Platforms:        platforms,
+		Developers:       developers,
+		Publishers:       publishers,
 	}
 	err := s.saveGame(&c, onlyUpdate)
 	if err != nil {

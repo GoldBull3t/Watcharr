@@ -19,6 +19,7 @@
 	import { resolve } from "$app/paths";
 	import Icon from "../Icon.svelte";
 	import { formatPublicRating, formatVoteCount } from "../rating/helpers";
+	import { t } from "@/lib/i18n";
 	import CliffhangerWarningModal from "../content/CliffhangerWarningModal.svelte";
 
 	interface Props {
@@ -196,8 +197,8 @@
 			}
 
 			notifyUndo({
-				text: `<b>${mediaTitle}</b> removido da lista`,
-				undoLabel: "Desfazer",
+				text: t("dashboard.poster_removed", { title: mediaTitle ?? "" }),
+				undoLabel: t("dashboard.undo"),
 				time: 6000,
 				onUndo: () => {
 					updateWatchedVar(prevWatched);

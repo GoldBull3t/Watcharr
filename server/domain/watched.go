@@ -264,3 +264,16 @@ type WatchedBulkRemoveRequest struct {
 type WatchedBulkRemoveResponse struct {
 	Count int64 `json:"count"`
 }
+
+// Bulk update request.
+type WatchedBulkUpdateRequest struct {
+	IDs    []uint               `json:"ids"`
+	All    bool                 `json:"all"`
+	Status entity.WatchedStatus `json:"status,omitempty"`
+	Rating *float64             `json:"rating,omitempty"`
+}
+
+// Bulk update response.
+type WatchedBulkUpdateResponse struct {
+	Count int64 `json:"count"`
+}

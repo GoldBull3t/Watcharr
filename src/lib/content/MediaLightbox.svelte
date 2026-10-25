@@ -58,7 +58,19 @@
 							? "Principal"
 							: v.type === MediaVideoType.trailer
 								? "Trailer"
-								: "Vídeo",
+								: v.type === MediaVideoType.teaser
+									? "Teaser"
+									: v.type === MediaVideoType.clip
+										? "Clip"
+										: v.type === MediaVideoType.featurette
+											? "Featurette"
+											: v.type === MediaVideoType.behind_the_scenes
+												? "Bastidores"
+												: v.type === MediaVideoType.bloopers
+													? "Bloopers"
+													: v.type === MediaVideoType.opening_credits
+														? "Opening"
+														: "Vídeo",
 					});
 				}
 			}

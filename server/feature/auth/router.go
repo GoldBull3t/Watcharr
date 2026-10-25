@@ -3,6 +3,7 @@ package auth
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sbondCo/Watcharr/database/entity"
@@ -29,17 +30,19 @@ func NewRouter(br *router.BaseRouter, service *Service, trustedHeaderService *Tr
 
 func (r *Router) AddRoutes() {
 	auth := r.br.Router.Group("/auth")
+	authLimiter := router.RateLimit(15, time.Minute)
+	adminTokenLimiter := router.RateLimit(5, time.Minute)
 
 	// Login
-	auth.POST("/", r.Login)
+	auth.POST("/", authLimiter, r.Login)
 	// Jellyfin login
-	auth.POST("/jellyfin", r.LoginJellyfin)
+	auth.POST("/jellyfin", authLimiter, r.LoginJellyfin)
 	// Plex login
-	auth.POST("/plex", r.LoginPlex)
+	auth.POST("/plex", authLimiter, r.LoginPlex)
 	// Proxy Login
-	auth.POST("/proxy", r.LoginProxy)
+	auth.POST("/proxy", authLimiter, r.LoginProxy)
 	// Register
-	auth.POST("/register", r.Register)
+	auth.POST("/register", authLimiter, r.Register)
 	// Get available auth providers
 	auth.GET("/available", r.GetAvailableAuthProviders)
 
@@ -50,11 +53,11 @@ func (r *Router) AddRoutes() {
 		// Any proxy user can request this for logout.
 		auth.GET("/proxy_logout_details", r.GetProxyLogoutDetails)
 		// Request admin token
-		auth.GET("/admin_token", r.GetAdminToken)
+		auth.GET("/admin_token", adminTokenLimiter, r.GetAdminToken)
 		// Use admin token
-		auth.POST("/admin_token", r.UseAdminToken)
+		auth.POST("/admin_token", adminTokenLimiter, r.UseAdminToken)
 		// Change password
-		auth.POST("/change_password", r.UpdateUserPassword)
+		auth.POST("/change_password", authLimiter, r.UpdateUserPassword)
 	}
 }
 

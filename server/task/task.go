@@ -124,10 +124,21 @@ func SetupTasks(cfg *config.ServerConfig, db *gorm.DB, notifiers ...CalendarNoti
 // Gets schedule from config, or `defaultDur` if not manually configured.
 func GetTaskSeconds(cfg *config.ServerConfig, name string, defaultDur time.Duration) time.Duration {
 	s := defaultDur
-	if cfg.TASK_SCHEDULE[name] != 0 {
-		s = time.Duration(cfg.TASK_SCHEDULE[name]) * time.Second
+	if sec := cfg.GetTaskSchedule(name); sec != 0 {
+		s = time.Duration(sec) * time.Second
 	}
 	return s
+}
+
+// ShutdownTasks gracefully stops the task scheduler.
+func ShutdownTasks() {
+	if taskScheduler != nil {
+		if err := taskScheduler.Shutdown(); err != nil {
+			slog.Warn("ShutdownTasks: Failed to shutdown scheduler cleanly", "error", err)
+		} else {
+			slog.Info("ShutdownTasks: Scheduler stopped cleanly.")
+		}
+	}
 }
 
 // Add new job to scheduler.
@@ -182,10 +193,7 @@ func RescheduleTask(cfg *config.ServerConfig, name string, req TaskRescheduleReq
 		return errors.New("no task found")
 	}
 	// Update config
-	if cfg.TASK_SCHEDULE == nil {
-		cfg.TASK_SCHEDULE = map[string]int{}
-	}
-	cfg.TASK_SCHEDULE[name] = req.Seconds
+	cfg.SetTaskSchedule(name, req.Seconds)
 	if err := cfg.Write(); err != nil {
 		slog.Error("rescheduleTask: Failed to write updated config to file!", "error", err)
 		return errors.New("failed to write config")

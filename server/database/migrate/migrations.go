@@ -373,4 +373,27 @@ var migrations = []Migration{
 			return nil
 		},
 	},
+	{
+		// Adding indexes for user API keys and watched updated_at ordering.
+		ID: "202610241400_0009",
+		Up: func(tx *gorm.DB) error {
+			migID := "202610241400_0009"
+			slog.Info("Migration is starting.", "mig", migID)
+
+			queries := []string{
+				"CREATE INDEX IF NOT EXISTS idx_users_api_key ON users(api_key);",
+				"CREATE INDEX IF NOT EXISTS idx_watcheds_user_updated ON watcheds(user_id, updated_at DESC);",
+			}
+
+			for _, q := range queries {
+				if res := tx.Exec(q); res.Error != nil {
+					slog.Error("Creating integration/sort index failed!", "mig", migID, "query", q, "error", res.Error)
+					return res.Error
+				}
+			}
+
+			slog.Info("Integration and sort indexes created successfully.", "mig", migID)
+			return nil
+		},
+	},
 }

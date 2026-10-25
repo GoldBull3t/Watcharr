@@ -5,6 +5,7 @@
 	import { getMediaLink, getPosterImage, getReleaseYear } from "./mediaHelpers";
 	import { formatPublicRating, formatVoteCount } from "@/lib/rating/helpers";
 	import { viewTransition } from "@/lib/util/viewTransition.svelte";
+	import { t } from "@/lib/i18n";
 	import { onDestroy, onMount } from "svelte";
 
 	interface Props {
@@ -121,17 +122,23 @@
 		<div class="spotlight-top-strip">
 			<div class="strip-badge-wrap">
 				<span class="live-dot"></span>
-				<span class="strip-label">DESTAQUES EM ANDAMENTO</span>
+				<span class="strip-label">{t("dashboard.spotlight_title")}</span>
 				<span class="strip-count">({spotlightItems.length})</span>
 			</div>
 			<button
 				class="collapse-toggle-btn"
 				onclick={toggleCollapse}
-				title={isCollapsed ? "Expandir Spotlight" : "Minimizar Spotlight"}
-				aria-label={isCollapsed ? "Expandir Spotlight" : "Minimizar Spotlight"}
+				title={isCollapsed
+					? t("dashboard.spotlight_expand")
+					: t("dashboard.spotlight_minimize")}
+				aria-label={isCollapsed
+					? t("dashboard.spotlight_expand")
+					: t("dashboard.spotlight_minimize")}
 			>
 				<span class="toggle-text"
-					>{isCollapsed ? "Mostrar Destaques" : "Minimizar"}</span
+					>{isCollapsed
+						? t("dashboard.spotlight_show")
+						: t("dashboard.spotlight_minimize")}</span
 				>
 				<span class="toggle-icon" class:rotated={isCollapsed}>
 					<Icon i="chevron" wh={14} />
@@ -149,10 +156,10 @@
 			{@const voteCount = formatVoteCount(current.ratingCount)}
 			{@const typeLabel =
 				current.type === MediaTypeE.tmdbMovie
-					? "Filme"
+					? t("dashboard.type_movie")
 					: current.type === MediaTypeE.tmdbShow
-						? "Série"
-						: "Jogo"}
+						? t("dashboard.type_show")
+						: t("dashboard.type_game")}
 
 			<div class="spotlight-stage">
 				<!-- Panoramic Backdrop Layer -->
@@ -195,14 +202,14 @@
 						{:else}
 							<span class="progress-pill in-progress">
 								<Icon i="play" wh={12} />
-								A Assistir
+								{t("status.watching")}
 							</span>
 						{/if}
 
 						{#if rating}
 							<span
 								class="rating-pill"
-								title={`${rating} de 10 (${voteCount})`}
+								title={`${rating} / 10 (${voteCount})`}
 							>
 								<Icon i="star" wh={12} />
 								{rating}
@@ -232,7 +239,7 @@
 							onclick={() => onNavigateToItem(current)}
 						>
 							<Icon i="play" wh={16} />
-							<span>Continuar a Ver</span>
+							<span>{t("dashboard.spotlight_continue")}</span>
 						</a>
 						<a
 							href={resolve(link)}
@@ -240,7 +247,7 @@
 							onclick={() => onNavigateToItem(current)}
 						>
 							<Icon i="arrow" wh={14} />
-							<span>Ver Detalhes</span>
+							<span>{t("dashboard.spotlight_details")}</span>
 						</a>
 					</div>
 				</div>
@@ -250,7 +257,7 @@
 					<button
 						class="nav-arrow prev"
 						onclick={prevSlide}
-						aria-label="Item anterior"
+						aria-label={t("dashboard.spotlight_prev")}
 					>
 						<span class="arrow-rotate-left">
 							<Icon i="arrow" wh={16} />
@@ -259,7 +266,7 @@
 					<button
 						class="nav-arrow next"
 						onclick={nextSlide}
-						aria-label="Próximo item"
+						aria-label={t("dashboard.spotlight_next")}
 					>
 						<Icon i="arrow" wh={16} />
 					</button>

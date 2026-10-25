@@ -811,46 +811,152 @@ func (s *Service) bulkRemoveWatched(
 	slog.Info("bulkRemoveWatched:", "userId", userId, "all", req.All, "hard", req.Hard, "idsCount", len(req.IDs))
 
 	var deletedCount int64
-	if req.Hard {
-		if req.All {
-			res := s.db.Unscoped().Where("user_id = ?", userId).Delete(&entity.Watched{})
-			if res.Error != nil {
-				return domain.WatchedBulkRemoveResponse{}, res.Error
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if req.Hard {
+			if req.All {
+				res := tx.Unscoped().Where("user_id = ?", userId).Delete(&entity.Watched{})
+				if res.Error != nil {
+					return res.Error
+				}
+				deletedCount = res.RowsAffected
+				if err := tx.Unscoped().Where("user_id = ?", userId).Delete(&entity.WatchedSeason{}).Error; err != nil {
+					return err
+				}
+				if err := tx.Unscoped().Where("user_id = ?", userId).Delete(&entity.WatchedEpisode{}).Error; err != nil {
+					return err
+				}
+				if err := tx.Unscoped().Where("user_id = ?", userId).Delete(&entity.Activity{}).Error; err != nil {
+					return err
+				}
+			} else if len(req.IDs) > 0 {
+				res := tx.Unscoped().Where("id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.Watched{})
+				if res.Error != nil {
+					return res.Error
+				}
+				deletedCount = res.RowsAffected
+				if err := tx.Unscoped().Where("watched_id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.WatchedSeason{}).Error; err != nil {
+					return err
+				}
+				if err := tx.Unscoped().Where("watched_id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.WatchedEpisode{}).Error; err != nil {
+					return err
+				}
+				if err := tx.Unscoped().Where("watched_id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.Activity{}).Error; err != nil {
+					return err
+				}
 			}
-			deletedCount = res.RowsAffected
-			s.db.Unscoped().Where("user_id = ?", userId).Delete(&entity.WatchedSeason{})
-			s.db.Unscoped().Where("user_id = ?", userId).Delete(&entity.WatchedEpisode{})
-			s.db.Unscoped().Where("user_id = ?", userId).Delete(&entity.Activity{})
-		} else if len(req.IDs) > 0 {
-			res := s.db.Unscoped().Where("id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.Watched{})
-			if res.Error != nil {
-				return domain.WatchedBulkRemoveResponse{}, res.Error
+		} else {
+			if req.All {
+				res := tx.Model(&entity.Watched{}).Where("user_id = ?", userId).Delete(&entity.Watched{})
+				if res.Error != nil {
+					return res.Error
+				}
+				deletedCount = res.RowsAffected
+			} else if len(req.IDs) > 0 {
+				res := tx.Model(&entity.Watched{}).Where("id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.Watched{})
+				if res.Error != nil {
+					return res.Error
+				}
+				deletedCount = res.RowsAffected
 			}
-			deletedCount = res.RowsAffected
-			s.db.Unscoped().Where("watched_id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.WatchedSeason{})
-			s.db.Unscoped().Where("watched_id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.WatchedEpisode{})
-			s.db.Unscoped().Where("watched_id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.Activity{})
 		}
-	} else {
-		if req.All {
-			res := s.db.Model(&entity.Watched{}).Where("user_id = ?", userId).Delete(&entity.Watched{})
-			if res.Error != nil {
-				return domain.WatchedBulkRemoveResponse{}, res.Error
-			}
-			deletedCount = res.RowsAffected
-		} else if len(req.IDs) > 0 {
-			res := s.db.Model(&entity.Watched{}).Where("id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.Watched{})
-			if res.Error != nil {
-				return domain.WatchedBulkRemoveResponse{}, res.Error
-			}
-			deletedCount = res.RowsAffected
-		}
+		return nil
+	})
+	if err != nil {
+		return domain.WatchedBulkRemoveResponse{}, err
 	}
 
 	// Reclaim memory back to OS in background after batch operation
 	go debug.FreeOSMemory()
 
 	return domain.WatchedBulkRemoveResponse{Count: deletedCount}, nil
+}
+
+func (s *Service) bulkUpdateWatched(
+	userId uint,
+	req domain.WatchedBulkUpdateRequest,
+) (domain.WatchedBulkUpdateResponse, error) {
+	slog.Info("bulkUpdateWatched:", "userId", userId, "all", req.All, "idsCount", len(req.IDs), "status", req.Status, "rating", req.Rating)
+
+	if !req.All && len(req.IDs) == 0 {
+		return domain.WatchedBulkUpdateResponse{}, errors.New("no items selected for bulk update")
+	}
+
+	updates := make(map[string]any)
+	if req.Status != "" {
+		if !req.Status.IsValid() {
+			return domain.WatchedBulkUpdateResponse{}, errors.New("invalid status provided")
+		}
+		updates["status"] = req.Status
+	}
+	if req.Rating != nil {
+		if *req.Rating < 0 || *req.Rating > 10 {
+			return domain.WatchedBulkUpdateResponse{}, errors.New("rating must be between 0 and 10")
+		}
+		updates["rating"] = *req.Rating
+	}
+	if len(updates) == 0 {
+		return domain.WatchedBulkUpdateResponse{}, errors.New("nothing to update")
+	}
+
+	var updatedCount int64
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		q := tx.Model(&entity.Watched{}).Where("user_id = ?", userId)
+		if !req.All {
+			q = q.Where("id IN ?", req.IDs)
+		}
+
+		// Find target IDs to record activity entries in bulk
+		var targetIDs []uint
+		if err := q.Pluck("id", &targetIDs).Error; err != nil {
+			return err
+		}
+		if len(targetIDs) == 0 {
+			return nil
+		}
+
+		res := tx.Model(&entity.Watched{}).Where("id IN ? AND user_id = ?", targetIDs, userId).Updates(updates)
+		if res.Error != nil {
+			return res.Error
+		}
+		updatedCount = res.RowsAffected
+
+		var activities []entity.Activity
+		if req.Status != "" {
+			countAsPlay := req.Status == entity.FINISHED
+			statusStr := string(req.Status)
+			for _, wid := range targetIDs {
+				activities = append(activities, entity.Activity{
+					UserID:      userId,
+					WatchedID:   wid,
+					Type:        entity.STATUS_CHANGED,
+					Data:        statusStr,
+					CountAsPlay: countAsPlay,
+				})
+			}
+		}
+		if req.Rating != nil {
+			ratingStr := strconv.FormatFloat(*req.Rating, 'f', -1, 64)
+			for _, wid := range targetIDs {
+				activities = append(activities, entity.Activity{
+					UserID:    userId,
+					WatchedID: wid,
+					Type:      entity.RATING_CHANGED,
+					Data:      ratingStr,
+				})
+			}
+		}
+		if len(activities) > 0 {
+			if err := tx.CreateInBatches(&activities, 200).Error; err != nil {
+				slog.Warn("bulkUpdateWatched: Failed to insert batch activities", "error", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return domain.WatchedBulkUpdateResponse{}, err
+	}
+
+	return domain.WatchedBulkUpdateResponse{Count: updatedCount}, nil
 }
 
 // Get all currently watching items across the entire collection for the user.

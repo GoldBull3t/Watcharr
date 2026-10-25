@@ -11,9 +11,10 @@
 		wh?: number;
 		mediaTitle?: string;
 		type?: MediaProviderType;
+		logoPath?: string;
 	}
 
-	let { i, href, wh = 24, mediaTitle, type }: Props = $props();
+	let { i, href, wh = 24, mediaTitle, type, logoPath }: Props = $props();
 
 	const computedHref = $derived.by(() => {
 		if (href && href.trim().length > 0) return href;
@@ -299,6 +300,15 @@
 				/>
 			</svg>
 			<span class="provider-label">itch.io</span>
+		{:else if logoPath}
+			<img
+				src={`https://image.tmdb.org/t/p/w92${logoPath}`}
+				alt={i}
+				class="tmdb-provider-logo"
+				width="20"
+				height="20"
+			/>
+			<span class="provider-generic-name">{i}</span>
 		{:else}
 			<span class="provider-generic-name">{i}</span>
 		{/if}
@@ -306,6 +316,12 @@
 
 	{#if type === MediaProviderType.Free}
 		<span class="free-pill">Grátis</span>
+	{:else if type === MediaProviderType.Ads}
+		<span class="free-pill ads-pill">Grátis c/ Ads</span>
+	{:else if type === MediaProviderType.Rent}
+		<span class="rent-pill">Aluguer</span>
+	{:else if type === MediaProviderType.Buy}
+		<span class="buy-pill">Compra</span>
 	{/if}
 
 	<span class="ext-arrow">↗</span>
@@ -377,7 +393,16 @@
 			white-space: nowrap;
 		}
 
-		.free-pill {
+		.tmdb-provider-logo {
+			width: 20px;
+			height: 20px;
+			border-radius: 5px;
+			object-fit: cover;
+		}
+
+		.free-pill,
+		.rent-pill,
+		.buy-pill {
 			display: inline-flex;
 			align-items: center;
 			padding: 2px 6px;
@@ -390,6 +415,18 @@
 			border: 1px solid rgba(52, 211, 153, 0.4);
 			color: #6ee7b7;
 			line-height: 1;
+		}
+
+		.rent-pill {
+			background: rgba(251, 191, 36, 0.16);
+			border-color: rgba(251, 191, 36, 0.38);
+			color: #fde68a;
+		}
+
+		.buy-pill {
+			background: rgba(96, 165, 250, 0.16);
+			border-color: rgba(96, 165, 250, 0.38);
+			color: #bfdbfe;
 		}
 
 		.ext-arrow {

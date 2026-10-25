@@ -2,6 +2,7 @@
 	import type { WatchedStatus } from "@/types";
 	import { RatingSystem } from "@/types";
 	import { store } from "@/store.svelte";
+	import { t } from "@/lib/i18n";
 	import Icon from "../Icon.svelte";
 
 	interface Props {
@@ -107,28 +108,36 @@
 			<div class="dock-group selection-group">
 				<div class="count-tag">
 					<span class="num">{selectedCount}</span>
-					<span class="lbl">{selectedCount === 1 ? "selecionado" : "selecionados"}</span>
+					<span class="lbl"
+						>{selectedCount === 1
+							? t("dashboard.bulk_selected_one")
+							: t("dashboard.bulk_selected_many")}</span
+					>
 				</div>
 				<button
 					class="ghost-btn"
 					onclick={onSelectAll}
-					title="Selecionar itens carregados no ecrã"
+					title={t("dashboard.bulk_loaded_title")}
 				>
-					Carregados
+					{t("dashboard.bulk_loaded")}
 				</button>
 				{#if totalCount && totalCount > selectedCount && onSelectAllEverywhere}
 					<span class="bullet">•</span>
 					<button
 						class="ghost-btn all-bib-btn"
 						onclick={onSelectAllEverywhere}
-						title={`Selecionar todos os ${totalCount} itens da biblioteca`}
+						title={t("dashboard.bulk_all_title", { count: totalCount })}
 					>
-						Todos ({totalCount})
+						{t("dashboard.bulk_all", { count: totalCount })}
 					</button>
 				{/if}
 				<span class="bullet">•</span>
-				<button class="ghost-btn" onclick={onClear} title="Limpar seleção">
-					Limpar
+				<button
+					class="ghost-btn"
+					onclick={onClear}
+					title={t("dashboard.bulk_clear_title")}
+				>
+					{t("dashboard.bulk_clear")}
 				</button>
 			</div>
 
@@ -150,7 +159,7 @@
 						aria-expanded={statusMenuOpen}
 					>
 						<Icon i="clock" wh={13} />
-						<span>Status</span>
+						<span>{t("dashboard.bulk_status")}</span>
 						<Icon i="chevron" facing={statusMenuOpen ? "up" : "down"} wh={10} />
 					</button>
 
@@ -163,7 +172,7 @@
 							>
 								<span class="dot-indicator watching"></span>
 								<Icon i="clock" wh={13} />
-								<span>Watching</span>
+								<span>{t("status.watching")}</span>
 							</button>
 							<button
 								class="flyout-row row-finished"
@@ -172,7 +181,7 @@
 							>
 								<span class="dot-indicator finished"></span>
 								<Icon i="check" wh={13} />
-								<span>Finished</span>
+								<span>{t("status.finished")}</span>
 							</button>
 							<button
 								class="flyout-row row-planned"
@@ -181,7 +190,7 @@
 							>
 								<span class="dot-indicator planned"></span>
 								<Icon i="calendar" wh={13} />
-								<span>Plan to Watch</span>
+								<span>{t("status.planned")}</span>
 							</button>
 							<button
 								class="flyout-row row-hold"
@@ -190,7 +199,7 @@
 							>
 								<span class="dot-indicator hold"></span>
 								<Icon i="pause" wh={13} />
-								<span>On Hold</span>
+								<span>{t("status.hold")}</span>
 							</button>
 							<button
 								class="flyout-row row-dropped"
@@ -199,7 +208,7 @@
 							>
 								<span class="dot-indicator dropped"></span>
 								<Icon i="thumb-down" wh={13} />
-								<span>Stopped Watching</span>
+								<span>{t("status.dropped")}</span>
 							</button>
 							<button
 								class="flyout-row row-cancelled"
@@ -208,7 +217,7 @@
 							>
 								<span class="dot-indicator cancelled"></span>
 								<Icon i="close-circle" wh={13} />
-								<span>Cancelled</span>
+								<span>{t("status.cancelled")}</span>
 							</button>
 						</div>
 					{/if}
@@ -229,17 +238,17 @@
 							aria-expanded={rateMenuOpen}
 						>
 							<Icon i="star" wh={13} />
-							<span>Rate</span>
+							<span>{t("dashboard.bulk_rate")}</span>
 						</button>
 
 						{#if rateMenuOpen}
 							<div
 								class="dock-flyout rate-flyout"
 								role="dialog"
-								aria-label="Rate selected items"
+								aria-label={t("dashboard.bulk_rate_items", { count: selectedCount })}
 							>
 								<div class="rate-popover-header">
-									<span>Rate {selectedCount} items</span>
+									<span>{t("dashboard.bulk_rate_items", { count: selectedCount })}</span>
 									{#if hoveredScore}
 										<span class="live-score">
 											★ {isOutOf100 ? hoveredScore * 10 : hoveredScore}
@@ -305,10 +314,16 @@
 					class="dock-pill-btn btn-delete"
 					class:confirming={isConfirmingDelete}
 					onclick={handleDeleteClick}
-					title={isConfirmingDelete ? "Clique novamente para confirmar a eliminação" : "Remover itens"}
+					title={isConfirmingDelete
+						? t("dashboard.bulk_delete_confirm_title")
+						: t("action.delete")}
 				>
 					<Icon i="trash" wh={13} />
-					<span>{isConfirmingDelete ? `Eliminar (${selectedCount})?` : "Eliminar"}</span>
+					<span
+						>{isConfirmingDelete
+							? t("dashboard.bulk_delete_confirm", { count: selectedCount })
+							: t("action.delete")}</span
+					>
 				</button>
 			</div>
 

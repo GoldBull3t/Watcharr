@@ -2,12 +2,16 @@ package calendar
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -17,6 +21,70 @@ import (
 
 var httpClient = &http.Client{
 	Timeout: 15 * time.Second,
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+	Transport: &http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			host, port, err := net.SplitHostPort(addr)
+			if err != nil {
+				return nil, err
+			}
+			ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+			if err != nil || len(ips) == 0 {
+				return nil, fmt.Errorf("failed to resolve webhook host: %w", err)
+			}
+			allowLocal := os.Getenv("ALLOW_LOCAL_WEBHOOKS") == "true"
+			var safeIP net.IP
+			for _, ipAddr := range ips {
+				ip := ipAddr.IP
+				if isBlockedWebhookIP(ip, allowLocal) {
+					return nil, errors.New("webhook destination IP is restricted for security (SSRF protection)")
+				}
+				if safeIP == nil {
+					safeIP = ip
+				}
+			}
+			dialer := &net.Dialer{Timeout: 10 * time.Second}
+			return dialer.DialContext(ctx, network, net.JoinHostPort(safeIP.String(), port))
+		},
+	},
+}
+
+func isBlockedWebhookIP(ip net.IP, allowLocal bool) bool {
+	if ip == nil {
+		return true
+	}
+	// Always block unspecified (0.0.0.0), multicast, and link-local / cloud metadata (169.254.0.0/16, fe80::/10)
+	if ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		return true
+	}
+	if !allowLocal {
+		if ip.IsLoopback() || ip.IsPrivate() {
+			return true
+		}
+	}
+	return false
+}
+
+func validateWebhookURL(rawURL string) (string, error) {
+	uStr := strings.TrimSpace(rawURL)
+	if !strings.HasPrefix(uStr, "http://") && !strings.HasPrefix(uStr, "https://") {
+		return "", errors.New("webhook URL must start with http:// or https://")
+	}
+	parsed, err := url.Parse(uStr)
+	if err != nil || parsed.Hostname() == "" {
+		return "", errors.New("invalid webhook URL")
+	}
+	allowLocal := os.Getenv("ALLOW_LOCAL_WEBHOOKS") == "true"
+	if ip := net.ParseIP(parsed.Hostname()); ip != nil {
+		if isBlockedWebhookIP(ip, allowLocal) {
+			return "", errors.New("webhook URL points to a restricted internal IP address")
+		}
+	} else if !allowLocal && strings.EqualFold(parsed.Hostname(), "localhost") {
+		return "", errors.New("webhook URL cannot target localhost unless ALLOW_LOCAL_WEBHOOKS=true")
+	}
+	return uStr, nil
 }
 
 // Discord Webhook Payload
@@ -183,9 +251,9 @@ func (s *Service) CheckAndNotifyAllUsers() error {
 
 // SendWebhook dispatches formatted payloads to the webhook URL.
 func (s *Service) SendWebhook(webhookUrl string, events []domain.CalendarEvent, isTest bool) error {
-	u := strings.TrimSpace(webhookUrl)
-	if !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") {
-		return errors.New("webhook URL must start with http:// or https://")
+	u, err := validateWebhookURL(webhookUrl)
+	if err != nil {
+		return err
 	}
 
 	isDiscord := strings.Contains(u, "discord.com/api/webhooks") || strings.Contains(u, "discordapp.com/api/webhooks")
@@ -297,8 +365,9 @@ func (s *Service) sendDiscordWebhook(url string, events []domain.CalendarEvent, 
 		defer resp.Body.Close()
 
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			respBody, _ := io.ReadAll(resp.Body)
-			return fmt.Errorf("discord webhook returned %d: %s", resp.StatusCode, string(respBody))
+			respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+			slog.Warn("Calendar: Discord webhook returned non-2xx status", "status", resp.StatusCode, "body", string(respBody))
+			return fmt.Errorf("discord webhook returned status %d", resp.StatusCode)
 		}
 	}
 
@@ -336,8 +405,9 @@ func (s *Service) sendSlackWebhook(url string, events []domain.CalendarEvent, is
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("slack webhook returned %d: %s", resp.StatusCode, string(respBody))
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		slog.Warn("Calendar: Slack webhook returned non-2xx status", "status", resp.StatusCode, "body", string(respBody))
+		return fmt.Errorf("slack webhook returned status %d", resp.StatusCode)
 	}
 
 	return nil
@@ -371,8 +441,9 @@ func (s *Service) sendGenericWebhook(url string, events []domain.CalendarEvent, 
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("webhook returned %d: %s", resp.StatusCode, string(respBody))
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		slog.Warn("Calendar: Generic webhook returned non-2xx status", "status", resp.StatusCode, "body", string(respBody))
+		return fmt.Errorf("webhook returned status %d", resp.StatusCode)
 	}
 
 	return nil

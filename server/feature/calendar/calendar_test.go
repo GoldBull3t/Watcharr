@@ -232,3 +232,25 @@ func BenchmarkCalendarGetEvents_LargeLibrary(b *testing.B) {
 		}
 	}
 }
+
+func TestWebhookSSRFProtection(t *testing.T) {
+	db := testutil.SetupDB(t)
+	cfg := &config.ServerConfig{}
+	svc := calendar.NewService(db, cfg, nil)
+
+	blockedURLs := []string{
+		"http://127.0.0.1:8080/internal",
+		"http://localhost:3080/api/health",
+		"http://169.254.169.254/latest/meta-data/",
+		"http://192.168.1.1/admin",
+		"http://10.0.0.1/secret",
+		"ftp://example.com/webhook",
+	}
+
+	for _, u := range blockedURLs {
+		err := svc.SendWebhook(u, []domain.CalendarEvent{}, true)
+		if err == nil {
+			t.Errorf("expected SSRF protection to block URL %q, but it was allowed", u)
+		}
+	}
+}

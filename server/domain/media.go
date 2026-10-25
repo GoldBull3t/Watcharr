@@ -179,8 +179,34 @@ type Media struct {
 	// Properties only for movies/tv.
 	//
 
+	// Tagline (short slogan/catchphrase).
+	Tagline string `json:"tagline,omitempty"`
+	// Original title (in original language).
+	OriginalTitle string `json:"originalTitle,omitempty"`
+	// Original ISO-639-1 language code.
+	OriginalLanguage string `json:"originalLanguage,omitempty"`
+	// Age rating / certification (e.g. PG-13, R, TV-MA, M/16).
+	Certification string `json:"certification,omitempty"`
 	// Runtime.
 	Runtime uint `json:"runtime,omitempty"`
+	// Budget & Revenue (movies).
+	Budget  uint32 `json:"budget,omitempty"`
+	Revenue uint32 `json:"revenue,omitempty"`
+	// Number of episodes & seasons (shows).
+	NumberOfEpisodes uint32 `json:"numberOfEpisodes,omitempty"`
+	NumberOfSeasons  uint32 `json:"numberOfSeasons,omitempty"`
+	// Networks (Netflix, HBO, Apple TV+, etc.) and Production Companies.
+	Networks            []MediaNetwork `json:"networks,omitempty"`
+	ProductionCompanies []MediaNetwork `json:"productionCompanies,omitempty"`
+	// Creators (for TV shows).
+	CreatedBy []MediaCreator `json:"createdBy,omitempty"`
+	// Last and Next episode to air (for TV shows).
+	LastEpisode *MediaEpisodeSummary `json:"lastEpisode,omitempty"`
+	NextEpisode *MediaEpisodeSummary `json:"nextEpisode,omitempty"`
+	// Recommendations (from TMDB recommendation engine).
+	Recommendations []Media `json:"recommendations,omitempty"`
+	// External Multi-Platform Ratings & Awards (IMDb, Rotten Tomatoes, Metacritic, Letterboxd, Trakt, TVMaze, AniList).
+	ExternalRatings *ExternalRatings `json:"externalRatings,omitempty"`
 	// Seasons.
 	Seasons []MediaSeason `json:"seasons,omitempty"`
 	// Simple bool for our RequestShow component since Sonarr can be given a
@@ -201,6 +227,72 @@ type Media struct {
 
 	// Game modes.
 	GameModes []MediaGenre `json:"gameModes,omitempty"`
+	// Themes (Sci-Fi, Fantasy, Open World, Horror, etc.).
+	Themes []MediaGenre `json:"themes,omitempty"`
+	// Storyline (extended plot for games).
+	Storyline string `json:"storyline,omitempty"`
+	// Critic rating (IGDB Aggregated Rating 0-100) and count.
+	CriticRating      uint `json:"criticRating,omitempty"`
+	CriticRatingCount uint `json:"criticRatingCount,omitempty"`
+	// Platforms (PC, PS5, Xbox Series X|S, Switch, etc.).
+	Platforms []string `json:"platforms,omitempty"`
+	// Developers & Publishers.
+	Developers []string `json:"developers,omitempty"`
+	Publishers []string `json:"publishers,omitempty"`
+	// Player perspectives (First person, Third person, Isometric).
+	PlayerPerspectives []string `json:"playerPerspectives,omitempty"`
+	// Screenshots & Artworks (IGDB image IDs).
+	Screenshots []string `json:"screenshots,omitempty"`
+	Artworks    []string `json:"artworks,omitempty"`
+	// Time to beat (HowLongToBeat / IGDB GameTimeToBeats).
+	TimeToBeat *MediaTimeToBeat `json:"timeToBeat,omitempty"`
+}
+
+type MediaNetwork struct {
+	ID            int    `json:"id,omitempty"`
+	Name          string `json:"name"`
+	LogoPath      string `json:"logoPath,omitempty"`
+	OriginCountry string `json:"originCountry,omitempty"`
+}
+
+type MediaCreator struct {
+	ID          int    `json:"id,omitempty"`
+	Name        string `json:"name"`
+	ProfilePath string `json:"profilePath,omitempty"`
+}
+
+type MediaEpisodeSummary struct {
+	SeasonNumber  int    `json:"seasonNumber"`
+	EpisodeNumber int    `json:"episodeNumber"`
+	Name          string `json:"name,omitempty"`
+	AirDate       string `json:"airDate,omitempty"`
+	Runtime       int    `json:"runtime,omitempty"`
+	Overview      string `json:"overview,omitempty"`
+}
+
+type MediaTimeToBeat struct {
+	Hastily    int `json:"hastily,omitempty"`    // minutes
+	Normally   int `json:"normally,omitempty"`   // minutes
+	Completely int `json:"completely,omitempty"` // minutes
+	Count      int `json:"count,omitempty"`
+}
+
+type ExternalRatings struct {
+	IMDbRating             string `json:"imdbRating,omitempty"`
+	IMDbVotes              string `json:"imdbVotes,omitempty"`
+	RottenTomatoes         string `json:"rottenTomatoes,omitempty"`
+	RottenTomatoesAudience string `json:"rottenTomatoesAudience,omitempty"`
+	Metacritic             string `json:"metacritic,omitempty"`
+	Letterboxd             string `json:"letterboxd,omitempty"`
+	Trakt                  string `json:"trakt,omitempty"`
+	TVMaze                 string `json:"tvmaze,omitempty"`
+	AniList                string `json:"anilist,omitempty"`
+	MyAnimeListID          int    `json:"malId,omitempty"`
+	AnimationStudio        string `json:"animationStudio,omitempty"`
+	SourceMaterial         string `json:"sourceMaterial,omitempty"`
+	Awards                 string `json:"awards,omitempty"`
+	BoxOffice              string `json:"boxOffice,omitempty"`
+	NetworkSchedule        string `json:"networkSchedule,omitempty"`
 }
 
 type MediaCollection struct {
@@ -291,14 +383,25 @@ func NewMediaFromContent(c *entity.Content) Media {
 	m := Media{
 		IDs: MediaIDs{
 			TMDB: c.TmdbID,
+			IMDB: c.ImdbID,
 		},
-		Name:          c.Title,
-		Summary:       c.Overview,
-		ExtPosterPath: c.PosterPath,
-		Rating:        uint(math.Round(float64(c.VoteAverage * 10))),
-		RatingCount:   uint(c.VoteCount),
-		Runtime:       uint(c.Runtime),
-		Status:        c.Status,
+		Name:             c.Title,
+		Summary:          c.Overview,
+		Tagline:          c.Tagline,
+		OriginalTitle:    c.OriginalTitle,
+		OriginalLanguage: c.OriginalLanguage,
+		Homepage:         c.Homepage,
+		Certification:    c.Certification,
+		ExtPosterPath:    c.PosterPath,
+		ExtBackdropPath:  c.BackdropPath,
+		Rating:           uint(math.Round(float64(c.VoteAverage * 10))),
+		RatingCount:      uint(c.VoteCount),
+		Runtime:          uint(c.Runtime),
+		Budget:           c.Budget,
+		Revenue:          c.Revenue,
+		NumberOfEpisodes: c.NumberOfEpisodes,
+		NumberOfSeasons:  c.NumberOfSeasons,
+		Status:           c.Status,
 	}
 	switch c.Type {
 	case entity.MOVIE:
@@ -318,13 +421,22 @@ func NewMediaFromGame(c *entity.Game) Media {
 		IDs: MediaIDs{
 			IGDB: c.IgdbID,
 		},
-		Type:          MediaTypeIGDBGame,
-		Name:          c.Name,
-		Summary:       c.Summary,
-		Poster:        c.Poster,
-		ExtPosterPath: c.CoverID,
-		Rating:        uint(c.Rating),
-		RatingCount:   uint(c.RatingCount),
+		Type:            MediaTypeIGDBGame,
+		Name:            c.Name,
+		Summary:         c.Summary,
+		Storyline:       c.Storyline,
+		Poster:          c.Poster,
+		ExtPosterPath:   c.CoverID,
+		ExtBackdropPath: c.BackdropID,
+		Rating:          uint(c.Rating),
+		RatingCount:     uint(c.RatingCount),
+		CriticRating:    uint(math.Round(c.AggregatedRating)),
+	}
+	if c.TimeToBeatNormal > 0 {
+		m.Runtime = uint(c.TimeToBeatNormal / 60)
+		m.TimeToBeat = &MediaTimeToBeat{
+			Normally: c.TimeToBeatNormal / 60,
+		}
 	}
 	if c.ReleaseDate != nil {
 		m.ReleaseDate = *c.ReleaseDate

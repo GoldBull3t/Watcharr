@@ -33,7 +33,14 @@ type Content struct {
 	TmdbID           int         `json:"tmdbId" gorm:"uniqueIndex:contentidtotypeidx;not null"`
 	Title            string      `json:"title"`
 	PosterPath       string      `json:"poster_path"`
+	BackdropPath     string      `json:"backdrop_path,omitempty"`
 	Overview         string      `json:"overview"`
+	Tagline          string      `json:"tagline,omitempty"`
+	OriginalTitle    string      `json:"original_title,omitempty"`
+	OriginalLanguage string      `json:"original_language,omitempty"`
+	Homepage         string      `json:"homepage,omitempty"`
+	Certification    string      `json:"certification,omitempty"`
+	Networks         string      `json:"networks,omitempty"`
 	Type             ContentType `json:"type" gorm:"uniqueIndex:contentidtotypeidx;not null"`
 	ReleaseDate      *time.Time  `json:"release_date,omitempty"`
 	Popularity       float32     `json:"popularity"`

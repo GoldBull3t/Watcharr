@@ -5,6 +5,9 @@ type MediaProviderType string
 const (
 	MediaProviderTypeSub  MediaProviderType = "sub"
 	MediaProviderTypeFree MediaProviderType = "free"
+	MediaProviderTypeAds  MediaProviderType = "ads"
+	MediaProviderTypeRent MediaProviderType = "rent"
+	MediaProviderTypeBuy  MediaProviderType = "buy"
 )
 
 type MediaProvider struct {
@@ -16,4 +19,6 @@ type MediaProvider struct {
 	// We can't get a direct link to content from tmdb, we are told to link
 	// to tmdb to support them instead and from there the user can see deep links.
 	Link string `json:"link,omitempty"`
+	// Logo path from TMDB (e.g. /t2yyOv40HZeVlLjYsCsPHnWLk4W.jpg)
+	LogoPath string `json:"logoPath,omitempty"`
 }

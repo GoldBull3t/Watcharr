@@ -37,6 +37,7 @@
 	import MovieCollection from "@/lib/content/MovieCollection.svelte";
 	import MediaLightbox from "@/lib/content/MediaLightbox.svelte";
 	import FranchiseBadgeLink from "@/lib/franchise/FranchiseBadgeLink.svelte";
+	import ExternalRatingsBar from "@/lib/content/ExternalRatingsBar.svelte";
 
 	let { data } = $props();
 
@@ -167,6 +168,11 @@
 						/>
 
 						<span class="quick-info">
+							{#if movie.certification}
+								<span class="runtime-pill cert-pill">
+									{movie.certification}
+								</span>
+							{/if}
 							{#if movie.runtime}
 								<span class="runtime-pill">
 									<Icon i="clock" wh={13} />
@@ -176,6 +182,8 @@
 
 							<Genres genres={movie.genres} />
 						</span>
+
+						<ExternalRatingsBar media={movie} />
 
 						<ExpandableText text={movie.summary} style="margin-bottom: 18px;" />
 

@@ -32,6 +32,8 @@ func (r *Router) AddRoutes() {
 	watched.GET("/export", r.ExportWatchedList)
 	watched.GET(":id/:username", router.PaginatedRequest(true), r.GetPublicWatchedList)
 	watched.POST("", r.AddWatched)
+	watched.PUT("/bulk", r.BulkUpdateWatched)
+	watched.POST("/bulk-update", r.BulkUpdateWatched)
 	watched.POST("/bulk-delete", r.BulkDeleteWatched)
 	watched.PUT(":id", r.UpdateWatched)
 	watched.DELETE(":id", r.DeleteWatched)
@@ -190,6 +192,21 @@ func (r *Router) BulkDeleteWatched(c *gin.Context) {
 	response, err := r.s.bulkRemoveWatched(userId, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, response)
+}
+
+func (r *Router) BulkUpdateWatched(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	var req domain.WatchedBulkUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	response, err := r.s.bulkUpdateWatched(userId, req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, response)

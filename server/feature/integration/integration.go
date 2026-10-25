@@ -2,6 +2,7 @@ package integration
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -19,7 +20,10 @@ import (
 	"gorm.io/gorm"
 )
 
-var IntegrationStore = gocache.New(time.Minute*2, time.Minute*1)
+var (
+	IntegrationStore       = gocache.New(time.Minute*2, time.Minute*1)
+	timeOfNewLoginRequired = time.Date(2023, 8, 18, 20, 30, 0, 0, time.UTC)
+)
 
 type NextUpItem struct {
 	Title        string `json:"title"`
@@ -31,24 +35,40 @@ type NextUpItem struct {
 }
 
 type HomepageResponse struct {
-	WatchedMovies   int32       `json:"watchedMovies"`
-	WatchedEpisodes int32       `json:"watchedEpisodes"`
-	HoursWatched    int32       `json:"hoursWatched"`
-	WatchlistCount  int32       `json:"watchlistCount"`
-	NextUp          *NextUpItem `json:"nextUp,omitempty"`
+	WatchedMovies     int32        `json:"watchedMovies"`
+	WatchedEpisodes   int32        `json:"watchedEpisodes"`
+	ShowsWatched      int32        `json:"showsWatched"`
+	ShowsWatching     int32        `json:"showsWatching"`
+	GamesPlayed       int32        `json:"gamesPlayed"`
+	GamesPlaying      int32        `json:"gamesPlaying"`
+	HoursWatched      int32        `json:"hoursWatched"`
+	HoursPlayed       int32        `json:"hoursPlayed"`
+	WatchlistCount    int32        `json:"watchlistCount"`
+	UpcomingNext7Days int          `json:"upcomingNext7Days"`
+	NextUp            *NextUpItem  `json:"nextUp,omitempty"`
+	CurrentlyWatching []NextUpItem `json:"currentlyWatching,omitempty"`
+	TopGenres         []string     `json:"topGenres,omitempty"`
 }
 
 type HASensorAttributes struct {
-	WatchedMovies   int32  `json:"watchedMovies"`
-	WatchedEpisodes int32  `json:"watchedEpisodes"`
-	HoursWatched    int32  `json:"hoursWatched"`
-	WatchlistCount  int32  `json:"watchlistCount"`
-	LastWatched     string `json:"lastWatched,omitempty"`
-	TodayReleases   int    `json:"todayReleases"`
-	NextUpTitle     string `json:"nextUpTitle,omitempty"`
-	NextUpSeason    int    `json:"nextUpSeason,omitempty"`
-	NextUpEpisode   int    `json:"nextUpEpisode,omitempty"`
-	NextUpAirDate   string `json:"nextUpAirDate,omitempty"`
+	WatchedMovies     int32        `json:"watchedMovies"`
+	WatchedEpisodes   int32        `json:"watchedEpisodes"`
+	ShowsWatched      int32        `json:"showsWatched"`
+	ShowsWatching     int32        `json:"showsWatching"`
+	GamesPlayed       int32        `json:"gamesPlayed"`
+	GamesPlaying      int32        `json:"gamesPlaying"`
+	HoursWatched      int32        `json:"hoursWatched"`
+	HoursPlayed       int32        `json:"hoursPlayed"`
+	WatchlistCount    int32        `json:"watchlistCount"`
+	LastWatched       string       `json:"lastWatched,omitempty"`
+	TodayReleases     int          `json:"todayReleases"`
+	UpcomingNext7Days int          `json:"upcomingNext7Days"`
+	NextUpTitle       string       `json:"nextUpTitle,omitempty"`
+	NextUpSeason      int          `json:"nextUpSeason,omitempty"`
+	NextUpEpisode     int          `json:"nextUpEpisode,omitempty"`
+	NextUpAirDate     string       `json:"nextUpAirDate,omitempty"`
+	CurrentlyWatching []NextUpItem `json:"currentlyWatching,omitempty"`
+	TopGenres         []string     `json:"topGenres,omitempty"`
 }
 
 type HASensorResponse struct {
@@ -116,19 +136,29 @@ func (s *Service) Authenticate(tokenStr string) (uint, error) {
 		return 0, errors.New("token vazio")
 	}
 
-	// 1. Check if token is a valid JWT
-	claims := &entity.TokenClaims{}
-	token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
-		return []byte(s.cfg.JWT_SECRET), nil
-	})
-	if err == nil && token.Valid && claims.UserID > 0 {
-		return claims.UserID, nil
+	// 1. Check if token is a valid JWT (with strict HMAC signing method validation)
+	if !strings.HasPrefix(tokenStr, "wchr_") {
+		claims := &entity.TokenClaims{}
+		token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+			}
+			return []byte(s.cfg.JWT_SECRET), nil
+		})
+		if err == nil && token.Valid && claims.UserID > 0 {
+			if claims.IssuedAt != nil && claims.IssuedAt.Before(timeOfNewLoginRequired) {
+				return 0, errors.New("token expirado")
+			}
+			return claims.UserID, nil
+		}
 	}
 
 	// 2. Check if token matches a static API key in the database
 	var user entity.User
-	if err := s.db.Where("api_key = ?", tokenStr).Select("id").First(&user).Error; err == nil && user.ID > 0 {
-		return user.ID, nil
+	if err := s.db.Where("api_key = ? AND api_key != ''", tokenStr).Select("id, api_key").First(&user).Error; err == nil && user.ID > 0 {
+		if subtle.ConstantTimeCompare([]byte(user.ApiKey), []byte(tokenStr)) == 1 {
+			return user.ID, nil
+		}
 	}
 
 	return 0, errors.New("chave de API ou token inválido")
@@ -146,7 +176,9 @@ func (s *Service) GetHomepageData(userId uint) (HomepageResponse, error) {
 	var watched []entity.Watched
 	err := s.db.Model(&entity.Watched{}).
 		Preload("Content").
+		Preload("Game").
 		Preload("WatchedEpisodes").
+		Preload("WatchedSeasons").
 		Where("user_id = ?", userId).
 		Order("updated_at DESC").
 		Find(&watched).Error
@@ -155,29 +187,74 @@ func (s *Service) GetHomepageData(userId uint) (HomepageResponse, error) {
 	}
 
 	var (
-		watchedMovies   int32
-		watchedEpisodes int32
-		totalMinutes    uint32
-		watchlistCount  int32
-		nextUp          *NextUpItem
+		watchedMovies     int32
+		watchedEpisodes   int32
+		showsWatched      int32
+		showsWatching     int32
+		gamesPlayed       int32
+		gamesPlaying      int32
+		totalMinutes      uint32
+		totalGameMinutes  uint32
+		watchlistCount    int32
+		nextUp            *NextUpItem
+		currentlyWatching []NextUpItem
+		genreCounts       = make(map[string]int)
 	)
 
 	for _, w := range watched {
-		if w.Content == nil {
-			continue
-		}
-
 		// Watchlist
 		if w.Status == entity.PLANNED {
 			watchlistCount++
 		}
 
+		if w.Game != nil {
+			if w.Status == entity.WATCHING {
+				gamesPlaying++
+			} else if w.Status == entity.FINISHED {
+				gamesPlayed++
+				if w.Game.TimeToBeatNormal > 0 {
+					totalGameMinutes += uint32(w.Game.TimeToBeatNormal / 60)
+				} else {
+					totalGameMinutes += 15 * 60
+				}
+			}
+			continue
+		}
+
+		if w.Content == nil {
+			continue
+		}
+
+		if w.Status == entity.FINISHED || w.Status == entity.WATCHING {
+			for _, g := range strings.Split(w.Content.Genres, ",") {
+				g = strings.TrimSpace(g)
+				if g != "" {
+					genreCounts[g]++
+				}
+			}
+		}
+
 		if w.Content.Type == entity.MOVIE {
 			if w.Status == entity.FINISHED {
 				watchedMovies++
-				totalMinutes += w.Content.Runtime
+				rt := w.Content.Runtime
+				if rt == 0 {
+					rt = 110
+				}
+				totalMinutes += rt
 			}
 		} else if w.Content.Type == entity.SHOW {
+			if w.Status == entity.FINISHED {
+				showsWatched++
+			} else if w.Status == entity.WATCHING {
+				showsWatching++
+			}
+
+			effRuntime := w.Content.Runtime
+			if effRuntime == 0 {
+				effRuntime = 42
+			}
+
 			episodesDone := 0
 			var highestSeason, highestEpisode int
 
@@ -193,14 +270,40 @@ func (s *Service) GetHomepageData(userId uint) (HomepageResponse, error) {
 
 			if episodesDone > 0 {
 				watchedEpisodes += int32(episodesDone)
-				totalMinutes += uint32(episodesDone) * w.Content.Runtime
+				totalMinutes += uint32(episodesDone) * effRuntime
 			} else if w.Status == entity.FINISHED {
-				watchedEpisodes += int32(w.Content.NumberOfEpisodes)
-				totalMinutes += w.Content.NumberOfEpisodes * w.Content.Runtime
+				epCount := w.Content.NumberOfEpisodes
+				if epCount == 0 {
+					epCount = 10
+				}
+				watchedEpisodes += int32(epCount)
+				totalMinutes += epCount * effRuntime
+			} else if len(w.WatchedSeasons) > 0 {
+				finishedSeasons := 0
+				for _, ws := range w.WatchedSeasons {
+					if ws.Status == entity.FINISHED {
+						finishedSeasons++
+						if ws.SeasonNumber > highestSeason {
+							highestSeason = ws.SeasonNumber
+						}
+					}
+				}
+				if finishedSeasons > 0 {
+					epsPerSeason := uint32(10)
+					if w.Content.NumberOfSeasons > 0 && w.Content.NumberOfEpisodes > 0 {
+						epsPerSeason = w.Content.NumberOfEpisodes / w.Content.NumberOfSeasons
+						if epsPerSeason == 0 {
+							epsPerSeason = 8
+						}
+					}
+					estEps := uint32(finishedSeasons) * epsPerSeason
+					watchedEpisodes += int32(estEps)
+					totalMinutes += estEps * effRuntime
+				}
 			}
 
 			// Find next episode to watch for currently watching shows
-			if nextUp == nil && w.Status == entity.WATCHING {
+			if w.Status == entity.WATCHING {
 				targetSeason := 1
 				targetEpisode := 1
 				if highestSeason > 0 {
@@ -208,24 +311,69 @@ func (s *Service) GetHomepageData(userId uint) (HomepageResponse, error) {
 					targetEpisode = highestEpisode + 1
 				}
 
-				nextUp = &NextUpItem{
+				item := NextUpItem{
 					Title:   w.Content.Title,
 					Season:  targetSeason,
 					Episode: targetEpisode,
 					Poster:  w.Content.PosterPath,
 				}
+				if nextUp == nil {
+					nextUp = &item
+				}
+				if len(currentlyWatching) < 5 {
+					currentlyWatching = append(currentlyWatching, item)
+				}
 			}
 		}
 	}
 
+	var topGenres []string
+	for len(topGenres) < 3 && len(genreCounts) > 0 {
+		bestG := ""
+		bestC := 0
+		for g, c := range genreCounts {
+			if c > bestC {
+				bestC = c
+				bestG = g
+			}
+		}
+		if bestG == "" {
+			break
+		}
+		topGenres = append(topGenres, bestG)
+		delete(genreCounts, bestG)
+	}
+
 	hoursWatched := int32(totalMinutes / 60)
+	hoursPlayed := int32(totalGameMinutes / 60)
+
+	upcomingNext7Days := 0
+	if s.calendar != nil {
+		now := time.Now()
+		events, err := s.calendar.GetEvents(userId, domain.CalendarRequest{
+			Start:  now.Format("2006-01-02"),
+			End:    now.AddDate(0, 0, 7).Format("2006-01-02"),
+			Filter: domain.CalendarFilterLibrary,
+		})
+		if err == nil {
+			upcomingNext7Days = len(events)
+		}
+	}
 
 	resp := HomepageResponse{
-		WatchedMovies:   watchedMovies,
-		WatchedEpisodes: watchedEpisodes,
-		HoursWatched:    hoursWatched,
-		WatchlistCount:  watchlistCount,
-		NextUp:          nextUp,
+		WatchedMovies:     watchedMovies,
+		WatchedEpisodes:   watchedEpisodes,
+		ShowsWatched:      showsWatched,
+		ShowsWatching:     showsWatching,
+		GamesPlayed:       gamesPlayed,
+		GamesPlaying:      gamesPlaying,
+		HoursWatched:      hoursWatched,
+		HoursPlayed:       hoursPlayed,
+		WatchlistCount:    watchlistCount,
+		UpcomingNext7Days: upcomingNext7Days,
+		NextUp:            nextUp,
+		CurrentlyWatching: currentlyWatching,
+		TopGenres:         topGenres,
 	}
 
 	IntegrationStore.Set(cacheKey, resp, time.Second*90)
@@ -268,12 +416,20 @@ func (s *Service) GetHomeAssistantSensor(userId uint) (HASensorResponse, error) 
 	}
 
 	attrs := HASensorAttributes{
-		WatchedMovies:   data.WatchedMovies,
-		WatchedEpisodes: data.WatchedEpisodes,
-		HoursWatched:    data.HoursWatched,
-		WatchlistCount:  data.WatchlistCount,
-		LastWatched:     lastWatched,
-		TodayReleases:   todayReleases,
+		WatchedMovies:     data.WatchedMovies,
+		WatchedEpisodes:   data.WatchedEpisodes,
+		ShowsWatched:      data.ShowsWatched,
+		ShowsWatching:     data.ShowsWatching,
+		GamesPlayed:       data.GamesPlayed,
+		GamesPlaying:      data.GamesPlaying,
+		HoursWatched:      data.HoursWatched,
+		HoursPlayed:       data.HoursPlayed,
+		WatchlistCount:    data.WatchlistCount,
+		LastWatched:       lastWatched,
+		TodayReleases:     todayReleases,
+		UpcomingNext7Days: data.UpcomingNext7Days,
+		CurrentlyWatching: data.CurrentlyWatching,
+		TopGenres:         data.TopGenres,
 	}
 
 	if data.NextUp != nil {

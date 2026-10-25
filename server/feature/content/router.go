@@ -13,6 +13,7 @@ import (
 	"github.com/sbondCo/Watcharr/feature/auth/authmiddleware"
 	"github.com/sbondCo/Watcharr/feature/user/usermiddleware"
 	"github.com/sbondCo/Watcharr/feature/watched/addedtocontent"
+	"github.com/sbondCo/Watcharr/media/extratings"
 	"github.com/sbondCo/Watcharr/media/tmdb"
 	"github.com/sbondCo/Watcharr/router"
 	"github.com/sbondCo/Watcharr/util"
@@ -82,11 +83,12 @@ func (r *Router) GetMovieDetails(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "an id was not provided"})
 		return
 	}
+	userCountry := c.MustGet("userCountry").(string)
 	content, err := r.tmdb.MovieDetails(tmdb.MovieDetailsOptions{
 		ID:      c.Param("id"),
-		Country: c.MustGet("userCountry").(string),
+		Country: userCountry,
 		Params: map[string]string{
-			"append_to_response": "videos,watch/providers,similar",
+			"append_to_response": "videos,watch/providers,similar,recommendations,release_dates,external_ids",
 			"language":           c.MustGet("userLanguage").(string),
 		},
 	})
@@ -95,6 +97,35 @@ func (r *Router) GetMovieDetails(c *gin.Context) {
 		return
 	}
 	contentAsMedia := content.AsMedia()
+	if cert := content.ReleaseDates.ExtractCertification(userCountry); cert != "" {
+		contentAsMedia.Certification = cert
+	}
+
+	isAnime := content.OriginalLanguage == "ja"
+	if isAnime {
+		isAnime = false
+		for _, g := range content.Genres {
+			if g.ID == 16 || strings.EqualFold(g.Name, "Animation") || strings.EqualFold(g.Name, "Animação") {
+				isAnime = true
+				break
+			}
+		}
+	}
+	extRatings, fallbackCert := extratings.FetchEnrichments(extratings.FetchOptions{
+		MediaType:  "movie",
+		TMDBID:     content.ID,
+		ImdbID:     contentAsMedia.IDs.IMDB,
+		Title:      content.Title,
+		OrigTitle:  content.OriginalTitle,
+		IsAnime:    isAnime,
+		OMDBKey:    r.br.Cfg.GetOMDBKey(),
+		MDBListKey: r.br.Cfg.GetMDBListKey(),
+	})
+	contentAsMedia.ExternalRatings = extRatings
+	if contentAsMedia.Certification == "" && fallbackCert != "" {
+		contentAsMedia.Certification = fallbackCert
+	}
+
 	if err := addedtocontent.AddSingularAndList(
 		r.wp,
 		userId,
@@ -107,6 +138,12 @@ func (r *Router) GetMovieDetails(c *gin.Context) {
 				contentAsMedia.Similar,
 				func(i int, w *entity.Watched) {
 					contentAsMedia.Similar[i].Watched = domain.NewWatchedDtoForLists(w)
+				},
+			),
+			addedtocontent.NewAddListCall(
+				contentAsMedia.Recommendations,
+				func(i int, w *entity.Watched) {
+					contentAsMedia.Recommendations[i].Watched = domain.NewWatchedDtoForLists(w)
 				},
 			),
 		},
@@ -142,12 +179,13 @@ func (r *Router) GetTvDetails(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "an id was not provided"})
 		return
 	}
+	userCountry := c.MustGet("userCountry").(string)
 	// 1. Get details
 	content, err := r.tmdb.ShowDetails(tmdb.ShowDetailsOptions{
 		ID:      c.Param("id"),
-		Country: c.MustGet("userCountry").(string),
+		Country: userCountry,
 		Params: map[string]string{
-			"append_to_response": "videos,watch/providers,similar,external_ids,keywords",
+			"append_to_response": "videos,watch/providers,similar,recommendations,content_ratings,external_ids,keywords",
 			"language":           c.MustGet("userLanguage").(string),
 		},
 	})
@@ -156,6 +194,9 @@ func (r *Router) GetTvDetails(c *gin.Context) {
 		return
 	}
 	contentAsMedia := content.AsMedia()
+	if cert := content.ContentRatings.ExtractCertification(userCountry); cert != "" {
+		contentAsMedia.Certification = cert
+	}
 
 	// Cancellation Guard: Evaluate show status, cliffhanger database, prolonged hiatus, and database overrides
 	var dbEndingType string
@@ -165,6 +206,22 @@ func (r *Router) GetTvDetails(c *gin.Context) {
 	}
 	cancInfo := EvaluateShowCancellation(content, dbEndingType)
 	contentAsMedia.Cancellation = &cancInfo
+
+	extRatings, fallbackCert := extratings.FetchEnrichments(extratings.FetchOptions{
+		MediaType:  "tv",
+		TMDBID:     content.ID,
+		ImdbID:     contentAsMedia.IDs.IMDB,
+		TvdbID:     contentAsMedia.IDs.TVDB,
+		Title:      content.Name,
+		OrigTitle:  content.OriginalName,
+		IsAnime:    contentAsMedia.IsShowAnime,
+		OMDBKey:    r.br.Cfg.GetOMDBKey(),
+		MDBListKey: r.br.Cfg.GetMDBListKey(),
+	})
+	contentAsMedia.ExternalRatings = extRatings
+	if contentAsMedia.Certification == "" && fallbackCert != "" {
+		contentAsMedia.Certification = fallbackCert
+	}
 
 	if err := addedtocontent.AddSingularAndList(
 		r.wp,
@@ -178,6 +235,12 @@ func (r *Router) GetTvDetails(c *gin.Context) {
 				contentAsMedia.Similar,
 				func(i int, w *entity.Watched) {
 					contentAsMedia.Similar[i].Watched = domain.NewWatchedDtoForLists(w)
+				},
+			),
+			addedtocontent.NewAddListCall(
+				contentAsMedia.Recommendations,
+				func(i int, w *entity.Watched) {
+					contentAsMedia.Recommendations[i].Watched = domain.NewWatchedDtoForLists(w)
 				},
 			),
 		},

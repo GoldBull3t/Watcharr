@@ -48,7 +48,7 @@ type User struct {
 	// Users permissions
 	Permissions int `gorm:"default:1" json:"-"`
 	// Static API Key for Dashboard integrations (Homepage, Home Assistant, iCal)
-	ApiKey string `gorm:"default:''" json:"apiKey,omitempty"`
+	ApiKey string `gorm:"index;default:''" json:"apiKey,omitempty"`
 	// All user settings cols, in another struct for reusability
 	UserSettings
 }

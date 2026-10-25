@@ -139,5 +139,24 @@ type MovieSerie struct {
 	ID            int       `json:"id"`
 	HasFile       bool      `json:"hasFile"`
 	IsAvailable   bool      `json:"isAvailable"`
+	SizeOnDisk    int64     `json:"sizeOnDisk,omitempty"`
+	QualityName   string    `json:"qualityName,omitempty"`
 	Added         time.Time `json:"added"`
+	MovieFile     *struct {
+		Size    int64 `json:"size"`
+		Quality struct {
+			Quality struct {
+				Name       string `json:"name"`
+				Resolution int    `json:"resolution"`
+			} `json:"quality"`
+		} `json:"quality"`
+	} `json:"movieFile,omitempty"`
+	Statistics *struct {
+		SeasonCount       int     `json:"seasonCount"`
+		EpisodeFileCount  int     `json:"episodeFileCount"`
+		EpisodeCount      int     `json:"episodeCount"`
+		TotalEpisodeCount int     `json:"totalEpisodeCount"`
+		SizeOnDisk        int64   `json:"sizeOnDisk"`
+		PercentOfEpisodes float64 `json:"percentOfEpisodes"`
+	} `json:"statistics,omitempty"`
 }
