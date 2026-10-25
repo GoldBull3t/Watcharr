@@ -9,6 +9,7 @@ import (
 	"github.com/sbondCo/Watcharr/activity"
 	"github.com/sbondCo/Watcharr/database/entity"
 	"github.com/sbondCo/Watcharr/domain"
+	"github.com/sbondCo/Watcharr/feature/integration"
 	"github.com/sbondCo/Watcharr/media/tmdb"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -220,6 +221,25 @@ func (s *Service) SetWatchedEpisode(
 				ar.EpisodeNumber,
 				ar.Status,
 			)
+
+		go func() {
+			var w entity.Watched
+			if s.db.Preload("Content").Where("id = ? AND user_id = ?", ar.WatchedID, userId).First(&w).Error == nil && w.Content != nil {
+				evt := "media.episode_status_changed"
+				if ar.Status == entity.FINISHED {
+					evt = "media.finished"
+				}
+				integration.DispatchActivityWebhook(s.db, userId, integration.ActivityWebhookPayload{
+					Event:       evt,
+					Status:      string(ar.Status),
+					MediaType:   "tv",
+					Title:       w.Content.Title,
+					Season:      ar.SeasonNumber,
+					Episode:     ar.EpisodeNumber,
+					Poster:      integration.BuildPosterURL(w.Content.PosterPath),
+				})
+			}
+		}()
 	}
 
 	return resp, nil

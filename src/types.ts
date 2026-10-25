@@ -328,6 +328,9 @@ export interface UserSettings {
 	calendarWebhookUrl?: string;
 	calendarWebhookEnabled?: boolean;
 	calendarWebhookFilter?: "all" | "movie" | "tv";
+	activityWebhookUrl?: string;
+	activityWebhookEnabled?: boolean;
+	activityWebhookFilter?: "all" | "finished" | "watching" | "rating";
 	ratingSystem?: RatingSystem;
 	/**
 	 * A rating step decided by the user, only

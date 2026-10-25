@@ -69,6 +69,7 @@ func (r *Router) AddRoutes() {
 		integrations.GET("/ha/now-next.svg", authMw, r.GetNowNextSVG)
 		integrations.GET("/ha/library", authMw, r.GetLibrary)
 		integrations.GET("/ha/upcoming", authMw, r.GetUpcoming)
+		integrations.POST("/webhook/activity/test", authMw, r.TestActivityWebhook)
 		integrations.GET("/calendar.ics", authMw, r.GetCalendarICS)
 	}
 
@@ -80,6 +81,7 @@ func (r *Router) AddRoutes() {
 		v1.GET("/ha/now-next.svg", authMw, r.GetNowNextSVG)
 		v1.GET("/ha/library", authMw, r.GetLibrary)
 		v1.GET("/ha/upcoming", authMw, r.GetUpcoming)
+		v1.POST("/webhook/activity/test", authMw, r.TestActivityWebhook)
 		v1.GET("/calendar.ics", authMw, r.GetCalendarICS)
 	}
 
@@ -137,6 +139,27 @@ func (r *Router) GetUpcoming(c *gin.Context) {
 	c.Header("Cache-Control", "public, max-age=60")
 	c.JSON(http.StatusOK, gin.H{
 		"data": upcoming,
+	})
+}
+
+type TestActivityWebhookRequest struct {
+	URL string `json:"url"`
+}
+
+func (r *Router) TestActivityWebhook(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	var req TestActivityWebhookRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.URL == "" {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "URL de webhook inválida"})
+		return
+	}
+	if err := TestActivityWebhook(r.br.DB, userId, req.URL); err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Webhook de teste enviado com sucesso!",
 	})
 }
 

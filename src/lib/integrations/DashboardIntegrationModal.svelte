@@ -1,7 +1,8 @@
 <script lang="ts">
 	import Modal from "@/lib/Modal.svelte";
 	import Icon from "@/lib/Icon.svelte";
-	import { req, baseURL } from "@/lib/util/api";
+	import { req, baseURL, updateUserSetting } from "@/lib/util/api";
+	import { store } from "@/store.svelte";
 	import { notify } from "@/lib/util/notify";
 	import SpinnerTiny from "@/lib/SpinnerTiny.svelte";
 
@@ -14,7 +15,49 @@
 	let apiKey: string = $state("");
 	let loading: boolean = $state(true);
 	let regenerating: boolean = $state(false);
-	let activeTab: "homepage" | "ha_sensor" | "ha_svg" | "ical" = $state("homepage");
+	let activeTab: "homepage" | "ha_sensor" | "ha_svg" | "ical" | "webhook" = $state("homepage");
+
+	let webhookUrl = $state(store.userSettings?.activityWebhookUrl ?? "");
+	let webhookEnabled = $state(store.userSettings?.activityWebhookEnabled ?? false);
+	let webhookFilter = $state(store.userSettings?.activityWebhookFilter ?? "all");
+	let isTestingWebhook = $state(false);
+
+	$effect(() => {
+		if (store.userSettings) {
+			webhookUrl = store.userSettings.activityWebhookUrl ?? "";
+			webhookEnabled = store.userSettings.activityWebhookEnabled ?? false;
+			webhookFilter = store.userSettings.activityWebhookFilter ?? "all";
+		}
+	});
+
+	function saveWebhookSettings() {
+		updateUserSetting("activityWebhookUrl", webhookUrl.trim());
+		updateUserSetting("activityWebhookEnabled", webhookEnabled);
+		updateUserSetting("activityWebhookFilter", webhookFilter);
+	}
+
+	function toggleWebhookEnabled(val: boolean) {
+		webhookEnabled = val;
+		updateUserSetting("activityWebhookEnabled", val);
+	}
+
+	async function testWebhook() {
+		const target = webhookUrl.trim();
+		if (!target) {
+			notify({ text: "Insere um Webhook URL antes de testar.", type: "error" });
+			return;
+		}
+		isTestingWebhook = true;
+		try {
+			saveWebhookSettings();
+			await req.post("/integrations/webhook/activity/test", { url: target });
+			notify({ text: "Webhook de teste enviado com sucesso!", type: "success" });
+		} catch (e: any) {
+			notify({ text: e?.message || "Erro ao disparar webhook de teste", type: "error" });
+		} finally {
+			isTestingWebhook = false;
+		}
+	}
 	let copiedKey: boolean = $state(false);
 	let copiedSnippet: boolean = $state(false);
 
@@ -109,7 +152,41 @@
       - lastWatched
       - nextUpTitle
       - nextUpSeason
-      - nextUpEpisode`);
+      - nextUpEpisode
+      - currentlyWatching
+      - watchlist
+      - upcoming`);
+
+	const haAutomationSnippet = $derived(`automation:
+  - alias: "Watcharr: Automação em Tempo Real (Luzes/Cinema)"
+    trigger:
+      - platform: webhook
+        webhook_id: watcharr_event
+        allowed_methods:
+          - POST
+        local_only: false
+    action:
+      - choose:
+          # Quando terminas um filme ou episódio:
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.json.status == 'FINISHED' }}"
+            sequence:
+              - service: light.turn_on
+                target:
+                  entity_id: light.sala
+              - service: notify.notify
+                data:
+                  title: "Filme/Série Concluído! 🎬"
+                  message: "{{ trigger.json.user }} acabou de ver {{ trigger.json.title }}!"
+          # Quando começas a ver (Modo Cinema):
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.json.status == 'WATCHING' }}"
+            sequence:
+              - service: light.turn_off
+                target:
+                  entity_id: light.sala`);
 
 	const haSvgSnippet = $derived(`type: picture
 image: ${origin}/api/v1/integrations/ha/now-next.svg?apiKey=${apiKey || "A_TUA_CHAVE"}
@@ -192,6 +269,12 @@ tap_action:
 				>
 					Calendário (iCal Feed)
 				</button>
+				<button
+					class:active={activeTab === "webhook"}
+					onclick={() => (activeTab = "webhook")}
+				>
+					Webhooks em Tempo Real ⚡
+				</button>
 			</div>
 
 			<!-- Tab Contents -->
@@ -262,6 +345,67 @@ tap_action:
 						<pre><code>{icalUrl}</code></pre>
 						<p class="guide-note">
 							Compatível com a integração oficial <b>iCalendar</b> do Home Assistant, Google Calendar, Apple Calendar e Thunderbird. Lista os lançamentos da tua biblioteca para os próximos 30 dias.
+						</p>
+					</div>
+				{:else if activeTab === "webhook"}
+					<div class="integration-guide">
+						<div class="webhook-settings-box">
+							<div class="webhook-input-group">
+								<label for="webhook-url">URL de Destino (Home Assistant, Discord, Ntfy)</label>
+								<div class="webhook-input-row">
+									<input
+										id="webhook-url"
+										type="url"
+										placeholder="https://.../api/webhook/watcharr_event ou Discord Webhook"
+										bind:value={webhookUrl}
+										onblur={saveWebhookSettings}
+									/>
+									<button
+										class="btn-test-wh"
+										onclick={testWebhook}
+										disabled={isTestingWebhook || !webhookUrl}
+									>
+										<Icon i="notifications" wh={13} />
+										{isTestingWebhook ? "A testar..." : "Testar Webhook"}
+									</button>
+								</div>
+							</div>
+
+							<div class="webhook-controls-row">
+								<label class="wh-toggle-label">
+									<input
+										type="checkbox"
+										checked={webhookEnabled}
+										onchange={(e) => toggleWebhookEnabled((e.target as HTMLInputElement).checked)}
+									/>
+									<span>Ativar Disparos em Tempo Real</span>
+								</label>
+
+								<div class="wh-filter-wrap">
+									<span>Eventos:</span>
+									<select bind:value={webhookFilter} onchange={saveWebhookSettings}>
+										<option value="all">Todos os Eventos (Finished, Watching, Rating)</option>
+										<option value="finished">Apenas Concluídos (Finished)</option>
+										<option value="watching">Apenas Em Andamento (Watching)</option>
+										<option value="rating">Apenas Avaliações (Rating)</option>
+									</select>
+								</div>
+							</div>
+						</div>
+
+						<div class="guide-header" style="margin-top: 14px;">
+							<h5>Automação Instantânea no <code>automations.yaml</code> do Home Assistant</h5>
+							<button
+								class="btn-copy-code"
+								onclick={() => copyToClipboard(haAutomationSnippet, true)}
+							>
+								<Icon i="document" wh={12} />
+								{copiedSnippet ? "Copiado!" : "Copiar YAML"}
+							</button>
+						</div>
+						<pre><code>{haAutomationSnippet}</code></pre>
+						<p class="guide-note">
+							Dispara no exato segundo em que marcas um filme ou episódio, permitindo ligar/desligar luzes e enviar notificações sem esperar pelo scan REST.
 						</p>
 					</div>
 				{/if}
@@ -399,6 +543,121 @@ tap_action:
 				background: rgba(99, 102, 241, 0.15);
 				border-color: rgba(99, 102, 241, 0.35);
 				color: #c7d2fe;
+			}
+		}
+	}
+
+	.webhook-settings-box {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding: 14px 16px;
+		background: #090d16;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 10px;
+
+		.webhook-input-group {
+			display: flex;
+			flex-direction: column;
+			gap: 6px;
+
+			label {
+				font-size: 11.5px;
+				font-weight: 700;
+				color: #94a3b8;
+				text-transform: uppercase;
+				letter-spacing: 0.5px;
+			}
+
+			.webhook-input-row {
+				display: flex;
+				gap: 8px;
+
+				input {
+					flex: 1;
+					padding: 8px 12px;
+					border-radius: 8px;
+					background: rgba(255, 255, 255, 0.05);
+					border: 1px solid rgba(255, 255, 255, 0.12);
+					color: #fff;
+					font-size: 13px;
+
+					&:focus {
+						outline: none;
+						border-color: #6366f1;
+					}
+				}
+
+				.btn-test-wh {
+					display: inline-flex;
+					align-items: center;
+					gap: 6px;
+					padding: 8px 14px;
+					background: #6366f1;
+					color: white;
+					font-weight: 600;
+					font-size: 12px;
+					border-radius: 8px;
+					border: none;
+					cursor: pointer;
+					white-space: nowrap;
+
+					&:hover:not(:disabled) {
+						background: #4f46e5;
+					}
+
+					&:disabled {
+						opacity: 0.5;
+						cursor: not-allowed;
+					}
+				}
+			}
+		}
+
+		.webhook-controls-row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			flex-wrap: wrap;
+			gap: 12px;
+			padding-top: 8px;
+			border-top: 1px solid rgba(255, 255, 255, 0.06);
+
+			.wh-toggle-label {
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				font-size: 12.5px;
+				font-weight: 600;
+				color: #e2e8f0;
+				cursor: pointer;
+
+				input {
+					cursor: pointer;
+					accent-color: #6366f1;
+				}
+			}
+
+			.wh-filter-wrap {
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				font-size: 12px;
+				color: #94a3b8;
+
+				select {
+					padding: 4px 8px;
+					border-radius: 6px;
+					background: rgba(255, 255, 255, 0.08);
+					border: 1px solid rgba(255, 255, 255, 0.14);
+					color: #fff;
+					font-size: 12px;
+
+					&:focus {
+						outline: none;
+						border-color: #6366f1;
+					}
+				}
 			}
 		}
 	}

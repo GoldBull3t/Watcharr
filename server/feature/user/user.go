@@ -65,6 +65,15 @@ func (s *Service) UserUpdate(userId uint, ur entity.UserSettings) (entity.UserSe
 	if ur.CalendarWebhookFilter != nil {
 		user.CalendarWebhookFilter = ur.CalendarWebhookFilter
 	}
+	if ur.ActivityWebhookUrl != nil {
+		user.ActivityWebhookUrl = ur.ActivityWebhookUrl
+	}
+	if ur.ActivityWebhookEnabled != nil {
+		user.ActivityWebhookEnabled = ur.ActivityWebhookEnabled
+	}
+	if ur.ActivityWebhookFilter != nil {
+		user.ActivityWebhookFilter = ur.ActivityWebhookFilter
+	}
 	s.db.Save(&user)
 	return entity.UserSettings{
 		Private:                  user.Private,
@@ -79,6 +88,9 @@ func (s *Service) UserUpdate(userId uint, ur entity.UserSettings) (entity.UserSe
 		CalendarWebhookUrl:       user.CalendarWebhookUrl,
 		CalendarWebhookEnabled:   user.CalendarWebhookEnabled,
 		CalendarWebhookFilter:   user.CalendarWebhookFilter,
+		ActivityWebhookUrl:       user.ActivityWebhookUrl,
+		ActivityWebhookEnabled:   user.ActivityWebhookEnabled,
+		ActivityWebhookFilter:   user.ActivityWebhookFilter,
 	}, nil
 }
 
@@ -103,6 +115,9 @@ func (s *Service) UserGetSettings(userId uint) (entity.UserSettings, error) {
 		CalendarWebhookUrl:       user.CalendarWebhookUrl,
 		CalendarWebhookEnabled:   user.CalendarWebhookEnabled,
 		CalendarWebhookFilter:   user.CalendarWebhookFilter,
+		ActivityWebhookUrl:       user.ActivityWebhookUrl,
+		ActivityWebhookEnabled:   user.ActivityWebhookEnabled,
+		ActivityWebhookFilter:   user.ActivityWebhookFilter,
 	}, nil
 }
 

@@ -265,7 +265,7 @@ func (s *Service) GetHomepageData(userId uint) (HomepageResponse, error) {
 					TmdbID:      w.Content.TmdbID,
 					Title:       w.Content.Title,
 					Type:        string(w.Content.Type),
-					Poster:      buildPosterURL(w.Content.PosterPath),
+					Poster:      BuildPosterURL(w.Content.PosterPath),
 					ReleaseDate: relDate,
 					Rating:      w.Rating,
 					Overview:    w.Content.Overview,
@@ -381,7 +381,7 @@ func (s *Service) GetHomepageData(userId uint) (HomepageResponse, error) {
 					Title:   w.Content.Title,
 					Season:  targetSeason,
 					Episode: targetEpisode,
-					Poster:  buildPosterURL(w.Content.PosterPath),
+					Poster:  BuildPosterURL(w.Content.PosterPath),
 				}
 				if nextUp == nil {
 					nextUp = &item
@@ -437,7 +437,7 @@ func (s *Service) GetHomepageData(userId uint) (HomepageResponse, error) {
 						EpisodeTitle: ev.EpisodeName,
 						AirDate:      ev.ReleaseDate,
 						ReleaseDate:  ev.ReleaseDate,
-						Poster:       buildPosterURL(ev.PosterPath),
+						Poster:       BuildPosterURL(ev.PosterPath),
 						Overview:     ev.Overview,
 					})
 				}
@@ -590,7 +590,7 @@ func (s *Service) GetLibraryData(userId uint) (LibraryResponse, error) {
 			Type:            string(w.Content.Type),
 			Status:          string(w.Status),
 			Rating:          w.Rating,
-			Poster:          buildPosterURL(w.Content.PosterPath),
+			Poster:          BuildPosterURL(w.Content.PosterPath),
 			ReleaseDate:     relDate,
 			Genres:          genres,
 			WatchedEpisodes: watchedEps,
@@ -632,7 +632,7 @@ func (s *Service) GetUpcomingData(userId uint) ([]UpcomingItem, error) {
 			EpisodeTitle: ev.EpisodeName,
 			AirDate:      ev.ReleaseDate,
 			ReleaseDate:  ev.ReleaseDate,
-			Poster:       buildPosterURL(ev.PosterPath),
+			Poster:       BuildPosterURL(ev.PosterPath),
 			Overview:     ev.Overview,
 		})
 	}
@@ -678,7 +678,7 @@ func (s *Service) GetCalendarICS(userId uint) (string, error) {
 			}
 		}
 
-		posterURL := buildPosterURL(ev.PosterPath)
+		posterURL := BuildPosterURL(ev.PosterPath)
 
 		desc := ev.Overview
 		if desc == "" {
@@ -709,7 +709,7 @@ func (s *Service) GetCalendarICS(userId uint) (string, error) {
 	return sb.String(), nil
 }
 
-func buildPosterURL(posterPath string) string {
+func BuildPosterURL(posterPath string) string {
 	posterPath = strings.TrimSpace(posterPath)
 	if posterPath == "" {
 		return ""

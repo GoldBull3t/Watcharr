@@ -11,6 +11,7 @@ import (
 	"github.com/sbondCo/Watcharr/database/dbmodel"
 	"github.com/sbondCo/Watcharr/database/entity"
 	"github.com/sbondCo/Watcharr/domain"
+	"github.com/sbondCo/Watcharr/feature/integration"
 	"github.com/sbondCo/Watcharr/feature/watched/addedtocontent"
 	"github.com/sbondCo/Watcharr/util"
 	"gorm.io/gorm"
@@ -752,6 +753,38 @@ func (s *Service) UpdateWatched(
 		slog.Error("UpdateWatched: Update query failed! No rows affected.")
 		return domain.WatchedUpdateResponse{}, errors.New("no watched entry found")
 	}
+
+	// Trigger real-time activity webhook
+	go func() {
+		title := "Conteúdo"
+		poster := ""
+		mType := "content"
+		if upwat.Content != nil {
+			title = upwat.Content.Title
+			poster = integration.BuildPosterURL(upwat.Content.PosterPath)
+			mType = string(upwat.Content.Type)
+		} else if upwat.Game != nil {
+			title = upwat.Game.Name
+			mType = "game"
+		}
+		evt := "media.status_changed"
+		if ar.Status == entity.FINISHED {
+			evt = "media.finished"
+		} else if ar.Status == entity.WATCHING {
+			evt = "media.watching"
+		} else if ar.Rating > 0 && ar.Status == "" {
+			evt = "media.rated"
+		}
+		integration.DispatchActivityWebhook(s.db, userId, integration.ActivityWebhookPayload{
+			Event:     evt,
+			Status:    string(upwat.Status),
+			MediaType: mType,
+			Title:     title,
+			Rating:    upwat.Rating,
+			Poster:    poster,
+			Reason:    strconv.Itoa(int(ar.ActivityCreatedBy)),
+		})
+	}()
 
 	newActivities := activityMC.CreateAll()
 

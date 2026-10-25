@@ -88,6 +88,12 @@ type UserSettings struct {
 	CalendarWebhookEnabled *bool `gorm:"default:false" json:"calendarWebhookEnabled"`
 	// Calendar release filter ("all", "movie", "tv")
 	CalendarWebhookFilter *string `gorm:"default:'all'" json:"calendarWebhookFilter"`
+	// Webhook URL for Real-Time Activity notifications (Home Assistant, Discord, Ntfy, Generic)
+	ActivityWebhookUrl *string `gorm:"default:''" json:"activityWebhookUrl"`
+	// Enable/disable automated activity webhook notifications
+	ActivityWebhookEnabled *bool `gorm:"default:false" json:"activityWebhookEnabled"`
+	// Activity webhook filter ("all", "finished", "watching", "rating")
+	ActivityWebhookFilter *string `gorm:"default:'all'" json:"activityWebhookFilter"`
 	// Rating system user wants to use (frontend only).
 	// RatingSystem enum in frontend maxes out at 3, so just max=3 on this and we should be gut.
 	RatingSystem *int `json:"ratingSystem" binding:"omitempty,max=3"`
