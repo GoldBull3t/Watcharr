@@ -324,6 +324,15 @@
 					<Icon i="calendar" wh={16} />
 					<span>{t("nav.calendar")}</span>
 				</a>
+				<a
+					href={resolve("/franchise")}
+					class="nav-link {page.url?.pathname.startsWith('/franchise')
+						? 'active'
+						: ''}"
+				>
+					<Icon i="reel" wh={16} />
+					<span>Sagas</span>
+				</a>
 			</div>
 		</div>
 		<div

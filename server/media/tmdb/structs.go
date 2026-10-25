@@ -723,6 +723,7 @@ type ShowDetails struct {
 	Similar         ShowSimilar        `json:"similar"`
 	Recommendations ShowSimilar        `json:"recommendations"`
 	ContentRatings  ShowContentRatings `json:"content_ratings"`
+	Videos          ContentVideos      `json:"videos"`
 }
 
 func (t *ShowDetails) EffectiveRuntime() uint32 {
@@ -856,6 +857,55 @@ func (t *ShowDetails) AsMedia() domain.Media {
 			}
 		}
 	}
+
+	// Videos (Trailers, Teasers, Clips, Featurettes, Behind the Scenes, Opening Credits, Bloopers)
+	hasBest := false
+	for i := range t.Videos.Results {
+		v := &t.Videos.Results[i]
+		if v.Key == "" || (v.Site != "" && !strings.EqualFold(v.Site, "YouTube")) {
+			continue
+		}
+		vTypeLower := strings.ToLower(strings.TrimSpace(v.Type))
+		var mediaVType domain.MediaVideoType
+		switch vTypeLower {
+		case "trailer":
+			mediaVType = domain.MediaVideoTypeTrailer
+		case "teaser":
+			mediaVType = domain.MediaVideoTypeTeaser
+		case "clip":
+			mediaVType = domain.MediaVideoTypeClip
+		case "featurette":
+			mediaVType = domain.MediaVideoTypeFeaturette
+		case "behind the scenes":
+			mediaVType = domain.MediaVideoTypeBehindTheScenes
+		case "bloopers":
+			mediaVType = domain.MediaVideoTypeBloopers
+		case "opening credits":
+			mediaVType = domain.MediaVideoTypeOpeningCredits
+		default:
+			mediaVType = domain.MediaVideoTypeOther
+		}
+		isBest := false
+		if mediaVType == domain.MediaVideoTypeTrailer && v.Official && strings.Contains(strings.ToLower(v.Name), "official trailer") && !hasBest {
+			isBest = true
+			hasBest = true
+		}
+		m.Videos = append(m.Videos, domain.MediaVideo{
+			ID:   v.Key,
+			Name: v.Name,
+			Type: mediaVType,
+			Best: isBest,
+		})
+	}
+	if !hasBest {
+		for i := range m.Videos {
+			if m.Videos[i].Type == domain.MediaVideoTypeTrailer {
+				m.Videos[i].Best = true
+				break
+			}
+		}
+	}
+
 	return m
 }
 

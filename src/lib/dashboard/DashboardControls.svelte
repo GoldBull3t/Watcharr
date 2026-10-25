@@ -4,6 +4,7 @@
 	import SortMenu from "@/lib/nav/SortMenu.svelte";
 	import FilterMenu from "./FilterMenu.svelte";
 import WatchTogetherModal from "./WatchTogetherModal.svelte";
+	import { resolve } from "$app/paths";
 	import { store, defaultSort, clearActiveFilters } from "@/store.svelte";
 	import { onDestroy, onMount } from "svelte";
 	import { t } from "@/lib/i18n";
@@ -314,6 +315,17 @@ let watchTogetherShown = $state(false);
 				<span style="font-size: 13px;">🍿</span>
 				<span class="toggle-label">Ver em Conjunto</span>
 			</button>
+
+			<!-- Sagas & Franchises Button -->
+			<a
+				href={resolve("/franchise")}
+				class="icon-toggle sagas-btn"
+				title="Explorar Sagas, Coleções TMDB e Linhas Cronológicas"
+				aria-label="Sagas"
+			>
+				<Icon i="reel" wh={14} />
+				<span class="toggle-label">Sagas</span>
+			</a>
 
 			<div class="toolbar-separator"></div>
 

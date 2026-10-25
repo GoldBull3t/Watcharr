@@ -81,6 +81,14 @@
 			action: () => navigateTo("/calendar"),
 		},
 		{
+			id: "nav-franchise",
+			section: "Navigation",
+			title: "Sagas & Linhas Cronológicas",
+			subtitle: "Explorar sagas Marvel, Star Wars, Dune, Batman e coleções",
+			icon: "reel",
+			action: () => navigateTo("/franchise"),
+		},
+		{
 			id: "nav-import",
 			section: "Navigation",
 			title: "Import Media",

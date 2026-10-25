@@ -2,6 +2,7 @@
 	import { MediaVideoType, type MediaVideo } from "@/types";
 	import MediaLightbox from "./MediaLightbox.svelte";
 	import Icon from "@/lib/Icon.svelte";
+	import { i18n } from "@/lib/i18n";
 
 	interface Props {
 		videos?: MediaVideo[];
@@ -16,6 +17,7 @@
 	let trailersCount = $derived(
 		videos ? videos.filter((v) => v.type === MediaVideoType.trailer).length : 0,
 	);
+	let isPt = $derived(i18n.currentLocale === "pt");
 	let lightboxOpen = $state(false);
 </script>
 
@@ -24,14 +26,14 @@
 		type="button"
 		class="trailer-btn"
 		onclick={() => (lightboxOpen = true)}
-		title="Reproduzir trailer e ver galeria de mídia"
+		title={isPt ? "Reproduzir trailer oficial e ver galeria de mídia" : "Watch official trailer and media gallery"}
 	>
 		<Icon i="play" wh={14} />
 		<span>
 			{#if trailersCount > 1}
-				Watch Trailers ({trailersCount})
+				{isPt ? `Ver Trailers (${trailersCount})` : `Watch Trailers (${trailersCount})`}
 			{:else}
-				Watch Trailer
+				{isPt ? "Ver Trailer" : "Watch Trailer"}
 			{/if}
 		</span>
 	</button>
