@@ -34,41 +34,90 @@ type NextUpItem struct {
 	Poster       string `json:"poster,omitempty"`
 }
 
+type WatchlistItem struct {
+	ID          uint    `json:"id"`
+	TmdbID      int     `json:"tmdbId"`
+	Title       string  `json:"title"`
+	Type        string  `json:"type"` // "movie" or "tv"
+	Poster      string  `json:"poster"`
+	ReleaseDate string  `json:"releaseDate,omitempty"`
+	Rating      float64 `json:"rating,omitempty"`
+	Overview    string  `json:"overview,omitempty"`
+}
+
+type UpcomingItem struct {
+	Title        string `json:"title"`
+	Type         string `json:"type"`
+	Season       int    `json:"season,omitempty"`
+	Episode      int    `json:"episode,omitempty"`
+	EpisodeTitle string `json:"episodeTitle,omitempty"`
+	AirDate      string `json:"airDate"`
+	ReleaseDate  string `json:"releaseDate"`
+	Poster       string `json:"poster,omitempty"`
+	Overview     string `json:"overview,omitempty"`
+}
+
+type LibraryItem struct {
+	ID              uint     `json:"id"`
+	TmdbID          int      `json:"tmdbId"`
+	Title           string   `json:"title"`
+	Type            string   `json:"type"` // "movie" or "tv"
+	Status          string   `json:"status"`
+	Rating          float64  `json:"rating"`
+	Poster          string   `json:"poster"`
+	ReleaseDate     string   `json:"releaseDate,omitempty"`
+	Genres          []string `json:"genres,omitempty"`
+	WatchedEpisodes int      `json:"watchedEpisodes,omitempty"`
+	TotalEpisodes   int      `json:"totalEpisodes,omitempty"`
+	UpdatedAt       string   `json:"updatedAt"`
+}
+
+type LibraryResponse struct {
+	Total       int           `json:"total"`
+	MoviesCount int           `json:"moviesCount"`
+	ShowsCount  int           `json:"showsCount"`
+	Library     []LibraryItem `json:"library"`
+}
+
 type HomepageResponse struct {
-	WatchedMovies     int32        `json:"watchedMovies"`
-	WatchedEpisodes   int32        `json:"watchedEpisodes"`
-	ShowsWatched      int32        `json:"showsWatched"`
-	ShowsWatching     int32        `json:"showsWatching"`
-	GamesPlayed       int32        `json:"gamesPlayed"`
-	GamesPlaying      int32        `json:"gamesPlaying"`
-	HoursWatched      int32        `json:"hoursWatched"`
-	HoursPlayed       int32        `json:"hoursPlayed"`
-	WatchlistCount    int32        `json:"watchlistCount"`
-	UpcomingNext7Days int          `json:"upcomingNext7Days"`
-	NextUp            *NextUpItem  `json:"nextUp,omitempty"`
-	CurrentlyWatching []NextUpItem `json:"currentlyWatching,omitempty"`
-	TopGenres         []string     `json:"topGenres,omitempty"`
+	WatchedMovies     int32           `json:"watchedMovies"`
+	WatchedEpisodes   int32           `json:"watchedEpisodes"`
+	ShowsWatched      int32           `json:"showsWatched"`
+	ShowsWatching     int32           `json:"showsWatching"`
+	GamesPlayed       int32           `json:"gamesPlayed"`
+	GamesPlaying      int32           `json:"gamesPlaying"`
+	HoursWatched      int32           `json:"hoursWatched"`
+	HoursPlayed       int32           `json:"hoursPlayed"`
+	WatchlistCount    int32           `json:"watchlistCount"`
+	UpcomingNext7Days int             `json:"upcomingNext7Days"`
+	NextUp            *NextUpItem     `json:"nextUp,omitempty"`
+	CurrentlyWatching []NextUpItem    `json:"currentlyWatching,omitempty"`
+	Watchlist         []WatchlistItem `json:"watchlist,omitempty"`
+	Upcoming          []UpcomingItem  `json:"upcoming,omitempty"`
+	TopGenres         []string        `json:"topGenres,omitempty"`
 }
 
 type HASensorAttributes struct {
-	WatchedMovies     int32        `json:"watchedMovies"`
-	WatchedEpisodes   int32        `json:"watchedEpisodes"`
-	ShowsWatched      int32        `json:"showsWatched"`
-	ShowsWatching     int32        `json:"showsWatching"`
-	GamesPlayed       int32        `json:"gamesPlayed"`
-	GamesPlaying      int32        `json:"gamesPlaying"`
-	HoursWatched      int32        `json:"hoursWatched"`
-	HoursPlayed       int32        `json:"hoursPlayed"`
-	WatchlistCount    int32        `json:"watchlistCount"`
-	LastWatched       string       `json:"lastWatched,omitempty"`
-	TodayReleases     int          `json:"todayReleases"`
-	UpcomingNext7Days int          `json:"upcomingNext7Days"`
-	NextUpTitle       string       `json:"nextUpTitle,omitempty"`
-	NextUpSeason      int          `json:"nextUpSeason,omitempty"`
-	NextUpEpisode     int          `json:"nextUpEpisode,omitempty"`
-	NextUpAirDate     string       `json:"nextUpAirDate,omitempty"`
-	CurrentlyWatching []NextUpItem `json:"currentlyWatching,omitempty"`
-	TopGenres         []string     `json:"topGenres,omitempty"`
+	WatchedMovies     int32           `json:"watchedMovies"`
+	WatchedEpisodes   int32           `json:"watchedEpisodes"`
+	ShowsWatched      int32           `json:"showsWatched"`
+	ShowsWatching     int32           `json:"showsWatching"`
+	GamesPlayed       int32           `json:"gamesPlayed"`
+	GamesPlaying      int32           `json:"gamesPlaying"`
+	HoursWatched      int32           `json:"hoursWatched"`
+	HoursPlayed       int32           `json:"hoursPlayed"`
+	WatchlistCount    int32           `json:"watchlistCount"`
+	LastWatched       string          `json:"lastWatched,omitempty"`
+	TodayReleases     int             `json:"todayReleases"`
+	UpcomingNext7Days int             `json:"upcomingNext7Days"`
+	NextUpTitle       string          `json:"nextUpTitle,omitempty"`
+	NextUpSeason      int             `json:"nextUpSeason,omitempty"`
+	NextUpEpisode     int             `json:"nextUpEpisode,omitempty"`
+	NextUpAirDate     string          `json:"nextUpAirDate,omitempty"`
+	CurrentlyWatching []NextUpItem    `json:"currentlyWatching,omitempty"`
+	Watchlist         []WatchlistItem `json:"watchlist,omitempty"`
+	Upcoming          []UpcomingItem  `json:"upcoming,omitempty"`
+	TopGenres         []string        `json:"topGenres,omitempty"`
 }
 
 type HASensorResponse struct {
@@ -198,6 +247,7 @@ func (s *Service) GetHomepageData(userId uint) (HomepageResponse, error) {
 		watchlistCount    int32
 		nextUp            *NextUpItem
 		currentlyWatching []NextUpItem
+		watchlistItems    []WatchlistItem
 		genreCounts       = make(map[string]int)
 	)
 
@@ -205,6 +255,22 @@ func (s *Service) GetHomepageData(userId uint) (HomepageResponse, error) {
 		// Watchlist
 		if w.Status == entity.PLANNED {
 			watchlistCount++
+			if w.Content != nil && len(watchlistItems) < 30 {
+				var relDate string
+				if w.Content.ReleaseDate != nil {
+					relDate = w.Content.ReleaseDate.Format("2006-01-02")
+				}
+				watchlistItems = append(watchlistItems, WatchlistItem{
+					ID:          w.ID,
+					TmdbID:      w.Content.TmdbID,
+					Title:       w.Content.Title,
+					Type:        string(w.Content.Type),
+					Poster:      buildPosterURL(w.Content.PosterPath),
+					ReleaseDate: relDate,
+					Rating:      w.Rating,
+					Overview:    w.Content.Overview,
+				})
+			}
 		}
 
 		if w.Game != nil {
@@ -315,12 +381,12 @@ func (s *Service) GetHomepageData(userId uint) (HomepageResponse, error) {
 					Title:   w.Content.Title,
 					Season:  targetSeason,
 					Episode: targetEpisode,
-					Poster:  w.Content.PosterPath,
+					Poster:  buildPosterURL(w.Content.PosterPath),
 				}
 				if nextUp == nil {
 					nextUp = &item
 				}
-				if len(currentlyWatching) < 5 {
+				if len(currentlyWatching) < 20 {
 					currentlyWatching = append(currentlyWatching, item)
 				}
 			}
@@ -348,15 +414,34 @@ func (s *Service) GetHomepageData(userId uint) (HomepageResponse, error) {
 	hoursPlayed := int32(totalGameMinutes / 60)
 
 	upcomingNext7Days := 0
+	var upcomingItems []UpcomingItem
 	if s.calendar != nil {
 		now := time.Now()
 		events, err := s.calendar.GetEvents(userId, domain.CalendarRequest{
 			Start:  now.Format("2006-01-02"),
-			End:    now.AddDate(0, 0, 7).Format("2006-01-02"),
+			End:    now.AddDate(0, 0, 14).Format("2006-01-02"),
 			Filter: domain.CalendarFilterLibrary,
 		})
 		if err == nil {
-			upcomingNext7Days = len(events)
+			next7Str := now.AddDate(0, 0, 7).Format("2006-01-02")
+			for i, ev := range events {
+				if ev.ReleaseDate <= next7Str {
+					upcomingNext7Days++
+				}
+				if i < 20 {
+					upcomingItems = append(upcomingItems, UpcomingItem{
+						Title:        ev.Title,
+						Type:         ev.MediaType,
+						Season:       ev.SeasonNumber,
+						Episode:      ev.EpisodeNumber,
+						EpisodeTitle: ev.EpisodeName,
+						AirDate:      ev.ReleaseDate,
+						ReleaseDate:  ev.ReleaseDate,
+						Poster:       buildPosterURL(ev.PosterPath),
+						Overview:     ev.Overview,
+					})
+				}
+			}
 		}
 	}
 
@@ -373,6 +458,8 @@ func (s *Service) GetHomepageData(userId uint) (HomepageResponse, error) {
 		UpcomingNext7Days: upcomingNext7Days,
 		NextUp:            nextUp,
 		CurrentlyWatching: currentlyWatching,
+		Watchlist:         watchlistItems,
+		Upcoming:          upcomingItems,
 		TopGenres:         topGenres,
 	}
 
@@ -429,6 +516,8 @@ func (s *Service) GetHomeAssistantSensor(userId uint) (HASensorResponse, error) 
 		TodayReleases:     todayReleases,
 		UpcomingNext7Days: data.UpcomingNext7Days,
 		CurrentlyWatching: data.CurrentlyWatching,
+		Watchlist:         data.Watchlist,
+		Upcoming:          data.Upcoming,
 		TopGenres:         data.TopGenres,
 	}
 
@@ -443,6 +532,111 @@ func (s *Service) GetHomeAssistantSensor(userId uint) (HASensorResponse, error) 
 		State:      state,
 		Attributes: attrs,
 	}, nil
+}
+
+// GetLibraryData returns the complete media library formatted for Home Assistant
+func (s *Service) GetLibraryData(userId uint) (LibraryResponse, error) {
+	var watched []entity.Watched
+	err := s.db.Model(&entity.Watched{}).
+		Preload("Content").
+		Preload("Game").
+		Preload("WatchedEpisodes").
+		Where("user_id = ?", userId).
+		Order("updated_at DESC").
+		Find(&watched).Error
+	if err != nil {
+		return LibraryResponse{}, err
+	}
+
+	var moviesCount, showsCount int
+	var items []LibraryItem
+
+	for _, w := range watched {
+		if w.Content == nil {
+			continue
+		}
+		var genres []string
+		if w.Content.Genres != "" {
+			for _, g := range strings.Split(w.Content.Genres, ",") {
+				g = strings.TrimSpace(g)
+				if g != "" {
+					genres = append(genres, g)
+				}
+			}
+		}
+
+		var relDate string
+		if w.Content.ReleaseDate != nil {
+			relDate = w.Content.ReleaseDate.Format("2006-01-02")
+		}
+
+		watchedEps := 0
+		for _, we := range w.WatchedEpisodes {
+			if we.Status == entity.FINISHED {
+				watchedEps++
+			}
+		}
+
+		if w.Content.Type == entity.MOVIE {
+			moviesCount++
+		} else if w.Content.Type == entity.SHOW {
+			showsCount++
+		}
+
+		items = append(items, LibraryItem{
+			ID:              w.ID,
+			TmdbID:          w.Content.TmdbID,
+			Title:           w.Content.Title,
+			Type:            string(w.Content.Type),
+			Status:          string(w.Status),
+			Rating:          w.Rating,
+			Poster:          buildPosterURL(w.Content.PosterPath),
+			ReleaseDate:     relDate,
+			Genres:          genres,
+			WatchedEpisodes: watchedEps,
+			TotalEpisodes:   int(w.Content.NumberOfEpisodes),
+			UpdatedAt:       w.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		})
+	}
+
+	return LibraryResponse{
+		Total:       len(items),
+		MoviesCount: moviesCount,
+		ShowsCount:  showsCount,
+		Library:     items,
+	}, nil
+}
+
+// GetUpcomingData returns upcoming releases formatted for Home Assistant
+func (s *Service) GetUpcomingData(userId uint) ([]UpcomingItem, error) {
+	if s.calendar == nil {
+		return []UpcomingItem{}, nil
+	}
+	now := time.Now()
+	events, err := s.calendar.GetEvents(userId, domain.CalendarRequest{
+		Start:  now.Format("2006-01-02"),
+		End:    now.AddDate(0, 0, 30).Format("2006-01-02"),
+		Filter: domain.CalendarFilterLibrary,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var items []UpcomingItem
+	for _, ev := range events {
+		items = append(items, UpcomingItem{
+			Title:        ev.Title,
+			Type:         ev.MediaType,
+			Season:       ev.SeasonNumber,
+			Episode:      ev.EpisodeNumber,
+			EpisodeTitle: ev.EpisodeName,
+			AirDate:      ev.ReleaseDate,
+			ReleaseDate:  ev.ReleaseDate,
+			Poster:       buildPosterURL(ev.PosterPath),
+			Overview:     ev.Overview,
+		})
+	}
+	return items, nil
 }
 
 // GetCalendarICS generates standard RFC 5545 iCalendar feed

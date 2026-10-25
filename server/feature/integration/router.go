@@ -67,6 +67,8 @@ func (r *Router) AddRoutes() {
 		integrations.GET("/homepage", authMw, r.GetHomepage)
 		integrations.GET("/ha/sensor", authMw, r.GetHomeAssistantSensor)
 		integrations.GET("/ha/now-next.svg", authMw, r.GetNowNextSVG)
+		integrations.GET("/ha/library", authMw, r.GetLibrary)
+		integrations.GET("/ha/upcoming", authMw, r.GetUpcoming)
 		integrations.GET("/calendar.ics", authMw, r.GetCalendarICS)
 	}
 
@@ -76,6 +78,8 @@ func (r *Router) AddRoutes() {
 		v1.GET("/homepage", authMw, r.GetHomepage)
 		v1.GET("/ha/sensor", authMw, r.GetHomeAssistantSensor)
 		v1.GET("/ha/now-next.svg", authMw, r.GetNowNextSVG)
+		v1.GET("/ha/library", authMw, r.GetLibrary)
+		v1.GET("/ha/upcoming", authMw, r.GetUpcoming)
 		v1.GET("/calendar.ics", authMw, r.GetCalendarICS)
 	}
 
@@ -110,6 +114,30 @@ func (r *Router) GetHomeAssistantSensor(c *gin.Context) {
 	}
 	c.Header("Cache-Control", "public, max-age=60")
 	c.JSON(http.StatusOK, sensor)
+}
+
+func (r *Router) GetLibrary(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	lib, err := r.s.GetLibraryData(userId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: "falha ao carregar biblioteca"})
+		return
+	}
+	c.Header("Cache-Control", "public, max-age=60")
+	c.JSON(http.StatusOK, lib)
+}
+
+func (r *Router) GetUpcoming(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	upcoming, err := r.s.GetUpcomingData(userId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: "falha ao carregar estreias"})
+		return
+	}
+	c.Header("Cache-Control", "public, max-age=60")
+	c.JSON(http.StatusOK, gin.H{
+		"data": upcoming,
+	})
 }
 
 func (r *Router) GetCalendarICS(c *gin.Context) {

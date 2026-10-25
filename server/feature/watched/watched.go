@@ -704,6 +704,14 @@ func (s *Service) UpdateWatched(
 			NewCreator(s.db, userId, id, entity.STATUS_CHANGED, countAsPlay, ar.ActivityCreatedBy).
 			SetData(string(ar.Status)).
 			AddToMultiCreator(activityMC)
+
+		if ar.Status == entity.FINISHED && upwat.ContentID != nil {
+			var cnt entity.Content
+			if err := s.db.Where("id = ?", *upwat.ContentID).First(&cnt).Error; err == nil && cnt.Type == entity.SHOW {
+				s.db.Model(&entity.WatchedSeason{}).Where("watched_id = ? AND user_id = ?", id, userId).Update("status", entity.FINISHED)
+				s.db.Model(&entity.WatchedEpisode{}).Where("watched_id = ? AND user_id = ?", id, userId).Update("status", entity.FINISHED)
+			}
+		}
 	}
 	if ar.Thoughts != "" && ar.Thoughts != upwat.Thoughts {
 		anythingChanged = true

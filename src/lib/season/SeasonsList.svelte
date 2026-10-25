@@ -24,6 +24,7 @@
 		watchedItem: Watched | undefined;
 		lastViewedSeason: number | undefined;
 		lastViewedSeasonChanged: (wid: number, lvs: number) => void;
+		onStatusChanged?: () => void;
 	}
 
 	let {
@@ -32,6 +33,7 @@
 		watchedItem,
 		lastViewedSeason,
 		lastViewedSeasonChanged,
+		onStatusChanged,
 	}: Props = $props();
 
 	let activeSeason = $state<number>(1);
@@ -139,6 +141,7 @@
 		}
 
 		await updateWatchedSeason(watchedItem, seasonNumber, { status: type });
+		onStatusChanged?.();
 	}
 
 	function handleStarClick(rating: number, seasonNumber: number) {
@@ -285,7 +288,7 @@
 				{#if season?.episodes?.length > 0}
 					<ul>
 						{#each season.episodes as ep (ep.id)}
-							<SeasonsListEpisode {ep} {watchedItem} />
+							<SeasonsListEpisode {ep} {watchedItem} {onStatusChanged} />
 						{/each}
 					</ul>
 				{:else}

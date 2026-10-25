@@ -111,7 +111,7 @@ func (s *Service) hookStatusChanged(
 	// back to WATCHING here right after..).
 	if !seasonSetRespSetNewShowStatus &&
 		(newEpStatus == entity.WATCHING || newEpStatus == entity.FINISHED) &&
-		(watchedEntry.Status == "" || watchedEntry.Status == entity.PLANNED) {
+		(watchedEntry.Status == "" || watchedEntry.Status == entity.PLANNED || watchedEntry.Status == entity.HOLD || watchedEntry.Status == entity.DROPPED) {
 		watchedEntry.Status = entity.WATCHING
 		if res := s.db.Save(watchedEntry); res.Error != nil {
 			slog.Error("hookStatusChanged: Failed to update show status!",

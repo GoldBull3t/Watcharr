@@ -187,8 +187,8 @@ func (s *Service) hookStatusChangedSetShowStatus(
 				newShowStatus = entity.FINISHED
 				reason = "All seasons were completed and the show is not continuing."
 			} else {
-				newShowStatus = entity.PLANNED
-				reason = "All seasons were completed and the show is continuing."
+				newShowStatus = entity.FINISHED
+				reason = "All available seasons were completed."
 			}
 		}
 	}

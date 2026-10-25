@@ -17,9 +17,10 @@
 	interface Props {
 		ep: TMDBSeasonDetailsEpisode;
 		watchedItem: Watched | undefined;
+		onStatusChanged?: () => void;
 	}
 
-	let { ep, watchedItem }: Props = $props();
+	let { ep, watchedItem, onStatusChanged }: Props = $props();
 
 	const we = $derived(
 		watchedItem?.watchedEpisodes?.find(
@@ -97,6 +98,7 @@
 			},
 		);
 		reSetIsHidden();
+		onStatusChanged?.();
 	}
 
 	function handleStarClick(rating: number) {

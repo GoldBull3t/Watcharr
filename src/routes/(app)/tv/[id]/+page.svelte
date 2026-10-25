@@ -168,6 +168,25 @@
 				}
 			}
 			show.watched = await updateWatched(show.watched, reqOpts);
+			if (show?.watched && newStatus) {
+				if (newStatus === "FINISHED") {
+					if (show.watched.watchedSeasons) {
+						for (const s of show.watched.watchedSeasons) {
+							s.status = "FINISHED";
+						}
+					}
+					if (show.watched.watchedEpisodes) {
+						for (const e of show.watched.watchedEpisodes) {
+							e.status = "FINISHED";
+						}
+					}
+				}
+				show.watched = {
+					...show.watched,
+					watchedEpisodes: [...(show.watched.watchedEpisodes || [])],
+					watchedSeasons: [...(show.watched.watchedSeasons || [])],
+				};
+			}
 			return true;
 		} catch {
 			return false;
@@ -447,6 +466,15 @@
 						lastViewedSeasonChanged={(wid, lvs) => {
 							if (show?.watched && show.watched.id === wid) {
 								show.watched.lastViewedSeason = lvs;
+							}
+						}}
+						onStatusChanged={() => {
+							if (show?.watched) {
+								show.watched = {
+									...show.watched,
+									watchedEpisodes: [...(show.watched.watchedEpisodes || [])],
+									watchedSeasons: [...(show.watched.watchedSeasons || [])],
+								};
 							}
 						}}
 					/>
