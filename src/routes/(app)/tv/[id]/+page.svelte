@@ -312,7 +312,7 @@
 									{/if}
 								</a>
 							{/if}
-							{#if store.serverFeatures?.sonarr && data.tvId}
+							{#if (store.serverFeatures?.sonarr || store.serverFeatures?.overseerr) && data.tvId}
 								<ArrRequestButton
 									type="tv"
 									tmdbId={data.tvId}

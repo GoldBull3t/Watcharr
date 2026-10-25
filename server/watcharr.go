@@ -48,6 +48,7 @@ import (
 	"github.com/sbondCo/Watcharr/feature/plex"
 	"github.com/sbondCo/Watcharr/feature/profile"
 	"github.com/sbondCo/Watcharr/feature/search"
+	"github.com/sbondCo/Watcharr/feature/seerr"
 	"github.com/sbondCo/Watcharr/feature/server"
 	"github.com/sbondCo/Watcharr/feature/setup"
 	"github.com/sbondCo/Watcharr/feature/tag"
@@ -356,6 +357,7 @@ func main() {
 	server.NewRouter(br, plexService, authTrustedHeaderService, userManageService).AddRoutes()
 	feature.NewRouter(br, featureService).AddRoutes()
 	arr.NewRouter(br, contentService).AddRoutes()
+	seerr.NewRouter(br).AddRoutes()
 	job.NewRouter(br).AddRoutes()
 	task.NewRouter(br).AddRoutes()
 	tag.NewRouter(br, tagService).AddRoutes()

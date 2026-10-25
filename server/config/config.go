@@ -100,6 +100,10 @@ type ServerConfig struct {
 	// VERY DANGEROUS if access is not controlled correctly!
 	HEADER_AUTH TrustedHeaderAuthSetting `json:",omitempty"`
 
+	// Optional: Point to Jellyseerr or Overseerr install to enable media requests.
+	OVERSEERR_HOST string `json:",omitempty"`
+	OVERSEERR_KEY  string `json:",omitempty"`
+
 	SONARR []cfgmodel.SonarrSettings `json:",omitempty"`
 	RADARR []cfgmodel.RadarrSettings `json:",omitempty"`
 	TWITCH igdb.IGDB                 `json:",omitzero"`
@@ -136,6 +140,8 @@ func (c *ServerConfig) GetSafe() ServerConfig {
 		MDBLIST_KEY:              c.MDBLIST_KEY,
 		PLEX_HOST:                c.PLEX_HOST,
 		PLEX_MACHINE_ID:          c.PLEX_MACHINE_ID,
+		OVERSEERR_HOST:           c.OVERSEERR_HOST,
+		OVERSEERR_KEY:            c.OVERSEERR_KEY,
 		DEBUG:                    c.DEBUG,
 		SONARR:                   c.SONARR, // Dont act safe, this contains sonarr api key, needed for config
 		RADARR:                   c.RADARR, // Dont act safe, this contains radarr api key, needed for config
@@ -228,6 +234,10 @@ func (c *ServerConfig) Get(s string) (ServerConfigGetByName, error) {
 		return ServerConfigGetByName{Value: c.HEADER_AUTH}, nil
 	case "DEBUG":
 		return ServerConfigGetByName{Value: c.DEBUG}, nil
+	case "OVERSEERR_HOST":
+		return ServerConfigGetByName{Value: c.OVERSEERR_HOST}, nil
+	case "OVERSEERR_KEY":
+		return ServerConfigGetByName{Value: c.OVERSEERR_KEY}, nil
 	}
 	return ServerConfigGetByName{}, errors.New("invalid setting")
 }
@@ -304,6 +314,20 @@ func (c *ServerConfig) UpdateConfig(k string, v any) error {
 			return errors.New("invalid value")
 		}
 		c.DEFAULT_LANGUAGE = str
+	case "OVERSEERR_HOST":
+		str, ok := v.(string)
+		if !ok {
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		c.OVERSEERR_HOST = strings.TrimRight(strings.TrimSpace(str), "/")
+	case "OVERSEERR_KEY":
+		str, ok := v.(string)
+		if !ok {
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		c.OVERSEERR_KEY = strings.TrimSpace(str)
 	default:
 		cfgMu.Unlock()
 		return errors.New("invalid setting")
@@ -465,4 +489,10 @@ func Get() (*ServerConfig, error) {
 		return nil, err
 	}
 	return cfg, nil
+}
+
+func (c *ServerConfig) OverseerrEnabled() bool {
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+	return c.OVERSEERR_HOST != "" && c.OVERSEERR_KEY != ""
 }

@@ -208,7 +208,7 @@
 									{/if}
 								</a>
 							{/if}
-							{#if store.serverFeatures?.radarr && data.movieId}
+							{#if (store.serverFeatures?.radarr || store.serverFeatures?.overseerr) && data.movieId}
 								<ArrRequestButton
 									type="movie"
 									tmdbId={data.movieId}

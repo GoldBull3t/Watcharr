@@ -855,6 +855,8 @@ export interface ServerConfig {
 	MDBLIST_KEY?: string;
 	PLEX_HOST?: string;
 	PLEX_MACHINE_ID?: string;
+	OVERSEERR_HOST?: string;
+	OVERSEERR_KEY?: string;
 	SONARR?: SonarrSettings[];
 	RADARR?: RadarrSettings[];
 	TWITCH?: TwitchSettings;
@@ -1024,6 +1026,7 @@ export interface ServerFeatures {
 	sonarr: boolean;
 	radarr: boolean;
 	games: boolean;
+	overseerr?: boolean;
 }
 
 export interface Follow {
@@ -1207,3 +1210,18 @@ export interface FranchiseMatch {
 	releaseOrder?: number;
 }
 
+
+export interface SeerrContentStatus {
+	configured: boolean;
+	status: number;
+	statusName: "UNKNOWN" | "PENDING" | "PROCESSING" | "PARTIALLY_AVAILABLE" | "AVAILABLE";
+	isAvailable: boolean;
+	isProcessing: boolean;
+	isPending: boolean;
+	mediaInfo?: {
+		id?: number;
+		tmdbId?: number;
+		tvdbId?: number;
+		status: number;
+	};
+}

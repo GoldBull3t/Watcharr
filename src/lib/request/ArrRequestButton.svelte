@@ -5,6 +5,7 @@
 		ArrRequestResponse,
 		ArrRequestStatus,
 		ContentType,
+		SeerrContentStatus,
 	} from "@/types";
 	import { onMount } from "svelte";
 	import Icon from "../Icon.svelte";
@@ -13,6 +14,7 @@
 	import { notify } from "../util/notify";
 	import { req } from "../util/api";
 	import { ReqerError } from "../util/fetch";
+	import store from "@/store.svelte";
 
 	interface Props {
 		type: ContentType;
@@ -24,6 +26,9 @@
 
 	let existingRequest: ArrRequestResponse | undefined;
 	let info: ArrInfoResponse | undefined = $state();
+	let seerrStatus: SeerrContentStatus | undefined = $state();
+	let isRequestingSeerr = $state(false);
+
 	// The status, extra added string types are set in this file.
 	let status:
 		| ArrDetailsResponse
@@ -42,6 +47,9 @@
 	}
 
 	let availableLabel = $derived.by(() => {
+		if (seerrStatus?.isAvailable) {
+			return "Available";
+		}
 		if (!info) return "Available";
 		const parts: string[] = ["Available"];
 		if (info.qualityName) {
@@ -143,6 +151,64 @@
 		}
 	}
 
+	async function checkSeerrStatus(): Promise<boolean> {
+		if (!store.serverFeatures?.overseerr) return false;
+		try {
+			const res = await req.get<SeerrContentStatus>(`/seerr/status/${type}/${tmdbId}`);
+			if (res && res.configured) {
+				seerrStatus = res;
+				if (res.isAvailable) {
+					status = "available";
+					return true;
+				} else if (res.isProcessing) {
+					status = "requested";
+					return true;
+				} else if (res.isPending) {
+					status = "PENDING";
+					return true;
+				} else if (res.status === 4) {
+					status = "available";
+					return true;
+				}
+			}
+		} catch (err) {
+			console.error("checkSeerrStatus error:", err);
+		}
+		return false;
+	}
+
+	async function requestViaSeerr() {
+		try {
+			isRequestingSeerr = true;
+			await req.post("/seerr/request", {
+				mediaType: type,
+				mediaId: tmdbId,
+				seasons: "all",
+			});
+			notify({
+				type: "success",
+				text: "Request submitted to Jellyseerr/Overseerr!",
+			});
+			status = "PENDING";
+		} catch (err) {
+			console.error("requestViaSeerr failed:", err);
+			notify({
+				type: "error",
+				text: "Failed to submit request to Jellyseerr/Overseerr",
+			});
+		} finally {
+			isRequestingSeerr = false;
+		}
+	}
+
+	function handleRequestClick() {
+		if (store.serverFeatures?.overseerr) {
+			requestViaSeerr();
+		} else {
+			openRequestModal();
+		}
+	}
+
 	async function lookForExisting() {
 		try {
 			const existingRequestResp = await req.get<ArrRequestResponse>(
@@ -192,12 +258,20 @@
 		getInfo();
 	}
 
-	onMount(() => {
-		lookForExisting();
+	onMount(async () => {
+		const handledBySeerr = await checkSeerrStatus();
+		if (!handledBySeerr) {
+			const hasArr = (type === "movie" && store.serverFeatures?.radarr) || (type === "tv" && store.serverFeatures?.sonarr);
+			if (hasArr) {
+				lookForExisting();
+			}
+		}
 	});
 </script>
 
-{#if typeof status === "object" || status === "requested"}
+{#if isRequestingSeerr}
+	<button disabled>Requesting...</button>
+{:else if typeof status === "object" || status === "requested"}
 	<button
 		onclick={getStatus}
 		use:tooltip={{
@@ -239,7 +313,7 @@
 {:else if status === "DENIED"}
 	<button disabled>Denied</button>
 {:else}
-	<button onclick={openRequestModal}>Request</button>
+	<button onclick={handleRequestClick}>Request</button>
 {/if}
 
 <style lang="scss">

@@ -7,9 +7,10 @@ import (
 )
 
 type ServerFeatures struct {
-	Sonarr bool `json:"sonarr"`
-	Radarr bool `json:"radarr"`
-	Games  bool `json:"games"`
+	Sonarr    bool `json:"sonarr"`
+	Radarr    bool `json:"radarr"`
+	Games     bool `json:"games"`
+	Overseerr bool `json:"overseerr"`
 }
 
 type Service struct {
@@ -36,6 +37,9 @@ func (s *Service) GetEnabledFeatures(userPerms int) ServerFeatures {
 		}
 		if len(s.cfg.RADARR) > 0 {
 			f.Radarr = true
+		}
+		if s.cfg.OverseerrEnabled() {
+			f.Overseerr = true
 		}
 	}
 	return f

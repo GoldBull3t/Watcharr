@@ -47,6 +47,35 @@
 	let countryDisabled = $state(false);
 	let languageDisabled = $state(false);
 	let useEmbyDisabled = $state(false);
+	let overseerrHostDisabled = $state(false);
+	let overseerrKeyDisabled = $state(false);
+	let overseerrTesting = $state(false);
+
+	async function testOverseerrConnection() {
+		if (!serverConfig?.OVERSEERR_HOST || !serverConfig?.OVERSEERR_KEY) {
+			notify({ type: "error", text: "Host and API Key must be set to test!" });
+			return;
+		}
+		overseerrTesting = true;
+		try {
+			const res = await req.post<{ version?: string; commitTag?: string }>("/seerr/test", {
+				host: serverConfig.OVERSEERR_HOST,
+				key: serverConfig.OVERSEERR_KEY,
+			});
+			notify({
+				type: "success",
+				text: `Connected to Overseerr/Jellyseerr! Version: ${res.version || res.commitTag || "OK"}`,
+			});
+		} catch (err) {
+			console.error("Overseerr test failed:", err);
+			notify({
+				type: "error",
+				text: "Failed to connect to Overseerr/Jellyseerr. Please check Host and Key.",
+			});
+		} finally {
+			overseerrTesting = false;
+		}
+	}
 
 	let jellyfinWebhookEndpoint: string | undefined = $derived.by(() => {
 		if (
@@ -509,6 +538,61 @@
 								radarrModalOpen = true;
 							}}
 						/>
+					</Setting>
+
+					<Setting
+						title="Jellyseerr / Overseerr"
+						desc="Connect to Jellyseerr or Overseerr to handle media requests and check real-time availability."
+					>
+						<div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+							<input
+								type="text"
+								placeholder="Host (e.g. http://jellyseerr:5055 or https://requests.example.com)"
+								bind:value={serverConfig.OVERSEERR_HOST}
+								onblur={() => {
+									overseerrHostDisabled = true;
+									updateServerConfig(
+										"OVERSEERR_HOST",
+										serverConfig!.OVERSEERR_HOST,
+										() => {
+											overseerrHostDisabled = false;
+											getServerFeatures();
+										},
+									);
+								}}
+								disabled={overseerrHostDisabled}
+							/>
+							<input
+								type="password"
+								placeholder="API Key (from Settings > General in Overseerr)"
+								bind:value={serverConfig.OVERSEERR_KEY}
+								onblur={() => {
+									overseerrKeyDisabled = true;
+									updateServerConfig(
+										"OVERSEERR_KEY",
+										serverConfig!.OVERSEERR_KEY,
+										() => {
+											overseerrKeyDisabled = false;
+											getServerFeatures();
+										},
+									);
+								}}
+								disabled={overseerrKeyDisabled}
+							/>
+							<div style="display: flex; gap: 10px; align-items: center; margin-top: 4px;">
+								<button
+									class="btn"
+									style="padding: 6px 14px; font-size: 13px; font-weight: 600;"
+									disabled={overseerrTesting || !serverConfig.OVERSEERR_HOST || !serverConfig.OVERSEERR_KEY}
+									onclick={testOverseerrConnection}
+								>
+									{overseerrTesting ? "Testing..." : "Test Connection"}
+								</button>
+								{#if serverConfig.OVERSEERR_HOST && serverConfig.OVERSEERR_KEY}
+									<span style="font-size: 12px; color: #10b981; font-weight: 600;">Configured</span>
+								{/if}
+							</div>
+						</div>
 					</Setting>
 
 					{#if twitchModalOpen}
