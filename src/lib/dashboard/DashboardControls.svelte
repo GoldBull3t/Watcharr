@@ -3,6 +3,7 @@
 	import DetailedMenu from "@/lib/nav/DetailedMenu.svelte";
 	import SortMenu from "@/lib/nav/SortMenu.svelte";
 	import FilterMenu from "./FilterMenu.svelte";
+import WatchTogetherModal from "./WatchTogetherModal.svelte";
 	import { store, defaultSort, clearActiveFilters } from "@/store.svelte";
 	import { onDestroy, onMount } from "svelte";
 	import { t } from "@/lib/i18n";
@@ -30,6 +31,7 @@
 	let detailedMenuShown = $state(false);
 	let sortMenuShown = $state(false);
 	let filterMenuShown = $state(false);
+let watchTogetherShown = $state(false);
 
 	// In-library search query
 	let librarySearchText = $state(store.activeFilters?.query || "");
@@ -295,6 +297,24 @@
 				<span class="toggle-label">{t("dashboard.bulk")}</span>
 			</button>
 
+			<!-- Watch Together Button -->
+			<button
+				type="button"
+				class="icon-toggle watch-together-btn"
+				class:active={watchTogetherShown}
+				onclick={() => {
+					detailedMenuShown = false;
+					filterMenuShown = false;
+					sortMenuShown = false;
+					watchTogetherShown = true;
+				}}
+				title="Ver em Conjunto (Cruzar Watchlists com Amigos/Parceiros)"
+				aria-label="Ver em Conjunto"
+			>
+				<span style="font-size: 13px;">🍿</span>
+				<span class="toggle-label">Ver em Conjunto</span>
+			</button>
+
 			<div class="toolbar-separator"></div>
 
 			<!-- View Switcher & Grid Density (Compact / Comfortable / Editorial / List) -->
@@ -486,6 +506,10 @@
 				Clear all
 			</button>
 		</div>
+	{/if}
+
+	{#if watchTogetherShown}
+		<WatchTogetherModal onClose={() => (watchTogetherShown = false)} />
 	{/if}
 </div>
 

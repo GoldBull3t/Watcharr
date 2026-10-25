@@ -14,6 +14,7 @@
 	import PosterList from "@/lib/poster/PosterList.svelte";
 	import Poster from "@/lib/poster/Poster.svelte";
 	import Error from "@/lib/Error.svelte";
+import WatchTogetherModal from "@/lib/dashboard/WatchTogetherModal.svelte";
 	import { afterNavigate } from "$app/navigation";
 
 	let meta = $derived.by(() => {
@@ -24,6 +25,7 @@
 	});
 
 	let followBtnDisabled = $state(false);
+let watchTogetherOpen = $state(false);
 	let user: PublicUser | undefined = $state();
 
 	let isFollowing = $derived(
@@ -164,6 +166,14 @@
 						<Icon i={isFollowing ? "person-minus" : "person-add"} wh={16} />
 						<span>{isFollowing ? "Following" : "Follow"}</span>
 					</button>
+					<button
+						class="watch-together-btn"
+						onclick={() => (watchTogetherOpen = true)}
+						title="Cruzar watchlist e ver em conjunto com este utilizador"
+					>
+						<span>🍿</span>
+						<span>Ver em Conjunto</span>
+					</button>
 				</div>
 				{#if user?.bio}
 					<p class="bio" title={user.bio}>{user.bio}</p>
@@ -231,6 +241,13 @@
 	</div>
 {/if}
 
+{#if watchTogetherOpen}
+	<WatchTogetherModal
+		initialTargetUserId={Number(meta.id)}
+		onClose={() => (watchTogetherOpen = false)}
+	/>
+{/if}
+
 <style lang="scss">
 	.content {
 		display: flex;
@@ -275,6 +292,27 @@
 					letter-spacing: -0.02em;
 					color: #fff;
 					margin: 0;
+				}
+
+				.watch-together-btn {
+					display: flex;
+					align-items: center;
+					gap: 6px;
+					padding: 6px 14px;
+					border-radius: 8px;
+					font-size: 13px;
+					font-weight: 600;
+					background: rgba(229, 9, 20, 0.15);
+					color: #f87171;
+					border: 1px solid rgba(229, 9, 20, 0.35);
+					cursor: pointer;
+					transition: all 0.2s ease;
+
+					&:hover {
+						background: #e50914;
+						border-color: #e50914;
+						color: white;
+					}
 				}
 
 				.follow-btn {

@@ -1225,3 +1225,29 @@ export interface SeerrContentStatus {
 		status: number;
 	};
 }
+
+
+export interface WatchTogetherUser {
+	id: number;
+	username: string;
+	bio?: string;
+	avatar?: Image;
+	isFollowed: boolean;
+}
+
+export interface WatchTogetherItem {
+	id: number;
+	contentId: number;
+	status: WatchedStatus;
+	rating: number;
+	content?: Content;
+	targetUserStatus?: WatchedStatus;
+	targetUserRating?: number;
+}
+
+export interface WatchTogetherResponse {
+	targetUser: PublicUser;
+	mode: "common" | "unwatched" | "recommended";
+	totalCount: number;
+	items: WatchTogetherItem[];
+}

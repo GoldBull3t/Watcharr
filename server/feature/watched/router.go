@@ -29,6 +29,8 @@ func (r *Router) AddRoutes() {
 
 	watched.GET("", router.PaginatedRequest(false), r.GetWatchedList)
 	watched.GET("/continue", r.GetContinueWatching)
+	watched.GET("/together/users", r.GetWatchTogetherUsers)
+	watched.GET("/together/:targetUserId", r.GetWatchTogether)
 	watched.GET("/export", r.ExportWatchedList)
 	watched.GET(":id/:username", router.PaginatedRequest(true), r.GetPublicWatchedList)
 	watched.POST("", r.AddWatched)
@@ -254,4 +256,32 @@ func (r *Router) DeleteWatchedFromTag(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusOK)
+}
+
+func (r *Router) GetWatchTogetherUsers(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	users, err := r.s.GetWatchTogetherUsers(userId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, users)
+}
+
+func (r *Router) GetWatchTogether(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	targetUserIdStr := c.Param("targetUserId")
+	targetUserId, err := strconv.ParseUint(targetUserIdStr, 10, 32)
+	if err != nil || targetUserId == 0 {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid target user id"})
+		return
+	}
+
+	mode := c.Query("mode")
+	resp, err := r.s.GetWatchTogether(userId, uint(targetUserId), mode)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
