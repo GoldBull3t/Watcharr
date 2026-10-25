@@ -33,6 +33,30 @@ Este projeto é ativamente mantido e estou ativamente à procura de opiniões, c
 
 ## ✨ Principais Melhorias Implementadas
 
+### 🌐 Listas Temáticas Personalizadas & Partilháveis
+* **Partilha Desautenticada:** Cria listas personalizadas de filmes, séries e videojogos e partilha-as através de um link direto público (`/tag/:id`) sem exigir conta aos visitantes.
+* **Privacidade Granular:** Comuta instantaneamente a visibilidade entre pública e privada com garantia de isolamento (`403 Forbidden` nas privadas).
+
+### 👥 Watch Together (Cruzar Watchlists)
+* **Recomendações Colaborativas:** Cruza watchlists com amigos para descobrir o que ver em conjunto (modos: *Em Comum*, *Não Vistos* ou *Recomendações Inteligentes*).
+
+### 🎬 Trailers TMDB com 1 Clique & Hub de Sagas
+* **Trailers Sem Publicidade:** Assiste a trailers e teasers oficiais diretamente num modal lightbox sem anúncios nem cookies invasivos (`youtube-nocookie.com`).
+* **Hub de Coleções e Franquias:** Vista agregada de sagas (Marvel, Star Wars, Dune, etc.) com cálculo dinâmico de progresso visual por utilizador.
+
+### 🏠 Integrações Homelab em Tempo Real (Event-Driven)
+* **Outbound Webhooks:** Motor assíncrono para automações instantâneas no Home Assistant, Discord, Slack e Ntfy com proteção anti-SSRF.
+* **Overseerr & Jellyseerr:** Cliente nativo integrado para consulta de disponibilidade e submissão de pedidos com 1 clique.
+* **Suporte Completo ao Emby:** Ingestão nativa de webhooks Emby (`playback.stop`, `playback.start`, `item.markplayed`) e compatibilidade de tokens.
+
+### 📱 PWA & Notificações Web Push
+* **Instalação Nativa:** Transforma o Watcharr numa Progressive Web App (PWA) instalável em smartphone e desktop com funcionamento offline.
+* **Alertas Push VAPID:** Subscrição direta e notificações push sem intermediários no browser para novos episódios e atividade.
+
+### 🗄️ Multi-Base de Dados & Pesquisa Inteligente
+* **Motores de Dados:** Suporte nativo para **PostgreSQL**, **MySQL** e **SQLite** com connection pooling automático (`DB_TYPE` / `DATABASE_URL`).
+* **Pesquisa Fuzzy de Alta Performance:** Algoritmo híbrido com indexação por trigramas, similaridade de Dice e tolerância a erros tipográficos (Damerau-Levenshtein).
+
 ### 🗺️ Franchise Roadmaps (Linhas Cronológicas)
 * **Comutador de Ordem:** Alternância imediata entre **Ordem de Lançamento** (datas de estreia oficiais) e **Ordem Cronológica** (linha temporal da história).
 
