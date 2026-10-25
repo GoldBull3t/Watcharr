@@ -33,6 +33,7 @@
 	import DashboardIntegrationModal from "@/lib/integrations/DashboardIntegrationModal.svelte";
 	import Modal from "@/lib/Modal.svelte";
 	import SpinnerTiny from "@/lib/SpinnerTiny.svelte";
+	import { t, i18n } from "@/lib/i18n";
 
 	let user = $derived(store.userInfo);
 	let settings = $derived(store.userSettings);
@@ -264,14 +265,14 @@
 			<div class="stats-header-row">
 				<h3 class="section-heading">
 					<Icon i="reel" wh={20} />
-					Cinematic Activity & Statistics
+					{t("profile.stats_title")}
 				</h3>
 			</div>
 
 			{#await getProfilePromise}
 				<div class="stats-loading">
 					<Spinner />
-					<p>Calculating collection metrics...</p>
+					<p>{t("action.loading")}</p>
 				</div>
 			{:then profile}
 				<!-- Hero Metrics Grid -->
@@ -282,7 +283,7 @@
 						</div>
 						<div class="stat-body">
 							<span class="stat-value">{profile.moviesWatched}</span>
-							<span class="stat-label">Movies Watched</span>
+							<span class="stat-label">{t("profile.movies_watched")}</span>
 							<span class="stat-sub"
 								>{toFormattedTimeLong(profile.moviesWatchedRuntime)}</span
 							>
@@ -295,7 +296,7 @@
 						</div>
 						<div class="stat-body">
 							<span class="stat-value">{profile.episodesWatched || 0}</span>
-							<span class="stat-label">Episodes Watched</span>
+							<span class="stat-label">{t("profile.episodes_watched")}</span>
 							<span class="stat-sub"
 								>{toFormattedTimeLong(profile.showsWatchedRuntime)}</span
 							>
@@ -308,9 +309,9 @@
 						</div>
 						<div class="stat-body">
 							<span class="stat-value">{profile.showsWatched}</span>
-							<span class="stat-label">Series Completed</span>
+							<span class="stat-label">{t("profile.shows_completed")}</span>
 							<span class="stat-sub"
-								>{profile.showsWatching || 0} in progress</span
+								>{t("profile.in_progress", { count: profile.showsWatching || 0 })}</span
 							>
 						</div>
 					</div>
@@ -323,9 +324,9 @@
 							<span class="stat-value"
 								>{toFormattedTimeLong(profile.totalRuntime)}</span
 							>
-							<span class="stat-label">Total Screen Time</span>
+							<span class="stat-label">{t("profile.screen_time")}</span>
 							<span class="stat-sub"
-								>Member since {formatDate(new Date(profile.joined))}</span
+								>{t("profile.member_since", { date: formatDate(new Date(profile.joined)) })}</span
 							>
 						</div>
 					</div>
@@ -348,9 +349,9 @@
 					<div class="dashboard-panel">
 						<div class="panel-header">
 							<div class="panel-title-wrap">
-								<h4 class="panel-title">Collection Status</h4>
+								<h4 class="panel-title">{t("profile.collection_status")}</h4>
 								<span class="panel-subtitle"
-									>Watch states across your media</span
+									>{t("profile.watch_states")}</span
 								>
 							</div>
 
@@ -361,21 +362,21 @@
 									class:active={statusTab === "all"}
 									onclick={() => (statusTab = "all")}
 								>
-									All
+									{t("profile.all")}
 								</button>
 								<button
 									class="mini-pill"
 									class:active={statusTab === "movie"}
 									onclick={() => (statusTab = "movie")}
 								>
-									Movies
+									{t("profile.movies")}
 								</button>
 								<button
 									class="mini-pill"
 									class:active={statusTab === "tv"}
 									onclick={() => (statusTab = "tv")}
 								>
-									Shows
+									{t("profile.shows")}
 								</button>
 								{#if profile.gamesPlayed > 0 || (profile.statusDistributionType?.game && Object.values(profile.statusDistributionType.game).some((v) => v > 0))}
 									<button
@@ -383,7 +384,7 @@
 										class:active={statusTab === "game"}
 										onclick={() => (statusTab = "game")}
 									>
-										Games
+										{t("profile.games")}
 									</button>
 								{/if}
 							</div>
@@ -400,39 +401,39 @@
 										<div
 											class="bar-segment finished"
 											style={`width: ${((currentDist.FINISHED || 0) / totalInTab) * 100}%`}
-											title={`Finished: ${currentDist.FINISHED}`}
+											title={`${t("status.finished")}: ${currentDist.FINISHED}`}
 										></div>
 									{/if}
 									{#if (currentDist.WATCHING || 0) > 0}
 										<div
 											class="bar-segment watching"
 											style={`width: ${((currentDist.WATCHING || 0) / totalInTab) * 100}%`}
-											title={`Watching: ${currentDist.WATCHING}`}
+											title={`${t("status.watching")}: ${currentDist.WATCHING}`}
 										></div>
 									{/if}
 									{#if (currentDist.PLANNED || 0) > 0}
 										<div
 											class="bar-segment planned"
 											style={`width: ${((currentDist.PLANNED || 0) / totalInTab) * 100}%`}
-											title={`Planned: ${currentDist.PLANNED}`}
+											title={`${t("status.planned")}: ${currentDist.PLANNED}`}
 										></div>
 									{/if}
 									{#if (currentDist.HOLD || 0) > 0}
 										<div
 											class="bar-segment hold"
 											style={`width: ${((currentDist.HOLD || 0) / totalInTab) * 100}%`}
-											title={`On Hold: ${currentDist.HOLD}`}
+											title={`${t("status.hold")}: ${currentDist.HOLD}`}
 										></div>
 									{/if}
 									{#if (currentDist.DROPPED || 0) > 0}
 										<div
 											class="bar-segment dropped"
 											style={`width: ${((currentDist.DROPPED || 0) / totalInTab) * 100}%`}
-											title={`Dropped: ${currentDist.DROPPED}`}
+											title={`${t("status.dropped")}: ${currentDist.DROPPED}`}
 										></div>
 									{/if}
 								{:else}
-									<div class="empty-bar">No titles in this category</div>
+									<div class="empty-bar">{t("profile.empty_category")}</div>
 								{/if}
 							</div>
 
@@ -440,27 +441,27 @@
 							<div class="status-legend-grid">
 								<div class="legend-badge finished">
 									<span class="dot"></span>
-									<span class="label">Finished</span>
+									<span class="label">{t("status.finished")}</span>
 									<strong class="count">{currentDist.FINISHED || 0}</strong>
 								</div>
 								<div class="legend-badge watching">
 									<span class="dot"></span>
-									<span class="label">Watching</span>
+									<span class="label">{t("status.watching")}</span>
 									<strong class="count">{currentDist.WATCHING || 0}</strong>
 								</div>
 								<div class="legend-badge planned">
 									<span class="dot"></span>
-									<span class="label">Planned</span>
+									<span class="label">{t("status.planned")}</span>
 									<strong class="count">{currentDist.PLANNED || 0}</strong>
 								</div>
 								<div class="legend-badge hold">
 									<span class="dot"></span>
-									<span class="label">On Hold</span>
+									<span class="label">{t("status.hold")}</span>
 									<strong class="count">{currentDist.HOLD || 0}</strong>
 								</div>
 								<div class="legend-badge dropped">
 									<span class="dot"></span>
-									<span class="label">Dropped</span>
+									<span class="label">{t("status.dropped")}</span>
 									<strong class="count">{currentDist.DROPPED || 0}</strong>
 								</div>
 							</div>
@@ -706,13 +707,13 @@
 		<section class="settings-container">
 			<h3 class="section-heading">
 				<Icon i="compass" wh={18} />
-				Preferences & Settings
+				{t("profile.preferences_title")}
 			</h3>
 
 			<!-- Theme Selector -->
 			<div class="settings-card">
-				<h4 class="card-title">Appearance</h4>
-				<p class="card-desc">Choose how Watcharr looks on this device.</p>
+				<h4 class="card-title">{t("profile.appearance")}</h4>
+				<p class="card-desc">{t("profile.appearance_desc")}</p>
 				<div class="theme-grid">
 					<button
 						class={`theme-option ${selectedTheme === "system" ? "active" : ""}`}
@@ -723,7 +724,7 @@
 							<div class="half light-side"></div>
 							<div class="half dark-side"></div>
 						</div>
-						<span class="theme-label">System</span>
+						<span class="theme-label">{t("profile.theme_system")}</span>
 					</button>
 
 					<button
@@ -732,7 +733,7 @@
 						type="button"
 					>
 						<div class="preview-box light-preview"></div>
-						<span class="theme-label">Light</span>
+						<span class="theme-label">{t("profile.theme_light")}</span>
 					</button>
 
 					<button
@@ -741,17 +742,33 @@
 						type="button"
 					>
 						<div class="preview-box dark-preview"></div>
-						<span class="theme-label">Dark</span>
+						<span class="theme-label">{t("profile.theme_dark")}</span>
 					</button>
 				</div>
 			</div>
 
 			<!-- Regional & Streaming Providers -->
 			<div class="settings-card">
-				<h4 class="card-title">Regional & Localization</h4>
+				<h4 class="card-title">{t("profile.regional_title")}</h4>
 				<Setting
-					title="Country & Region"
-					desc="Select your region to display local streaming availability and watch providers."
+					title={t("profile.ui_language")}
+					desc={t("profile.ui_language_desc")}
+				>
+					<select
+						class="input"
+						value={i18n.currentLocale}
+						onchange={(e) => {
+							const val = (e.currentTarget as HTMLSelectElement).value as "en" | "pt";
+							i18n.setLocale(val);
+						}}
+					>
+						<option value="en">English</option>
+						<option value="pt">Português</option>
+					</select>
+				</Setting>
+				<Setting
+					title={t("profile.country_title")}
+					desc={t("profile.country_desc")}
 				>
 					<RegionDropDown
 						selectedCountry={settings?.country}
@@ -765,8 +782,8 @@
 					/>
 				</Setting>
 				<Setting
-					title="Metadata Language"
-					desc="Preferred language for movie and show titles, overviews, and season details from TMDB."
+					title={t("profile.meta_language_title")}
+					desc={t("profile.meta_language_desc")}
 				>
 					<LanguageDropDown
 						selectedLanguage={settings?.language}
@@ -783,10 +800,10 @@
 
 			<!-- Privacy Settings -->
 			<div class="settings-card">
-				<h4 class="card-title">Privacy & Social</h4>
+				<h4 class="card-title">{t("profile.privacy_title")}</h4>
 				<Setting
-					title="Private Account"
-					desc="Hide your profile and watched library from community searches."
+					title={t("profile.private_account")}
+					desc={t("profile.private_account_desc")}
 					row
 				>
 					<Checkbox
@@ -804,8 +821,8 @@
 
 				{#if !settings?.private}
 					<Setting
-						title="Private Thoughts"
-						desc="Hide your personal notes and written thoughts from followers."
+						title={t("profile.private_thoughts")}
+						desc={t("profile.private_thoughts_desc")}
 						row
 					>
 						<Checkbox
@@ -825,10 +842,10 @@
 
 			<!-- Library & Episode Behavior -->
 			<div class="settings-card">
-				<h4 class="card-title">Playback & Library Behavior</h4>
+				<h4 class="card-title">{t("profile.behavior_title")}</h4>
 				<Setting
-					title="Hide Spoilers"
-					desc="Blur episode titles, descriptions, and thumbnails until marked as watched."
+					title={t("profile.hide_spoilers")}
+					desc={t("profile.hide_spoilers_desc")}
 					row
 				>
 					<Checkbox
@@ -845,8 +862,8 @@
 				</Setting>
 
 				<Setting
-					title="Automate Show Statuses"
-					desc="Automatically update show and season watch status when episodes are tracked."
+					title={t("profile.automate_statuses")}
+					desc={t("profile.automate_statuses_desc")}
 					tag="experimental"
 					row
 				>
@@ -864,8 +881,8 @@
 				</Setting>
 
 				<Setting
-					title="Include Previously Watched"
-					desc="Include previously finished items in the 'Finished' library filter."
+					title={t("profile.include_previously_watched")}
+					desc={t("profile.include_previously_watched_desc")}
 					row
 				>
 					<Checkbox
@@ -884,7 +901,7 @@
 
 			<!-- Rating System Setting -->
 			<div class="settings-card">
-				<h4 class="card-title">Rating Scale</h4>
+				<h4 class="card-title">{t("profile.rating_scale")}</h4>
 				<RatingSetting />
 			</div>
 
@@ -909,16 +926,16 @@
 
 			<!-- Data & Integrations Actions -->
 			<div class="settings-card">
-				<h4 class="card-title">Data & Integrations</h4>
+				<h4 class="card-title">{t("profile.data_integrations")}</h4>
 				<p class="card-desc">
-					Manage library imports, exports, and server synchronization.
+					{t("profile.data_integrations_desc")}
 				</p>
 				<div class="actions-toolbar">
 					<button class="btn-action" onclick={() => goto(resolve("/import"))}>
-						<Icon i="document" wh={16} /> Import Data
+						<Icon i="document" wh={16} /> {t("profile.import_data")}
 					</button>
 					<button class="btn-action" onclick={() => (exportModalOpen = true)}>
-						Export List
+						{t("profile.export_list")}
 					</button>
 					{#if user?.type === UserType.Watcharr}
 						<button
@@ -927,7 +944,7 @@
 								pwChangeModalOpen = true;
 							}}
 						>
-							<Icon i="lock-closed" wh={16} /> Change Password
+							<Icon i="lock-closed" wh={16} /> {t("profile.change_password")}
 						</button>
 					{/if}
 					{#if user?.type === UserType?.Jellyfin}
@@ -935,7 +952,7 @@
 							class="btn-action"
 							onclick={() => (jellyfinSyncModalOpen = true)}
 						>
-							Sync With {localStorage.getItem("useEmby") ? "Emby" : "Jellyfin"}
+							{t("profile.sync_with", { service: localStorage.getItem("useEmby") ? "Emby" : "Jellyfin" })}
 						</button>
 					{/if}
 					{#if user?.type === UserType?.Plex}
@@ -943,21 +960,21 @@
 							class="btn-action"
 							onclick={() => (plexSyncModalOpen = true)}
 						>
-							Sync With Plex
+							{t("profile.sync_with", { service: "Plex" })}
 						</button>
 					{/if}
 					<button
 						class="btn-action primary-accent"
 						onclick={() => (dashboardModalOpen = true)}
 					>
-						<Icon i="compass" wh={16} /> Dashboards & API (Homepage, HA)
+						<Icon i="compass" wh={16} /> {t("profile.dashboard_integrations")}
 					</button>
 					<button
 						class="btn-action danger"
 						onclick={() => (clearLibraryModalOpen = true)}
 						title="Apagar todos os itens da biblioteca para testes"
 					>
-						<Icon i="trash" wh={16} /> Limpar Biblioteca
+						<Icon i="trash" wh={16} /> {t("profile.clear_library")}
 					</button>
 				</div>
 			</div>
