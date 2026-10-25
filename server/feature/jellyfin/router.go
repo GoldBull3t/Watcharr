@@ -2,6 +2,8 @@ package jellyfin
 
 import (
 	"crypto/subtle"
+	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"uuid"
@@ -36,11 +38,15 @@ func NewRouter(
 
 func (r *Router) AddRoutes() {
 	jf := r.br.Router.Group("/jellyfin")
-
-	// Unauthenticated.
 	{
 		// Jellyfin webhook data ingest endpoint.
 		jf.POST("/webhook/:uuid", r.PostWebhook)
+	}
+
+	emby := r.br.Router.Group("/emby")
+	{
+		// Emby webhook data ingest endpoint.
+		emby.POST("/webhook/:uuid", r.PostWebhook)
 	}
 
 	// Authenticated and jellyfin access required.
@@ -131,24 +137,47 @@ func (r *Router) PostWebhook(c *gin.Context) {
 		return
 	}
 
-	var data WebhookData
-	err = c.ShouldBindJSON(&data)
+	bodyBytes, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		slog.Warn("PostWebhook: Bad request recieved.", "error", err)
+		slog.Warn("PostWebhook: Failed to read request body", "error", err)
 		c.AbortWithStatusJSON(http.StatusBadRequest,
-			router.ErrorResponse{Error: err.Error()})
+			router.ErrorResponse{Error: "failed to read body"})
 		return
 	}
-	err = r.webhookService.Ingest(data)
-	if err != nil {
-		// Since the error data might be sensitive (regarding auth/if a user
-		// exists), we just return a generic "failed" message.
-		// The real error should be obtained from watcharrs logs, since this
-		// endpoint is "unauthenticated" unless you have the secret uuid,
-		// we don't want to give randoms any more info if they are prying.
-		c.AbortWithStatusJSON(http.StatusInternalServerError,
-			router.ErrorResponse{Error: "ingest failed"})
+
+	// 1. Try standard Jellyfin Webhook format
+	var jfData WebhookData
+	if err := json.Unmarshal(bodyBytes, &jfData); err == nil && jfData.NotificationType != "" {
+		if err := r.webhookService.Ingest(jfData); err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError,
+				router.ErrorResponse{Error: "ingest failed"})
+			return
+		}
+		c.Status(http.StatusOK)
 		return
 	}
-	c.Status(http.StatusOK)
+
+	// 2. Try native Emby Webhook format (Emby Premiere Webhooks / Emby Webhook Plugin)
+	var embyData EmbyWebhookData
+	if err := json.Unmarshal(bodyBytes, &embyData); err == nil && embyData.Event != "" {
+		whData, handled, ignored := embyData.ToWebhookData()
+		if ignored {
+			slog.Debug("PostWebhook: Safely ignored Emby event", "event", embyData.Event)
+			c.Status(http.StatusOK)
+			return
+		}
+		if handled && whData != nil {
+			if err := r.webhookService.Ingest(*whData); err != nil {
+				c.AbortWithStatusJSON(http.StatusInternalServerError,
+					router.ErrorResponse{Error: "ingest failed"})
+				return
+			}
+			c.Status(http.StatusOK)
+			return
+		}
+	}
+
+	slog.Warn("PostWebhook: Webhook payload not recognized as Jellyfin or Emby format.")
+	c.AbortWithStatusJSON(http.StatusBadRequest,
+		router.ErrorResponse{Error: "unsupported webhook payload format"})
 }

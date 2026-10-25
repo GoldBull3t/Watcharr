@@ -85,7 +85,8 @@
 		) {
 			return "Error: Please try reloading the page OR re-toggling the webhook setting to get the address!";
 		}
-		return `${location.protocol}//${location.host}/api/jellyfin/webhook/${serverConfig.JELLYFIN_WEBHOOK_KEY}`;
+		const route = serverConfig.USE_EMBY ? "emby" : "jellyfin";
+		return `${location.protocol}//${location.host}/api/${route}/webhook/${serverConfig.JELLYFIN_WEBHOOK_KEY}`;
 	});
 
 	async function getServerConfig() {
@@ -249,8 +250,8 @@
 						/>
 					</Setting>
 					<Setting
-						title="Jellyfin Webhook"
-						desc="Do you want to enable Jellyfin Webhook support?"
+						title="{jellyfinOrEmby} Webhook"
+						desc="Do you want to enable {jellyfinOrEmby} Webhook support?"
 						row
 						handbook="jellyfin-webhook-setup"
 					>
@@ -277,8 +278,8 @@
 					</Setting>
 					{#if serverConfig.JELLYFIN_WEBHOOK_ENABLED}
 						<Setting
-							title="Jellyfin Webhook Endpoint"
-							desc="This is the address you should use when creating the webhook in Jellyfin. Depending on your setup, you may need to alter the hostname. This address contains a secret key, don't share it with others!"
+							title="{jellyfinOrEmby} Webhook Endpoint"
+							desc="This is the address you should use when creating the webhook in {jellyfinOrEmby}. Supports native Emby Premiere webhooks as well as the standard Webhooks plugin. This address contains a secret key, don't share it with others!"
 						>
 							<code>
 								{jellyfinWebhookEndpoint}
@@ -287,7 +288,7 @@
 					{/if}
 					<Setting
 						title="Use Emby"
-						desc="Do you want to pretend you're using Emby instead of Jellyfin?"
+						desc="Enable native Emby mode with dedicated /api/emby/webhook endpoints and branding."
 						row
 					>
 						<Checkbox

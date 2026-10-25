@@ -72,3 +72,4 @@ type ContentStatusResponse struct {
 	IsPending     bool        `json:"isPending"`
 	MediaInfo     *MediaInfo  `json:"mediaInfo,omitempty"`
 }
+
