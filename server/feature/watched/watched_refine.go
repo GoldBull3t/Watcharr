@@ -139,12 +139,12 @@ func refineSort(
 		db.Order(obc(clause.Column{Name: "watcheds.rating"}))
 	case domain.WatchedSortAlphabetical:
 		db.Order(obc(clause.Column{
-			Name: "COALESCE(`Content`.`title`, `Game`.`name`)",
+			Name: "COALESCE(Content.title, Game.name)",
 			Raw:  true,
 		}))
 	case domain.WatchedSortDateReleased:
 		db.Order(obc(clause.Column{
-			Name: "COALESCE(`Content`.`release_date`, `Game`.`release_date`)",
+			Name: "COALESCE(Content.release_date, Game.release_date)",
 			Raw:  true,
 		}))
 	}
@@ -172,30 +172,30 @@ func watchedRefineFilter(
 			yrStr := strconv.Itoa(wr.Year)
 			startDate := yrStr + "-01-01"
 			endDate := yrStr + "-12-31 23:59:59"
-			db.Where("((`Content`.`release_date` >= ? AND `Content`.`release_date` <= ?) OR (`Game`.`release_date` >= ? AND `Game`.`release_date` <= ?))", startDate, endDate, startDate, endDate)
+			db.Where("((Content.release_date >= ? AND Content.release_date <= ?) OR (Game.release_date >= ? AND Game.release_date <= ?))", startDate, endDate, startDate, endDate)
 		}
 		if wr.MinRating > 0 {
-			db.Where("`watcheds`.`rating` >= ?", wr.MinRating)
+			db.Where("watcheds.rating >= ?", wr.MinRating)
 		}
 		if wr.MaxRating > 0 {
-			db.Where("`watcheds`.`rating` <= ?", wr.MaxRating)
+			db.Where("watcheds.rating <= ?", wr.MaxRating)
 		}
 		if wr.Query != "" {
-			q := "%" + wr.Query + "%"
-			db.Where("`Content`.`title` LIKE ? OR `Game`.`name` LIKE ?", q, q)
+			q := "%" + strings.ToLower(wr.Query) + "%"
+			db.Where("LOWER(Content.title) LIKE ? OR LOWER(Game.name) LIKE ?", q, q)
 		}
 		if wr.Genre != "" {
 			g := "%" + wr.Genre + "%"
-			db.Where("(`Content`.`genres` LIKE ? OR `Game`.`genres` LIKE ?)", g, g)
+			db.Where("(Content.genres LIKE ? OR Game.genres LIKE ?)", g, g)
 		}
 		if wr.ProductionStatus != "" {
 			switch strings.ToLower(wr.ProductionStatus) {
 			case "canceled":
-				db.Where("`Content`.`status` = ?", "Canceled")
+				db.Where("Content.status = ?", "Canceled")
 			case "returning":
-				db.Where("`Content`.`status` = ?", "Returning Series")
+				db.Where("Content.status = ?", "Returning Series")
 			case "ended":
-				db.Where("`Content`.`status` = ?", "Ended")
+				db.Where("Content.status = ?", "Ended")
 			}
 		}
 		return db

@@ -46,6 +46,7 @@ import (
 	"github.com/sbondCo/Watcharr/feature/jellyfin"
 	"github.com/sbondCo/Watcharr/feature/job"
 	"github.com/sbondCo/Watcharr/feature/plex"
+	"github.com/sbondCo/Watcharr/feature/push"
 	"github.com/sbondCo/Watcharr/feature/profile"
 	"github.com/sbondCo/Watcharr/feature/search"
 	"github.com/sbondCo/Watcharr/feature/seerr"
@@ -370,6 +371,8 @@ func main() {
 	integration.NewRouter(br, integrationService).AddRoutes()
 	franchiseService := franchise.NewService(db, cfg, tmdbService, watchedService)
 	franchise.NewRouter(br, franchiseService).AddRoutes()
+	pushService := push.NewService(db)
+	push.NewRouter(br, pushService).AddRoutes()
 	img.NewRouter(br).AddRoutes()
 
 	// Only add setup routes if there are no users found in db.

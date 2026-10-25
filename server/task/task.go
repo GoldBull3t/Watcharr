@@ -88,7 +88,7 @@ func SetupTasks(cfg *config.ServerConfig, db *gorm.DB, notifiers ...CalendarNoti
 		},
 		"Memory Scavenger": {
 			f: func() {
-				if db != nil {
+				if db != nil && db.Dialector.Name() == "sqlite" {
 					db.Exec("PRAGMA shrink_memory")
 				}
 				debug.FreeOSMemory()

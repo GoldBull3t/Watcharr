@@ -378,7 +378,34 @@ func (s *Service) searchMyList(
 		return errors.New("request failed")
 	}
 	if internalRes.TotalResults <= 0 {
-		slog.Debug("searchMyList: No results found.")
+		slog.Debug("searchMyList: No direct substring matches found. Attempting fuzzy typo-tolerant trigram search.", "query", query)
+		if s.db != nil {
+			var userWatched []entity.Watched
+			dbErr := s.db.
+				Model(&entity.Watched{}).
+				Where(&entity.Watched{UserID: userId}).
+				Joins("Content").
+				Joins("Game").
+				Preload("Game.Poster").
+				Preload("Tags").
+				Find(&userWatched).Error
+			if dbErr == nil && len(userWatched) > 0 {
+				ranked := RankAndFilterLibrary(userWatched, query, 0.50)
+				if len(ranked) > 0 {
+					var fuzzyMatched []entity.Watched
+					for _, r := range ranked {
+						fuzzyMatched = append(fuzzyMatched, r.Watched)
+					}
+					resp.Results = domain.NewWatchedGetPageResponse(fuzzyMatched)
+					resp.Page = 1
+					resp.TotalPages = 1
+					resp.TotalResults = int64(len(fuzzyMatched))
+					slog.Info("searchMyList: Fuzzy trigram search found matching items", "count", len(fuzzyMatched), "query", query)
+					return nil
+				}
+			}
+		}
+		slog.Debug("searchMyList: No results found after fuzzy search.")
 		return nil
 	}
 	resp.Results = domain.NewWatchedGetPageResponse(internalRes.Results)

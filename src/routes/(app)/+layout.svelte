@@ -261,6 +261,17 @@
 			typeof navigator !== "undefined" &&
 			/Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
+		if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+			navigator.serviceWorker
+				.register("/sw.js")
+				.then((reg) => {
+					console.debug("Service Worker registered successfully:", reg.scope);
+				})
+				.catch((err) => {
+					console.debug("Service Worker registration failed:", err);
+				});
+		}
+
 		if (navEl) {
 			decideOnNavSplit();
 			window.addEventListener("resize", decideOnNavSplit);

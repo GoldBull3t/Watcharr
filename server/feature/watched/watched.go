@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"runtime/debug"
 	"strconv"
+	"strings"
 
 	"github.com/sbondCo/Watcharr/activity"
 	"github.com/sbondCo/Watcharr/database/dbmodel"
@@ -98,13 +99,13 @@ func (s *Service) GetWatchedPage(
 	if extraProps != nil {
 		// Process `WatchedIds` extra prop.
 		if len(extraProps.WatchedIds) > 0 {
-			res = res.Where("`watcheds`.`id` IN ?", extraProps.WatchedIds)
+			res = res.Where("watcheds.id IN ?", extraProps.WatchedIds)
 		}
 
 		// Search query
 		if extraProps.Query != "" {
-			q := "%" + extraProps.Query + "%"
-			res = res.Where("Content.Title LIKE ? OR Game.Name LIKE ?", q, q)
+			q := "%" + strings.ToLower(extraProps.Query) + "%"
+			res = res.Where("LOWER(Content.title) LIKE ? OR LOWER(Game.name) LIKE ?", q, q)
 		}
 	}
 

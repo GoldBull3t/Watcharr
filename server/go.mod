@@ -20,6 +20,8 @@ require (
 )
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/SherClockHolmes/webpush-go v1.4.0 // indirect
 	github.com/bradfitz/gomemcache v0.0.0-20250403215159-8d39553ac7cf // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.2 // indirect
@@ -33,10 +35,15 @@ require (
 	github.com/glebarez/go-sqlite v1.21.2 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
+	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/gomodule/redigo v1.9.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.10.0 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/jonboulle/clockwork v0.5.0 // indirect
@@ -57,9 +64,12 @@ require (
 	go.mongodb.org/mongo-driver/v2 v2.8.0 // indirect
 	golang.org/x/arch v0.29.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
+	gorm.io/driver/mysql v1.6.0 // indirect
+	gorm.io/driver/postgres v1.6.3 // indirect
 	modernc.org/libc v1.22.5 // indirect
 	modernc.org/mathutil v1.5.0 // indirect
 	modernc.org/memory v1.5.0 // indirect

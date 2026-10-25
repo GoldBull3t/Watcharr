@@ -37,7 +37,7 @@ var migrations = []Migration{
 			res := tx.
 				Model(&entity.Activity{}).
 				Where(
-					`type IN ? AND data LIKE "%FINISHED%"`,
+					`type IN ? AND data LIKE '%FINISHED%'`,
 					[]entity.ActivityType{
 						entity.ADDED_WATCHED,
 						entity.STATUS_CHANGED,
@@ -110,6 +110,11 @@ var migrations = []Migration{
 		Up: func(db *gorm.DB) error {
 			migID := "202604162229_0003"
 			slog.Info("Migration is starting.", "mig", migID)
+
+			if db.Dialector.Name() != "sqlite" {
+				slog.Info("Skipping SQLite WAL pragma migration on non-SQLite database", "mig", migID, "dialector", db.Dialector.Name())
+				return nil
+			}
 
 			var mode string
 			res := db.Raw("PRAGMA journal_mode=WAL").Scan(&mode)

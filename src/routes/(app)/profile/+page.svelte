@@ -30,6 +30,7 @@
 	import { ReqerError } from "@/lib/util/fetch";
 	import Icon from "@/lib/Icon.svelte";
 	import CalendarWebhookModal from "@/lib/calendar/CalendarWebhookModal.svelte";
+	import PushNotificationSettings from "@/lib/push/PushNotificationSettings.svelte";
 	import DashboardIntegrationModal from "@/lib/integrations/DashboardIntegrationModal.svelte";
 	import Modal from "@/lib/Modal.svelte";
 	import SpinnerTiny from "@/lib/SpinnerTiny.svelte";
@@ -922,6 +923,11 @@
 						<Icon i="notifications" wh={16} /> Configurar Webhook
 					</button>
 				</div>
+			</div>
+
+			<!-- Web Push Notifications & PWA -->
+			<div class="settings-card">
+				<PushNotificationSettings />
 			</div>
 
 			<!-- Data & Integrations Actions -->
