@@ -138,7 +138,7 @@
 
 	.card-desc {
 		font-size: 0.88rem;
-		color: $text-color-muted;
+		color: $text-muted;
 		margin: 0;
 		line-height: 1.4;
 	}
