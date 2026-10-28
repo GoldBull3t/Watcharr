@@ -14,7 +14,7 @@
 	import { notify } from "../util/notify";
 	import { req } from "../util/api";
 	import { ReqerError } from "../util/fetch";
-	import store from "@/store.svelte";
+	import { store } from "@/store.svelte";
 
 	interface Props {
 		type: ContentType;

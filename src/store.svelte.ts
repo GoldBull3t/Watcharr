@@ -438,3 +438,5 @@ function rehydrateStore() {
 	}
 	console.info("rehydrateStore: Done.");
 }
+
+export default store;
