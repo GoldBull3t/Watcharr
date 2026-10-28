@@ -51,8 +51,12 @@ type CalendarNotifier interface {
 	CheckAndNotifyAllUsers() error
 }
 
+type BackupProvider interface {
+	RunAutomatedBackup() error
+}
+
 // Setup recurring tasks (eg cleanup every x mins)
-func SetupTasks(cfg *config.ServerConfig, db *gorm.DB, notifiers ...CalendarNotifier) {
+func SetupTasks(cfg *config.ServerConfig, db *gorm.DB, calendarNotifier CalendarNotifier, backupProvider ...BackupProvider) {
 	ts, err := gocron.NewScheduler()
 	if err != nil {
 		slog.Error("SetupTasks: Failed to create new scheduler!", "error", err)
@@ -98,14 +102,26 @@ func SetupTasks(cfg *config.ServerConfig, db *gorm.DB, notifiers ...CalendarNoti
 		},
 	}
 
-	if len(notifiers) > 0 && notifiers[0] != nil {
-		cn := notifiers[0]
+	if calendarNotifier != nil {
 		taskFuncs["Calendar Release Notifications"] = TaskFunc{
 			f: func() {
 				slog.Debug("Running Calendar Release Notifications recurring task")
-				_ = cn.CheckAndNotifyAllUsers()
+				_ = calendarNotifier.CheckAndNotifyAllUsers()
 			},
 			dd: 6 * time.Hour,
+		}
+	}
+
+	if len(backupProvider) > 0 && backupProvider[0] != nil {
+		bp := backupProvider[0]
+		taskFuncs["Automated Database Backup"] = TaskFunc{
+			f: func() {
+				slog.Debug("Running Automated Database Backup recurring task")
+				if err := bp.RunAutomatedBackup(); err != nil {
+					slog.Error("Automated Database Backup failed", "error", err)
+				}
+			},
+			dd: 24 * time.Hour,
 		}
 	}
 

@@ -31,6 +31,7 @@ import (
 	"github.com/sbondCo/Watcharr/database/entity"
 	"github.com/sbondCo/Watcharr/domain"
 	"github.com/sbondCo/Watcharr/feature/activity"
+	"github.com/sbondCo/Watcharr/feature/backup"
 	"github.com/sbondCo/Watcharr/feature/arr"
 	"github.com/sbondCo/Watcharr/feature/auth"
 	"github.com/sbondCo/Watcharr/feature/calendar"
@@ -373,6 +374,8 @@ func main() {
 	franchise.NewRouter(br, franchiseService).AddRoutes()
 	pushService := push.NewService(db)
 	push.NewRouter(br, pushService).AddRoutes()
+	backupService := backup.NewService(db, cfg)
+	backup.NewRouter(br, backupService).AddRoutes()
 	img.NewRouter(br).AddRoutes()
 
 	// Only add setup routes if there are no users found in db.
@@ -389,7 +392,7 @@ func main() {
 			"error", uresp.Error)
 	}
 
-	go taskl.SetupTasks(cfg, db, calendarService)
+	go taskl.SetupTasks(cfg, db, calendarService, backupService)
 	go contentService.BackfillMissingMetadata()
 
 	srv := &http.Server{

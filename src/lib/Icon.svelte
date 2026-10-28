@@ -26,6 +26,80 @@
 			d="M416 128L192 384l-96-96"
 		/>
 	</svg>
+{:else if i === "database"}
+	<svg
+		xmlns="http://www.w3.org/2000/svg"
+		viewBox="0 0 512 512"
+		width={wh}
+		height={wh}
+		fill="currentColor"
+	>
+		<path
+			d="M256 48C141.1 48 48 80.2 48 120v272c0 39.8 93.1 72 208 72s208-32.2 208-72V120c0-39.8-93.1-72-208-72zm0 40c94.2 0 168 23.6 175.5 39.7C424 143.8 350.2 168 256 168s-168-24.2-175.5-40.3C88 111.6 161.8 88 256 88zm176 136c-13.6 18.2-70 36-176 36s-162.4-17.8-176-36v-47.3c27.1 21.6 96.9 35.3 176 35.3s148.9-13.7 176-35.3V224zm0 136c-13.6 18.2-70 36-176 36s-162.4-17.8-176-36v-47.3c27.1 21.6 96.9 35.3 176 35.3s148.9-13.7 176-35.3V360z"
+		/>
+	</svg>
+{:else if i === "archive"}
+	<svg
+		xmlns="http://www.w3.org/2000/svg"
+		viewBox="0 0 512 512"
+		width={wh}
+		height={wh}
+		fill="currentColor"
+	>
+		<path
+			d="M64 164v244a56 56 0 0056 56h272a56 56 0 0056-56V164a16 16 0 00-16-16H80a16 16 0 00-16 16zm192 188h-64a16 16 0 010-32h128a16 16 0 010 32zm192-248H64a16 16 0 01-16-16v-8a40 40 0 0140-40h336a40 40 0 0140 40v8a16 16 0 01-16 16z"
+		/>
+	</svg>
+{:else if i === "download"}
+	<svg
+		xmlns="http://www.w3.org/2000/svg"
+		viewBox="0 0 512 512"
+		width={wh}
+		height={wh}
+		fill="currentColor"
+	>
+		<path
+			d="M336 240l-80 80-80-80m80 64V96"
+			fill="none"
+			stroke="currentColor"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			stroke-width="32"
+		/>
+		<path
+			d="M400 336v48a32 32 0 01-32 32H144a32 32 0 01-32-32v-48"
+			fill="none"
+			stroke="currentColor"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			stroke-width="32"
+		/>
+	</svg>
+{:else if i === "upload"}
+	<svg
+		xmlns="http://www.w3.org/2000/svg"
+		viewBox="0 0 512 512"
+		width={wh}
+		height={wh}
+		fill="currentColor"
+	>
+		<path
+			d="M176 176l80-80 80 80m-80-64v224"
+			fill="none"
+			stroke="currentColor"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			stroke-width="32"
+		/>
+		<path
+			d="M400 336v48a32 32 0 01-32 32H144a32 32 0 01-32-32v-48"
+			fill="none"
+			stroke="currentColor"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			stroke-width="32"
+		/>
+	</svg>
 {:else if i === "clock"}
 	<svg
 		xmlns="http://www.w3.org/2000/svg"

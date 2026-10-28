@@ -21,6 +21,7 @@
 	import RegionDropDown from "@/lib/RegionDropDown.svelte";
 	import LanguageDropDown from "@/lib/LanguageDropDown.svelte";
 	import TaskScheduleModal from "./modals/TaskScheduleModal.svelte";
+	import BackupModal from "./modals/BackupModal.svelte";
 	import TrustedHeaderAuthModal from "./modals/TrustedHeaderAuthModal.svelte";
 	import { resolve } from "$app/paths";
 
@@ -34,6 +35,7 @@
 	let radarrModalEditing = $state(false);
 	let twitchModalOpen = $state(false);
 	let taskScheduleModalOpen = $state(false);
+	let backupModalOpen = $state(false);
 	let headerSSOModalOpen = $state(false);
 	// Disabled vars for disabling inputs until api request completes
 	let signupDisabled = $state(false);
@@ -435,6 +437,19 @@
 					{#if taskScheduleModalOpen}
 						<TaskScheduleModal onClose={() => (taskScheduleModalOpen = false)}
 						></TaskScheduleModal>
+					{/if}
+					<Setting>
+						<SettingButton
+							title="Disaster Recovery & Backups"
+							desc="Manage automated backups, instant snapshots, and database restoration."
+							icon="arrow"
+							onClick={() => {
+								backupModalOpen = true;
+							}}
+						/>
+					</Setting>
+					{#if backupModalOpen}
+						<BackupModal onClose={() => (backupModalOpen = false)} />
 					{/if}
 					<Setting>
 						<SettingButton

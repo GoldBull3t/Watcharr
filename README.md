@@ -57,6 +57,11 @@ Este projeto é ativamente mantido e estou ativamente à procura de opiniões, c
 * **Motores de Dados:** Suporte nativo para **PostgreSQL**, **MySQL** e **SQLite** com connection pooling automático (`DB_TYPE` / `DATABASE_URL`).
 * **Pesquisa Fuzzy de Alta Performance:** Algoritmo híbrido com indexação por trigramas, similaridade de Dice e tolerância a erros tipográficos (Damerau-Levenshtein).
 
+### 🛡️ Disaster Recovery & Backups Automáticos Agendados
+* **Snapshots Sem Downtime:** Dumps atómicos e comprimidos em Gzip (`.db.gz` e `.json.gz`) com truncagem de checkpoint WAL e zero risco de corrupção.
+* **Agendamento com Retenção:** Motor de tarefas configurável (12h, 24h, 7 dias) com limpeza automática de snapshots antigos (retenção de últimos N backups).
+* **Painel de Gestão & Restauro com 1 Clique:** Listagem, download, upload externo e restauro com salvaguarda automática prévia contra perda de dados acidental.
+
 ### 🗺️ Franchise Roadmaps (Linhas Cronológicas)
 * **Comutador de Ordem:** Alternância imediata entre **Ordem de Lançamento** (datas de estreia oficiais) e **Ordem Cronológica** (linha temporal da história).
 

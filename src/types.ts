@@ -12,6 +12,10 @@ export type Icon =
 	| "check"
 	| "clock"
 	| "calendar"
+	| "database"
+	| "archive"
+	| "download"
+	| "upload"
 	| "thumb-down"
 	| "thumb-up"
 	| "play"
@@ -1264,4 +1268,36 @@ export interface WatchTogetherResponse {
 	mode: "common" | "unwatched" | "recommended";
 	totalCount: number;
 	items: WatchTogetherItem[];
+}
+
+export interface BackupInfo {
+	filename: string;
+	size: number;
+	formattedSize: string;
+	createdAt: string;
+	isAuto: boolean;
+	type: "sqlite" | "json";
+}
+
+export interface BackupConfig {
+	enabled: boolean;
+	retention: number;
+	scheduleSeconds: number;
+	nextRun?: string;
+	totalBackups: number;
+	totalSize: number;
+	formattedTotalSize: string;
+	driver: string;
+	lastBackup?: string;
+}
+
+export interface GetBackupsResponse {
+	backups: BackupInfo[];
+	config: BackupConfig;
+}
+
+export interface UpdateBackupConfigRequest {
+	enabled?: boolean;
+	retention?: number;
+	scheduleSeconds?: number;
 }

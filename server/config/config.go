@@ -111,6 +111,10 @@ type ServerConfig struct {
 	// Optional: Schedule for tasks.
 	TASK_SCHEDULE map[string]int `json:",omitempty"`
 
+	// Automated disaster recovery backup configuration
+	BACKUP_ENABLED *bool `json:",omitempty"`
+	BACKUP_RETENTION int `json:",omitempty"`
+
 	// Enable/disable debug logging. Useful for when trying
 	// to figure out exactly what the server is doing at a point
 	// of failure.
@@ -142,6 +146,8 @@ func (c *ServerConfig) GetSafe() ServerConfig {
 		PLEX_MACHINE_ID:          c.PLEX_MACHINE_ID,
 		OVERSEERR_HOST:           c.OVERSEERR_HOST,
 		OVERSEERR_KEY:            c.OVERSEERR_KEY,
+		BACKUP_ENABLED:           func() *bool { b := c.GetBackupEnabled(); return &b }(),
+		BACKUP_RETENTION:         c.GetBackupRetention(),
 		DEBUG:                    c.DEBUG,
 		SONARR:                   c.SONARR, // Dont act safe, this contains sonarr api key, needed for config
 		RADARR:                   c.RADARR, // Dont act safe, this contains radarr api key, needed for config
@@ -177,6 +183,39 @@ func (c *ServerConfig) GetMDBListKey() string {
 		return c.MDBLIST_KEY
 	}
 	return strings.TrimSpace(os.Getenv("MDBLIST_API_KEY"))
+}
+
+func (c *ServerConfig) GetBackupEnabled() bool {
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+	if c.BACKUP_ENABLED == nil {
+		return true
+	}
+	return *c.BACKUP_ENABLED
+}
+
+func (c *ServerConfig) SetBackupEnabled(b bool) {
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
+	c.BACKUP_ENABLED = &b
+}
+
+func (c *ServerConfig) GetBackupRetention() int {
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+	if c.BACKUP_RETENTION > 0 {
+		return c.BACKUP_RETENTION
+	}
+	return 7
+}
+
+func (c *ServerConfig) SetBackupRetention(r int) {
+	cfgMu.Lock()
+	defer cfgMu.Unlock()
+	if r <= 0 {
+		r = 7
+	}
+	c.BACKUP_RETENTION = r
 }
 
 func (c *ServerConfig) GetTaskSchedule(name string) int {
@@ -237,6 +276,10 @@ func (c *ServerConfig) Get(s string) (ServerConfigGetByName, error) {
 	case "OVERSEERR_HOST":
 		return ServerConfigGetByName{Value: c.OVERSEERR_HOST}, nil
 	case "OVERSEERR_KEY":
+	case "BACKUP_ENABLED":
+		return ServerConfigGetByName{Value: c.GetBackupEnabled()}, nil
+	case "BACKUP_RETENTION":
+		return ServerConfigGetByName{Value: c.GetBackupRetention()}, nil
 		return ServerConfigGetByName{Value: c.OVERSEERR_KEY}, nil
 	}
 	return ServerConfigGetByName{}, errors.New("invalid setting")
@@ -321,6 +364,28 @@ func (c *ServerConfig) UpdateConfig(k string, v any) error {
 			return errors.New("invalid value")
 		}
 		c.OVERSEERR_HOST = strings.TrimRight(strings.TrimSpace(str), "/")
+	case "BACKUP_ENABLED":
+		b, ok := v.(bool)
+		if !ok {
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		c.BACKUP_ENABLED = &b
+	case "BACKUP_RETENTION":
+		var r int
+		switch val := v.(type) {
+		case float64:
+			r = int(val)
+		case int:
+			r = val
+		default:
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		if r <= 0 {
+			r = 7
+		}
+		c.BACKUP_RETENTION = r
 	case "OVERSEERR_KEY":
 		str, ok := v.(string)
 		if !ok {

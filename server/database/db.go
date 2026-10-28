@@ -55,6 +55,19 @@ func GetConfiguredDBType() DBType {
 	return DBTypeSQLite
 }
 
+// GetSQLiteDBPath returns the filesystem path to the primary SQLite database file
+func GetSQLiteDBPath() string {
+	customDSN := os.Getenv("DB_DSN")
+	if customDSN == "" {
+		customDSN = os.Getenv("DATABASE_URL")
+	}
+	if customDSN != "" && !strings.HasPrefix(customDSN, "postgres") && !strings.HasPrefix(customDSN, "mysql") {
+		parts := strings.Split(customDSN, "?")
+		return parts[0]
+	}
+	return path.Join(config.DataPath, "watcharr.db")
+}
+
 // Create a new database connection.
 // Supports SQLite (default), PostgreSQL, and MySQL based on DB_TYPE or connection string.
 // For initial database connection in `main()`, also call `Setup()` on the
