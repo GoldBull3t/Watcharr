@@ -276,11 +276,11 @@ func (c *ServerConfig) Get(s string) (ServerConfigGetByName, error) {
 	case "OVERSEERR_HOST":
 		return ServerConfigGetByName{Value: c.OVERSEERR_HOST}, nil
 	case "OVERSEERR_KEY":
+		return ServerConfigGetByName{Value: c.OVERSEERR_KEY}, nil
 	case "BACKUP_ENABLED":
 		return ServerConfigGetByName{Value: c.GetBackupEnabled()}, nil
 	case "BACKUP_RETENTION":
 		return ServerConfigGetByName{Value: c.GetBackupRetention()}, nil
-		return ServerConfigGetByName{Value: c.OVERSEERR_KEY}, nil
 	}
 	return ServerConfigGetByName{}, errors.New("invalid setting")
 }

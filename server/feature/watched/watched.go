@@ -3,10 +3,13 @@ package watched
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"math/rand"
 	"log/slog"
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sbondCo/Watcharr/activity"
 	"github.com/sbondCo/Watcharr/database/dbmodel"
@@ -15,6 +18,7 @@ import (
 	"github.com/sbondCo/Watcharr/feature/integration"
 	"github.com/sbondCo/Watcharr/feature/watched/addedtocontent"
 	"github.com/sbondCo/Watcharr/util"
+	"github.com/sbondCo/Watcharr/media/tmdb"
 	"gorm.io/gorm"
 )
 
@@ -30,11 +34,16 @@ type UserProvider interface {
 	UserGetSettings(userId uint) (entity.UserSettings, error)
 }
 
+type TMDBSeasonProvider interface {
+	SeasonDetails(showId string, seasonNumber string, optParams ...map[string]string) (tmdb.SeasonDetails, error)
+}
+
 type Service struct {
 	db           *gorm.DB
 	cp           ContentProvider
 	gameProvider GameProvider
 	userProvider UserProvider
+	tmdb         TMDBSeasonProvider
 }
 
 func NewService(
@@ -42,12 +51,18 @@ func NewService(
 	cp ContentProvider,
 	gameProvider GameProvider,
 	userProvider UserProvider,
+	tmdbProvider ...TMDBSeasonProvider,
 ) *Service {
+	var tp TMDBSeasonProvider
+	if len(tmdbProvider) > 0 {
+		tp = tmdbProvider[0]
+	}
 	return &Service{
 		db,
 		cp,
 		gameProvider,
 		userProvider,
+		tp,
 	}
 }
 
@@ -1023,3 +1038,256 @@ func (s *Service) GetContinueWatching(userId uint) ([]entity.Watched, error) {
 	return watched, nil
 }
 
+// GetUpNext computes the exact next episode to watch for all active TV shows
+func (s *Service) GetUpNext(userId uint) ([]domain.UpNextItem, error) {
+	var watched []entity.Watched
+	res := s.db.
+		Model(&entity.Watched{}).
+		Where(&entity.Watched{UserID: userId, Status: entity.WATCHING}).
+		Joins("Content").
+		Preload("WatchedSeasons").
+		Preload("WatchedEpisodes").
+		Order("watcheds.updated_at DESC").
+		Limit(30).
+		Find(&watched)
+	if res.Error != nil {
+		slog.Error("GetUpNext: Query failed!", "error", res.Error)
+		return nil, res.Error
+	}
+
+	upNext := make([]domain.UpNextItem, 0, len(watched))
+
+	for i := range watched {
+		w := &watched[i]
+		if w.Content == nil || w.Content.Type != entity.SHOW {
+			continue
+		}
+
+		maxFinishedSeason := 0
+		maxFinishedEpisode := 0
+
+		for _, ep := range w.WatchedEpisodes {
+			if ep.Status == entity.FINISHED {
+				if ep.SeasonNumber > maxFinishedSeason || (ep.SeasonNumber == maxFinishedSeason && ep.EpisodeNumber > maxFinishedEpisode) {
+					maxFinishedSeason = ep.SeasonNumber
+					maxFinishedEpisode = ep.EpisodeNumber
+				}
+			}
+		}
+
+		for _, ws := range w.WatchedSeasons {
+			if ws.Status == entity.FINISHED {
+				if ws.SeasonNumber > maxFinishedSeason {
+					maxFinishedSeason = ws.SeasonNumber
+					maxFinishedEpisode = 0
+				}
+			}
+		}
+
+		candidateSeason := 1
+		candidateEpisode := 1
+
+		if maxFinishedSeason > 0 {
+			if maxFinishedEpisode == 0 {
+				candidateSeason = maxFinishedSeason + 1
+				candidateEpisode = 1
+			} else {
+				candidateSeason = maxFinishedSeason
+				candidateEpisode = maxFinishedEpisode + 1
+			}
+		}
+
+		item := domain.UpNextItem{
+			WatchedID:     w.ID,
+			ShowID:        *w.ContentID,
+			ShowTMDBID:    w.Content.TmdbID,
+			ShowTitle:     w.Content.Title,
+			ShowPoster:    w.Content.PosterPath,
+			ShowBackdrop:  w.Content.BackdropPath,
+			SeasonNumber:  candidateSeason,
+			EpisodeNumber: candidateEpisode,
+			EpisodeName:   fmt.Sprintf("Episódio %d", candidateEpisode),
+			UpdatedAt:     w.UpdatedAt,
+		}
+
+		if s.tmdb != nil && w.Content.TmdbID > 0 {
+			sd, err := s.tmdb.SeasonDetails(strconv.Itoa(w.Content.TmdbID), strconv.Itoa(candidateSeason))
+			if err == nil && len(sd.Episodes) > 0 {
+				if candidateEpisode <= len(sd.Episodes) {
+					ep := sd.Episodes[candidateEpisode-1]
+					item.EpisodeName = ep.Name
+					item.EpisodeOverview = ep.Overview
+					item.EpisodeStill = ep.StillPath
+					item.AirDate = ep.AirDate
+					item.TotalEpisodesInSeason = len(sd.Episodes)
+					item.EpisodesRemaining = len(sd.Episodes) - candidateEpisode + 1
+					if ep.AirDate != "" {
+						if t, err := time.Parse("2006-01-02", ep.AirDate); err == nil {
+							item.IsAired = time.Now().After(t)
+						}
+					}
+					upNext = append(upNext, item)
+					continue
+				} else {
+					// Advance to next season
+					nextSd, err := s.tmdb.SeasonDetails(strconv.Itoa(w.Content.TmdbID), strconv.Itoa(candidateSeason+1))
+					if err == nil && len(nextSd.Episodes) > 0 {
+						ep := nextSd.Episodes[0]
+						item.SeasonNumber = candidateSeason + 1
+						item.EpisodeNumber = 1
+						item.EpisodeName = ep.Name
+						item.EpisodeOverview = ep.Overview
+						item.EpisodeStill = ep.StillPath
+						item.AirDate = ep.AirDate
+						item.TotalEpisodesInSeason = len(nextSd.Episodes)
+						item.EpisodesRemaining = len(nextSd.Episodes)
+						if ep.AirDate != "" {
+							if t, err := time.Parse("2006-01-02", ep.AirDate); err == nil {
+								item.IsAired = time.Now().After(t)
+							}
+						}
+						upNext = append(upNext, item)
+						continue
+					}
+				}
+			}
+		}
+
+		upNext = append(upNext, item)
+	}
+
+	return upNext, nil
+}
+
+// PickRoulette selects random items from user's watchlist/library matching specific mood/runtime criteria
+func (s *Service) PickRoulette(userId uint, req domain.RoulettePickRequest) (domain.RoulettePickResponse, error) {
+	query := s.db.Model(&entity.Watched{}).Where("watcheds.user_id = ?", userId)
+
+	status := strings.ToLower(strings.TrimSpace(req.Status))
+	switch status {
+	case "planned":
+		query = query.Where("watcheds.status = ?", entity.PLANNED)
+	case "watching":
+		query = query.Where("watcheds.status = ?", entity.WATCHING)
+	case "finished":
+		query = query.Where("watcheds.status = ?", entity.FINISHED)
+	default:
+		if status == "" {
+			query = query.Where("watcheds.status = ?", entity.PLANNED)
+		}
+	}
+
+	var allWatched []entity.Watched
+	err := query.
+		Joins("Content").
+		Joins("Game").
+		Preload("Game.Poster").
+		Preload("Tags").
+		Find(&allWatched).Error
+	if err != nil {
+		slog.Error("PickRoulette: Failed to fetch candidate pool", "error", err)
+		return domain.RoulettePickResponse{}, err
+	}
+
+	reqType := strings.ToLower(strings.TrimSpace(req.Type))
+	if reqType == "" {
+		reqType = "movie"
+	}
+
+	genreFilter := strings.ToLower(strings.TrimSpace(req.Genre))
+
+	filtered := make([]entity.Watched, 0, len(allWatched))
+	for _, w := range allWatched {
+		// 1. Type filter
+		if reqType == "movie" {
+			if w.Content == nil || w.Content.Type != entity.MOVIE {
+				continue
+			}
+		} else if reqType == "tv" {
+			if w.Content == nil || w.Content.Type != entity.SHOW {
+				continue
+			}
+		} else if reqType == "game" {
+			if w.Game == nil {
+				continue
+			}
+		}
+
+		// 2. MaxRuntime filter
+		if req.MaxRuntime > 0 {
+			if w.Content != nil {
+				if w.Content.Runtime > 0 && int(w.Content.Runtime) > req.MaxRuntime {
+					continue
+				}
+			}
+		}
+
+		// 3. MinRating filter
+		if req.MinRating > 0 {
+			var score float64
+			if w.Rating > 0 {
+				score = w.Rating
+			} else if w.Content != nil {
+				score = float64(w.Content.VoteAverage)
+			} else if w.Game != nil {
+				score = w.Game.Rating / 10.0
+			}
+			if score < req.MinRating {
+				continue
+			}
+		}
+
+		// 4. Genre filter
+		if genreFilter != "" {
+			matched := false
+			if w.Content != nil && strings.Contains(strings.ToLower(w.Content.Genres), genreFilter) {
+				matched = true
+			}
+			if w.Game != nil && strings.Contains(strings.ToLower(w.Game.Genres), genreFilter) {
+				matched = true
+			}
+			if !matched {
+				continue
+			}
+		}
+
+		filtered = append(filtered, w)
+	}
+
+	totalPool := len(filtered)
+	if totalPool == 0 {
+		return domain.RoulettePickResponse{
+			Items:     []domain.Media{},
+			TotalPool: 0,
+		}, nil
+	}
+
+	count := req.Count
+	if count <= 0 {
+		count = 1
+	}
+	if count > 10 {
+		count = 10
+	}
+	if count > totalPool {
+		count = totalPool
+	}
+
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r.Shuffle(len(filtered), func(i, j int) {
+		filtered[i], filtered[j] = filtered[j], filtered[i]
+	})
+
+	picked := filtered[:count]
+	items := make([]domain.Media, 0, len(picked))
+	for i := range picked {
+		v := &picked[i]
+		dto := domain.NewWatchedDtoForLists(v)
+		items = append(items, domain.NewMediaFromWatched(v, &dto))
+	}
+
+	return domain.RoulettePickResponse{
+		Items:     items,
+		TotalPool: totalPool,
+	}, nil
+}

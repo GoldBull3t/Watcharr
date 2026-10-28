@@ -29,6 +29,9 @@ func (r *Router) AddRoutes() {
 
 	watched.GET("", router.PaginatedRequest(false), r.GetWatchedList)
 	watched.GET("/continue", r.GetContinueWatching)
+	watched.GET("/up-next", r.GetUpNext)
+	watched.POST("/pick", r.PickRoulette)
+	watched.GET("/pick", r.PickRoulette)
 	watched.GET("/together/users", r.GetWatchTogetherUsers)
 	watched.GET("/together/:targetUserId", r.GetWatchTogether)
 	watched.GET("/export", r.ExportWatchedList)
@@ -54,6 +57,17 @@ func (r *Router) GetContinueWatching(c *gin.Context) {
 	}
 	dto := domain.NewWatchedGetPageResponse(watched)
 	c.JSON(http.StatusOK, dto)
+}
+
+// GetUpNext returns the exact next episode to watch for all active TV shows
+func (r *Router) GetUpNext(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	items, err := r.s.GetUpNext(userId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: "failed to get up next episodes"})
+		return
+	}
+	c.JSON(http.StatusOK, items)
 }
 
 // Get our (logged in user) watched list.
@@ -281,6 +295,23 @@ func (r *Router) GetWatchTogether(c *gin.Context) {
 	resp, err := r.s.GetWatchTogether(userId, uint(targetUserId), mode)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// PickRoulette randomly selects items from user's watchlist/library matching criteria
+func (r *Router) PickRoulette(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	var req domain.RoulettePickRequest
+	if c.Request.Method == "POST" {
+		_ = c.ShouldBindJSON(&req)
+	} else {
+		_ = c.ShouldBindQuery(&req)
+	}
+	resp, err := r.s.PickRoulette(userId, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: "failed to pick roulette"})
 		return
 	}
 	c.JSON(http.StatusOK, resp)

@@ -277,3 +277,39 @@ type WatchedBulkUpdateRequest struct {
 type WatchedBulkUpdateResponse struct {
 	Count int64 `json:"count"`
 }
+
+// UpNextItem represents the immediate next episode to watch for an active TV show
+type UpNextItem struct {
+	WatchedID             uint      `json:"watchedId"`
+	ShowID                int       `json:"showId"`
+	ShowTMDBID            int       `json:"showTmdbId"`
+	ShowTitle             string    `json:"showTitle"`
+	ShowPoster            string    `json:"showPoster"`
+	ShowBackdrop          string    `json:"showBackdrop"`
+	SeasonNumber          int       `json:"seasonNumber"`
+	EpisodeNumber         int       `json:"episodeNumber"`
+	EpisodeName           string    `json:"episodeName"`
+	EpisodeOverview       string    `json:"episodeOverview"`
+	EpisodeStill          string    `json:"episodeStill"`
+	AirDate               string    `json:"airDate"`
+	IsAired               bool      `json:"isAired"`
+	TotalEpisodesInSeason int       `json:"totalEpisodesInSeason"`
+	EpisodesRemaining     int       `json:"episodesRemaining"`
+	UpdatedAt             time.Time `json:"updatedAt"`
+}
+
+// RoulettePickRequest specifies filters for the smart roulette picker
+type RoulettePickRequest struct {
+	Type       string  `json:"type" form:"type"`
+	Status     string  `json:"status" form:"status"`
+	MaxRuntime int     `json:"maxRuntime" form:"maxRuntime"`
+	Genre      string  `json:"genre" form:"genre"`
+	MinRating  float64 `json:"minRating" form:"minRating"`
+	Count      int     `json:"count" form:"count"`
+}
+
+// RoulettePickResponse contains the randomly picked items and the total eligible pool count
+type RoulettePickResponse struct {
+	Items     []Media `json:"items"`
+	TotalPool int     `json:"totalPool"`
+}

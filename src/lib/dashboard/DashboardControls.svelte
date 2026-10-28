@@ -4,6 +4,7 @@
 	import SortMenu from "@/lib/nav/SortMenu.svelte";
 	import FilterMenu from "./FilterMenu.svelte";
 import WatchTogetherModal from "./WatchTogetherModal.svelte";
+	import WatchRouletteModal from "./WatchRouletteModal.svelte";
 	import { resolve } from "$app/paths";
 	import { store, defaultSort, clearActiveFilters } from "@/store.svelte";
 	import { onDestroy, onMount } from "svelte";
@@ -33,6 +34,7 @@ import WatchTogetherModal from "./WatchTogetherModal.svelte";
 	let sortMenuShown = $state(false);
 	let filterMenuShown = $state(false);
 let watchTogetherShown = $state(false);
+	let watchRouletteShown = $state(false);
 
 	// In-library search query
 	let librarySearchText = $state(store.activeFilters?.query || "");
@@ -327,6 +329,24 @@ let watchTogetherShown = $state(false);
 				<span class="toggle-label">Sagas</span>
 			</a>
 
+			<!-- Smart Roulette Button -->
+			<button
+				type="button"
+				class="icon-toggle roulette-btn"
+				class:active={watchRouletteShown}
+				onclick={() => {
+					detailedMenuShown = false;
+					filterMenuShown = false;
+					sortMenuShown = false;
+					watchRouletteShown = true;
+				}}
+				title="Roleta Inteligente: Sorteia da tua Watchlist por duração e mood"
+				aria-label="Roleta O Que Ver"
+			>
+				<span style="font-size: 13px;">🎲</span>
+				<span class="toggle-label">O Que Ver?</span>
+			</button>
+
 			<div class="toolbar-separator"></div>
 
 			<!-- View Switcher & Grid Density (Compact / Comfortable / Editorial / List) -->
@@ -522,6 +542,10 @@ let watchTogetherShown = $state(false);
 
 	{#if watchTogetherShown}
 		<WatchTogetherModal onClose={() => (watchTogetherShown = false)} />
+	{/if}
+
+	{#if watchRouletteShown}
+		<WatchRouletteModal onClose={() => (watchRouletteShown = false)} />
 	{/if}
 </div>
 

@@ -1301,3 +1301,36 @@ export interface UpdateBackupConfigRequest {
 	retention?: number;
 	scheduleSeconds?: number;
 }
+
+export interface UpNextItem {
+	watchedId: number;
+	showId: number;
+	showTmdbId: number;
+	showTitle: string;
+	showPoster?: string;
+	showBackdrop?: string;
+	seasonNumber: number;
+	episodeNumber: number;
+	episodeName: string;
+	episodeOverview?: string;
+	episodeStill?: string;
+	airDate?: string;
+	isAired: boolean;
+	totalEpisodesInSeason: number;
+	episodesRemaining: number;
+	updatedAt: string;
+}
+
+export interface RoulettePickRequest {
+	type?: 'movie' | 'tv' | 'game' | 'all';
+	status?: 'planned' | 'watching' | 'finished' | 'all';
+	maxRuntime?: number;
+	genre?: string;
+	minRating?: number;
+	count?: number;
+}
+
+export interface RoulettePickResponse {
+	items: Media[];
+	totalPool: number;
+}

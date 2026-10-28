@@ -7,6 +7,7 @@
 	import DashboardControls from "@/lib/dashboard/DashboardControls.svelte";
 	import HeroSpotlightCarousel from "@/lib/dashboard/HeroSpotlightCarousel.svelte";
 	import ContinueWatchingRail from "@/lib/dashboard/ContinueWatchingRail.svelte";
+	import UpNextRail from "@/lib/dashboard/UpNextRail.svelte";
 	import BulkActionBar from "@/lib/dashboard/BulkActionBar.svelte";
 	import MediaTable from "@/lib/dashboard/MediaTable.svelte";
 	import PosterGridSkeleton from "@/lib/dashboard/PosterGridSkeleton.svelte";
@@ -20,6 +21,7 @@
 		type Media,
 		type PaginationResponse,
 		type WatchedStatus,
+		type UpNextItem,
 	} from "@/types";
 	import { notify, notifyUndo } from "@/lib/util/notify";
 	import { onDestroy, onMount, untrack } from "svelte";
@@ -122,6 +124,19 @@
 		}
 	}
 
+	let upNextList: UpNextItem[] = $state([]);
+
+	async function loadUpNext() {
+		try {
+			const res = await req.get<UpNextItem[]>("/watched/up-next");
+			if (res && Array.isArray(res)) {
+				upNextList = res;
+			}
+		} catch (err) {
+			console.warn("loadUpNext: Failed to fetch /watched/up-next:", err);
+		}
+	}
+
 	async function loadContinueWatching() {
 		try {
 			const res = await req.get<Media[]>("/watched/continue");
@@ -134,6 +149,7 @@
 				err,
 			);
 		}
+		loadUpNext();
 	}
 
 	async function onScrollToBottom() {
@@ -554,7 +570,11 @@
 			items={displayContinueWatching}
 			onItemUpdated={loadContinueWatching}
 		/>
-		<ContinueWatchingRail items={displayContinueWatching} />
+		{#if upNextList.length > 0}
+			<UpNextRail items={upNextList} onEpisodeWatched={loadContinueWatching} />
+		{:else}
+			<ContinueWatchingRail items={displayContinueWatching} />
+		{/if}
 	{/if}
 
 	<!-- Top Controls: View Options, Density, Sort & Bulk Mode -->
