@@ -11,6 +11,7 @@ $text-muted: var(--text-color-accent);
 $text-color-muted: var(--text-color-accent);
 $placeholder-color: var(--placeholder-color);
 $accent-color: var(--accent-color);
+$primary-color: var(--accent-color, #ffb703);
 $accent-color-hover: var(--accent-color-hover);
 $brand-color: var(--brand-color, #f59e0b);
 $brand-glow: var(--brand-glow, rgba(245, 158, 11, 0.25));

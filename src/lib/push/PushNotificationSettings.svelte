@@ -195,7 +195,7 @@
 		}
 
 		&.btn-primary {
-			background: $primary-color;
+			background: $accent-color;
 			color: #fff;
 
 			&:hover:not(:disabled) {
