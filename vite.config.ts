@@ -10,10 +10,6 @@ export default defineConfig({
 		SvelteKitPWA({
 			strategies: "generateSW",
 			registerType: "autoUpdate",
-			kit: {
-				adapterFallback: "index.html",
-				spa: true,
-			},
 			workbox: {
 				globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff,woff2}"],
 				navigateFallbackDenylist: [/^\/api\//],

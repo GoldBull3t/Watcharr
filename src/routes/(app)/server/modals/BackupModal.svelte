@@ -31,7 +31,7 @@
 
 	// Restore confirmation state
 	let restoreTarget: BackupInfo | null = $state(null);
-	let fileInput: HTMLInputElement;
+	let fileInput: HTMLInputElement | undefined = $state();
 
 	async function loadBackups() {
 		loading = true;

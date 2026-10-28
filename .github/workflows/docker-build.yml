@@ -36,11 +36,17 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
+      - name: Set lowercased image name
+        id: image_name
+        run: |
+          IMAGE_NAME="ghcr.io/${{ github.repository }}"
+          echo "image=${IMAGE_NAME,,}" >> "$GITHUB_OUTPUT"
+
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ steps.image_name.outputs.image }}
           tags: |
             type=raw,value=latest
             type=raw,value=${{ steps.pkg.outputs.version }}
