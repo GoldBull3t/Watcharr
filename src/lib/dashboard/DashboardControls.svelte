@@ -242,14 +242,15 @@
 					</button>
 
 					{#if moreStatusMenuShown}
-						<Menu conf={{ width: "160px", left: "0px", top: "calc(100% + 6px)" }}>
+						<Menu conf={{ width: "170px", left: "0px", right: "unset", top: "calc(100% + 6px)" }}>
 							<h5>Outros Estados</h5>
 							{#each secondaryStatusTabs as tab (tab.id)}
 								<button
 									type="button"
 									class="plain status-dropdown-item"
 									class:active={currentStatus === tab.id}
-									onclick={() => {
+									onclick={(e) => {
+										e.stopPropagation();
 										moreStatusMenuShown = false;
 										setStatusTab(tab.id);
 									}}
@@ -714,14 +715,8 @@
 		.status-tabs-container {
 			display: flex;
 			align-items: center;
-			overflow-x: auto;
-			scrollbar-width: none;
-			-ms-overflow-style: none;
-			flex-shrink: 1;
-
-			&::-webkit-scrollbar {
-				display: none;
-			}
+			overflow: visible;
+			flex-shrink: 0;
 
 			.status-tabs-track {
 				display: inline-flex;
@@ -766,7 +761,7 @@
 					align-items: center;
 
 					&.menu-open {
-						z-index: 120;
+						z-index: 150;
 					}
 
 					.more-tab-btn {

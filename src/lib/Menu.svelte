@@ -23,8 +23,10 @@
 <div
 	class="floating-menu"
 	style={`--w: ${conf?.width || "180px"}; --r: ${
-		conf?.right || "0px"
-	}; --l: ${conf?.left || "unset"}; --t: ${conf?.top || "calc(100% + 6px)"};`}
+		conf?.right ? conf.right : (conf?.left && conf.left !== "unset" ? "unset" : "0px")
+	}; --l: ${conf?.left || "unset"}; --t: ${conf?.top || "calc(100% + 6px)"}; --origin: ${
+		conf?.left && conf.left !== "unset" ? "top left" : "top right"
+	};`}
 	use:stayInView={{}}
 >
 	<div class="menu-content small-scrollbar">
@@ -53,7 +55,7 @@
 		-webkit-backdrop-filter: blur(24px);
 		list-style: none;
 		z-index: 1000;
-		transform-origin: top right;
+		transform-origin: var(--origin, top right);
 		animation: popoverFadeIn 140ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 
 		@keyframes popoverFadeIn {
