@@ -5,10 +5,11 @@
 		type Media,
 		MediaTypeE,
 		type SupportedMedia,
+		type MediaVideo,
 	} from "@/types";
 	import { isTouch, mouseOverEl } from "@/lib/util/helpers";
 	import { goto } from "$app/navigation";
-	import { baseURL, removeWatched, updateWatched } from "../util/api";
+	import { baseURL, req, removeWatched, updateWatched } from "../util/api";
 	import { notify, notifyUndo } from "../util/notify";
 	import { onMount, onDestroy } from "svelte";
 	import PosterStatus from "./PosterStatus.svelte";
@@ -21,6 +22,7 @@
 	import { formatPublicRating, formatVoteCount } from "../rating/helpers";
 	import { t } from "@/lib/i18n";
 	import CliffhangerWarningModal from "../content/CliffhangerWarningModal.svelte";
+	import MediaLightbox from "../content/MediaLightbox.svelte";
 
 	interface Props {
 		media: Media;
@@ -86,6 +88,42 @@
 	let justDeletedFromWatcheds = $state(false);
 	let pendingStatusClick: WatchedStatus | undefined = $state();
 	let cliffhangerModalOpen = $state(false);
+	let lightboxOpen = $state(false);
+	let lightboxVideos: MediaVideo[] | undefined = $state();
+	let isFetchingTrailer = $state(false);
+
+	async function openQuickTrailer(e: MouseEvent) {
+		e.stopPropagation();
+		e.preventDefault();
+		if (media.videos && media.videos.length > 0) {
+			lightboxVideos = media.videos;
+			lightboxOpen = true;
+			return;
+		}
+		if (!meta?.type || !meta?.id) return;
+		isFetchingTrailer = true;
+		try {
+			const endpoint =
+				meta.type === "game"
+					? `/game/${meta.id}`
+					: `/content/${meta.type}/${meta.id}`;
+			const res = await req.get<Media>(endpoint);
+			if (res?.videos && res.videos.length > 0) {
+				media.videos = res.videos;
+				lightboxVideos = res.videos;
+				lightboxOpen = true;
+			} else {
+				notify({
+					type: "error",
+					text: "Nenhum trailer encontrado para este título.",
+				});
+			}
+		} catch (err) {
+			notify({ type: "error", text: "Erro ao carregar o trailer." });
+		} finally {
+			isFetchingTrailer = false;
+		}
+	}
 
 	const meta:
 		| {
@@ -369,6 +407,99 @@
 		}
 	});
 
+	// Mobile touch swipe gestures (PWA)
+	let touchStartX = $state(0);
+	let touchStartY = $state(0);
+	let touchStartTime = $state(0);
+	let swipeDeltaX = $state(0);
+	let isSwiping = $state(false);
+	let swipeAction: "FINISHED" | "PLANNED" | null = $state(null);
+
+	function handleTouchStart(e: TouchEvent) {
+		if (disableInteraction || e.touches.length !== 1) return;
+		touchStartX = e.touches[0].clientX;
+		touchStartY = e.touches[0].clientY;
+		touchStartTime = Date.now();
+		swipeDeltaX = 0;
+		isSwiping = false;
+		swipeAction = null;
+	}
+
+	function handleTouchMove(e: TouchEvent) {
+		if (disableInteraction || e.touches.length !== 1 || touchStartX === 0) return;
+		const currentX = e.touches[0].clientX;
+		const currentY = e.touches[0].clientY;
+		const dx = currentX - touchStartX;
+		const dy = currentY - touchStartY;
+
+		// If user is scrolling vertically, cancel swipe
+		if (!isSwiping && Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
+			touchStartX = 0;
+			return;
+		}
+
+		// If horizontal motion dominates and exceeds threshold
+		if (Math.abs(dx) > 20 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+			isSwiping = true;
+			swipeDeltaX = Math.max(-90, Math.min(90, dx));
+			if (dx > 45) {
+				swipeAction = "FINISHED";
+			} else if (dx < -45) {
+				swipeAction = "PLANNED";
+			} else {
+				swipeAction = null;
+			}
+		}
+	}
+
+	function handleTouchEnd() {
+		if (!isSwiping || touchStartX === 0) {
+			touchStartX = 0;
+			swipeDeltaX = 0;
+			isSwiping = false;
+			swipeAction = null;
+			return;
+		}
+
+		const elapsed = Date.now() - touchStartTime;
+		if (elapsed < 650 && Math.abs(swipeDeltaX) >= 45) {
+			if (swipeDeltaX > 45) {
+				triggerHaptic();
+				executeStatusClick("FINISHED");
+				notify({
+					text: `✓ ${media.name}: Marcado como Concluído`,
+					type: "success",
+					time: 2500,
+				});
+			} else if (swipeDeltaX < -45) {
+				triggerHaptic();
+				executeStatusClick("PLANNED");
+				notify({
+					text: `🔖 ${media.name}: Adicionado aos Planeados`,
+					type: "success",
+					time: 2500,
+				});
+			}
+		}
+
+		touchStartX = 0;
+		swipeDeltaX = 0;
+		isSwiping = false;
+		setTimeout(() => {
+			swipeAction = null;
+		}, 300);
+	}
+
+	function triggerHaptic() {
+		try {
+			if (typeof navigator !== "undefined" && navigator.vibrate) {
+				navigator.vibrate([25, 20]);
+			}
+		} catch (e) {
+			// Ignored if not supported
+		}
+	}
+
 	onDestroy(() => {
 		if (tiltRaf) cancelAnimationFrame(tiltRaf);
 	});
@@ -379,6 +510,10 @@
 <li
 	data-watched-id={watched?.id}
 	class:is-selected={selected}
+	ontouchstart={handleTouchStart}
+	ontouchmove={handleTouchMove}
+	ontouchend={handleTouchEnd}
+	ontouchcancel={handleTouchEnd}
 	onmouseenter={() => {
 		mouseOverPoster = true;
 		if (!isTouch()) {
@@ -415,11 +550,30 @@
 		class:is-tilting={isTilting}
 		style={posterActive && (tiltX !== 0 || tiltY !== 0)
 			? `transform: perspective(800px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) translateY(-5px) scale3d(1.025, 1.025, 1.025);`
+			: (isSwiping && swipeDeltaX !== 0)
+			? `transform: translateX(${swipeDeltaX * 0.4}px) rotate(${swipeDeltaX * 0.05}deg);`
 			: undefined}
 
 		bind:this={containerEl}
 	>
 		{@render children?.()}
+
+		<!-- Mobile Swipe Gesture Badge -->
+		{#if isSwiping && swipeAction}
+			<div
+				class="mobile-swipe-badge"
+				class:finished={swipeAction === "FINISHED"}
+				class:planned={swipeAction === "PLANNED"}
+			>
+				{#if swipeAction === "FINISHED"}
+					<Icon i="check" wh={22} />
+					<span>Concluído</span>
+				{:else}
+					<Icon i="clock" wh={22} />
+					<span>Planeado</span>
+				{/if}
+			</div>
+		{/if}
 
 		<!-- 3D Specular Sheen (Dynamic Glare/Reflection) -->
 		<div
@@ -532,7 +686,21 @@
 					>
 						<Icon i="close-circle" wh={12} />
 						<span>Cancelada sem desfecho</span>
-					</div>
+						<button
+						type="button"
+						class="quick-trailer-btn"
+						onclick={openQuickTrailer}
+						title="Ver Trailer Oficial"
+						aria-label="Ver Trailer Oficial"
+						disabled={isFetchingTrailer || disableInteraction}
+					>
+						{#if isFetchingTrailer}
+							<span class="mini-spinner"></span>
+						{:else}
+							<Icon i="play" wh={14} />
+						{/if}
+					</button>
+				</div>
 				{:else if media.cancellation?.status === "hiatus"}
 					<div
 						class="card-canceled-alert hiatus-alert"
@@ -540,7 +708,21 @@
 					>
 						<Icon i="clock" wh={12} />
 						<span>Hiato (+2 anos)</span>
-					</div>
+						<button
+						type="button"
+						class="quick-trailer-btn"
+						onclick={openQuickTrailer}
+						title="Ver Trailer Oficial"
+						aria-label="Ver Trailer Oficial"
+						disabled={isFetchingTrailer || disableInteraction}
+					>
+						{#if isFetchingTrailer}
+							<span class="mini-spinner"></span>
+						{:else}
+							<Icon i="play" wh={14} />
+						{/if}
+					</button>
+				</div>
 				{:else if media.status === "Canceled" || media.cancellation?.status === "canceled"}
 					<div
 						class="card-canceled-alert"
@@ -548,7 +730,21 @@
 					>
 						<Icon i="close-circle" wh={12} />
 						<span>Cancelada pela produção</span>
-					</div>
+						<button
+						type="button"
+						class="quick-trailer-btn"
+						onclick={openQuickTrailer}
+						title="Ver Trailer Oficial"
+						aria-label="Ver Trailer Oficial"
+						disabled={isFetchingTrailer || disableInteraction}
+					>
+						{#if isFetchingTrailer}
+							<span class="mini-spinner"></span>
+						{:else}
+							<Icon i="play" wh={14} />
+						{/if}
+					</button>
+				</div>
 				{/if}
 				{#if publicRating}
 					<div
@@ -560,7 +756,21 @@
 						{#if formattedRatingCount}
 							<span class="rating-count">({formattedRatingCount})</span>
 						{/if}
-					</div>
+						<button
+						type="button"
+						class="quick-trailer-btn"
+						onclick={openQuickTrailer}
+						title="Ver Trailer Oficial"
+						aria-label="Ver Trailer Oficial"
+						disabled={isFetchingTrailer || disableInteraction}
+					>
+						{#if isFetchingTrailer}
+							<span class="mini-spinner"></span>
+						{:else}
+							<Icon i="play" wh={14} />
+						{/if}
+					</button>
+				</div>
 				{/if}
 				<span class="summary">{media.summary}</span>
 			</a>
@@ -577,6 +787,20 @@
 						{handleStatusClick}
 						{disableInteraction}
 					/>
+					<button
+						type="button"
+						class="quick-trailer-btn"
+						onclick={openQuickTrailer}
+						title="Ver Trailer Oficial"
+						aria-label="Ver Trailer Oficial"
+						disabled={isFetchingTrailer || disableInteraction}
+					>
+						{#if isFetchingTrailer}
+							<span class="mini-spinner"></span>
+						{:else}
+							<Icon i="play" wh={14} />
+						{/if}
+					</button>
 				</div>
 			{/if}
 		</div>
@@ -600,6 +824,17 @@
 			cliffhangerModalOpen = false;
 			pendingStatusClick = undefined;
 		}}
+	/>
+{/if}
+
+{#if lightboxOpen}
+	<MediaLightbox
+		videos={lightboxVideos}
+		backdropPath={media.backdrop?.path || media.extBackdropPath}
+		posterPath={media.poster?.path || media.extPosterPath}
+		mediaTitle={media.name}
+		initialType="video"
+		onclose={() => (lightboxOpen = false)}
 	/>
 {/if}
 
@@ -995,6 +1230,42 @@
 				gap: 8px;
 				height: 34px;
 				flex-shrink: 0;
+
+				.quick-trailer-btn {
+					display: inline-flex;
+					align-items: center;
+					justify-content: center;
+					width: 34px;
+					height: 34px;
+					flex-shrink: 0;
+					border-radius: 8px;
+					border: 1px solid rgba(99, 102, 241, 0.4);
+					background: rgba(99, 102, 241, 0.2);
+					color: #ffffff;
+					cursor: pointer;
+					transition: all 140ms ease;
+
+					&:hover:not(:disabled) {
+						background: rgba(99, 102, 241, 0.4);
+						border-color: #818cf8;
+						transform: scale(1.06);
+						box-shadow: 0 0 12px rgba(99, 102, 241, 0.45);
+					}
+
+					&:disabled {
+						opacity: 0.6;
+						cursor: wait;
+					}
+
+					.mini-spinner {
+						width: 13px;
+						height: 13px;
+						border: 2px solid rgba(255, 255, 255, 0.25);
+						border-top-color: #ffffff;
+						border-radius: 50%;
+						animation: spin 600ms linear infinite;
+					}
+				}
 			}
 		}
 
@@ -1033,6 +1304,39 @@
 			.specular-sheen {
 				display: none !important;
 			}
+		}
+	}
+
+	.mobile-swipe-badge {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 100;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		padding: 12px 18px;
+		border-radius: 14px;
+		font-weight: 700;
+		font-size: 13px;
+		pointer-events: none;
+		backdrop-filter: blur(12px);
+		box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+		user-select: none;
+
+		&.finished {
+			background: rgba(16, 185, 129, 0.95);
+			color: #ffffff;
+			border: 1px solid rgba(255, 255, 255, 0.4);
+		}
+
+		&.planned {
+			background: rgba(59, 130, 246, 0.95);
+			color: #ffffff;
+			border: 1px solid rgba(255, 255, 255, 0.4);
 		}
 	}
 </style>

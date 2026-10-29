@@ -1,9 +1,10 @@
 <script lang="ts">
 	import Icon from "@/lib/Icon.svelte";
+	import Menu from "@/lib/Menu.svelte";
 	import DetailedMenu from "@/lib/nav/DetailedMenu.svelte";
 	import SortMenu from "@/lib/nav/SortMenu.svelte";
 	import FilterMenu from "./FilterMenu.svelte";
-import WatchTogetherModal from "./WatchTogetherModal.svelte";
+	import WatchTogetherModal from "./WatchTogetherModal.svelte";
 	import WatchRouletteModal from "./WatchRouletteModal.svelte";
 	import { resolve } from "$app/paths";
 	import { store, defaultSort, clearActiveFilters } from "@/store.svelte";
@@ -33,7 +34,9 @@ import WatchTogetherModal from "./WatchTogetherModal.svelte";
 	let detailedMenuShown = $state(false);
 	let sortMenuShown = $state(false);
 	let filterMenuShown = $state(false);
-let watchTogetherShown = $state(false);
+	let discoverMenuShown = $state(false);
+	let moreStatusMenuShown = $state(false);
+	let watchTogetherShown = $state(false);
 	let watchRouletteShown = $state(false);
 
 	// In-library search query
@@ -64,12 +67,16 @@ let watchTogetherShown = $state(false);
 		};
 	}
 
-	// Active status tabs
-	let statusTabs = $derived([
+	// Primary status tabs (clean & always visible)
+	let primaryStatusTabs = $derived([
 		{ id: "all", label: t("status.all") },
 		{ id: "watching", label: t("status.watching") },
 		{ id: "planned", label: t("status.planned") },
 		{ id: "finished", label: t("status.finished") },
+	]);
+
+	// Secondary status tabs (tucked into the "+ Mais" menu)
+	let secondaryStatusTabs = $derived([
 		{ id: "hold", label: t("status.hold") },
 		{ id: "dropped", label: t("status.dropped") },
 		{ id: "cancelled", label: t("status.cancelled") },
@@ -87,6 +94,27 @@ let watchTogetherShown = $state(false);
 		if (val === "cancelled" || val === "canceled") return "cancelled";
 		return "all";
 	});
+
+	let isSecondaryActive = $derived(
+		currentStatus === "hold" ||
+			currentStatus === "dropped" ||
+			currentStatus === "cancelled",
+	);
+
+	let activeSecondaryLabel = $derived.by(() => {
+		if (currentStatus === "hold") return t("status.hold");
+		if (currentStatus === "dropped") return t("status.dropped");
+		if (currentStatus === "cancelled") return t("status.cancelled");
+		return t("dashboard.more");
+	});
+
+	let isAnyMenuOpen = $derived(
+		sortMenuShown ||
+			filterMenuShown ||
+			detailedMenuShown ||
+			discoverMenuShown ||
+			moreStatusMenuShown,
+	);
 
 	function setStatusTab(tabId: string) {
 		store.activeFilters = {
@@ -133,10 +161,15 @@ let watchTogetherShown = $state(false);
 
 	function handleDocumentClick(e: MouseEvent) {
 		const target = e.target as HTMLElement | null;
-		if (!target?.closest(".control-menu-wrap")) {
+		if (
+			!target?.closest(".control-menu-wrap") &&
+			!target?.closest(".status-dropdown-wrap")
+		) {
 			detailedMenuShown = false;
 			sortMenuShown = false;
 			filterMenuShown = false;
+			discoverMenuShown = false;
+			moreStatusMenuShown = false;
 		}
 	}
 
@@ -145,6 +178,8 @@ let watchTogetherShown = $state(false);
 			detailedMenuShown = false;
 			sortMenuShown = false;
 			filterMenuShown = false;
+			discoverMenuShown = false;
+			moreStatusMenuShown = false;
 		}
 	}
 
@@ -162,16 +197,16 @@ let watchTogetherShown = $state(false);
 
 <div
 	class="sticky-subnav-wrapper"
-	class:has-open-menu={sortMenuShown || filterMenuShown || detailedMenuShown}
+	class:has-open-menu={isAnyMenuOpen}
 >
 	<header
 		class="unified-command-bar"
-		class:has-open-menu={sortMenuShown || filterMenuShown || detailedMenuShown}
+		class:has-open-menu={isAnyMenuOpen}
 	>
 		<!-- Left Side: Status Segmented Tabs -->
 		<nav class="status-tabs-container" aria-label="Media status tabs">
 			<div class="status-tabs-track" role="tablist">
-				{#each statusTabs as tab (tab.id)}
+				{#each primaryStatusTabs as tab (tab.id)}
 					<button
 						type="button"
 						role="tab"
@@ -183,13 +218,58 @@ let watchTogetherShown = $state(false);
 						{tab.label}
 					</button>
 				{/each}
+
+				<!-- Secondary Statuses Dropdown ("+ Mais ▾") -->
+				<div class="status-dropdown-wrap" class:menu-open={moreStatusMenuShown}>
+					<button
+						type="button"
+						class="status-tab-btn more-tab-btn"
+						class:active={isSecondaryActive || moreStatusMenuShown}
+						onclick={(e) => {
+							e.stopPropagation();
+							discoverMenuShown = false;
+							sortMenuShown = false;
+							filterMenuShown = false;
+							detailedMenuShown = false;
+							moreStatusMenuShown = !moreStatusMenuShown;
+						}}
+						aria-haspopup="true"
+						aria-expanded={moreStatusMenuShown}
+						title="Mais estados (Em pausa, Abandonado, Cancelado)"
+					>
+						<span>{activeSecondaryLabel}</span>
+						<Icon i="chevron" wh={11} facing="down" />
+					</button>
+
+					{#if moreStatusMenuShown}
+						<Menu conf={{ width: "160px", left: "0px", top: "calc(100% + 6px)" }}>
+							<h5>Outros Estados</h5>
+							{#each secondaryStatusTabs as tab (tab.id)}
+								<button
+									type="button"
+									class="plain status-dropdown-item"
+									class:active={currentStatus === tab.id}
+									onclick={() => {
+										moreStatusMenuShown = false;
+										setStatusTab(tab.id);
+									}}
+								>
+									<span>{tab.label}</span>
+									{#if currentStatus === tab.id}
+										<Icon i="check" wh={12} />
+									{/if}
+								</button>
+							{/each}
+						</Menu>
+					{/if}
+				</div>
 			</div>
 		</nav>
 
-		<!-- Right Side: Search, Filters, Sort, Details, Bulk, Grid/List -->
+		<!-- Right Side: Search, Filters, Sort, Discover, Bulk, View Mode -->
 		<div class="actions-cluster">
-			<!-- In-Library Search Input -->
-			<div class="library-search-box">
+			<!-- In-Library Search Input (auto-expanding) -->
+			<div class="library-search-box" class:has-text={Boolean(librarySearchText)}>
 				<Icon i="search" wh={14} />
 				<input
 					type="text"
@@ -218,8 +298,10 @@ let watchTogetherShown = $state(false);
 					class:active={filterMenuShown || store.hasSecondaryFilters}
 					onclick={(e) => {
 						e.stopPropagation();
+						moreStatusMenuShown = false;
 						sortMenuShown = false;
 						detailedMenuShown = false;
+						discoverMenuShown = false;
 						filterMenuShown = !filterMenuShown;
 					}}
 					title="Secondary Filters (Type, Year, Rating, Genre)"
@@ -244,8 +326,10 @@ let watchTogetherShown = $state(false);
 					class:active={sortMenuShown}
 					onclick={(e) => {
 						e.stopPropagation();
+						moreStatusMenuShown = false;
 						detailedMenuShown = false;
 						filterMenuShown = false;
+						discoverMenuShown = false;
 						sortMenuShown = !sortMenuShown;
 					}}
 					title="Sort Order"
@@ -262,26 +346,79 @@ let watchTogetherShown = $state(false);
 				{/if}
 			</div>
 
-			<!-- Detailed View Toggle -->
-			<div class="control-menu-wrap" class:menu-open={detailedMenuShown}>
+			<!-- Unified Discover / Tools Menu Popover -->
+			<div class="control-menu-wrap" class:menu-open={discoverMenuShown}>
 				<button
 					type="button"
-					class="icon-toggle"
-					class:active={detailedMenuShown}
+					class="icon-toggle discover-toggle-btn"
+					class:active={discoverMenuShown || watchTogetherShown || watchRouletteShown}
 					onclick={(e) => {
 						e.stopPropagation();
-						sortMenuShown = false;
+						moreStatusMenuShown = false;
+						detailedMenuShown = false;
 						filterMenuShown = false;
-						detailedMenuShown = !detailedMenuShown;
+						sortMenuShown = false;
+						discoverMenuShown = !discoverMenuShown;
 					}}
-					title="Detailed View Options"
-					aria-label="Detailed view options"
+					title="Ferramentas e Descoberta Inteligente"
+					aria-label="Ferramentas e Descoberta"
+					aria-haspopup="true"
+					aria-expanded={discoverMenuShown}
 				>
-					<Icon i="eye" wh={14} />
-					<span class="toggle-label">{t("dashboard.details")}</span>
+					<span class="sparkle-icon">✨</span>
+					<span class="toggle-label">{t("dashboard.discover")}</span>
+					<Icon i="chevron" wh={10} facing="down" />
 				</button>
-				{#if detailedMenuShown}
-					<DetailedMenu />
+
+				{#if discoverMenuShown}
+					<Menu conf={{ width: "260px", right: "0px", top: "calc(100% + 6px)" }}>
+						<h5>{t("dashboard.discover_subtitle")}</h5>
+
+						<!-- Roulette / What to Watch -->
+						<button
+							type="button"
+							class="plain discover-menu-item"
+							onclick={() => {
+								discoverMenuShown = false;
+								watchRouletteShown = true;
+							}}
+						>
+							<span class="item-emoji">🎲</span>
+							<div class="item-meta">
+								<span class="item-title">{t("dashboard.discover_roulette")}</span>
+								<span class="item-desc">{t("dashboard.discover_roulette_desc")}</span>
+							</div>
+						</button>
+
+						<!-- Watch Together -->
+						<button
+							type="button"
+							class="plain discover-menu-item"
+							onclick={() => {
+								discoverMenuShown = false;
+								watchTogetherShown = true;
+							}}
+						>
+							<span class="item-emoji">🍿</span>
+							<div class="item-meta">
+								<span class="item-title">{t("dashboard.discover_together")}</span>
+								<span class="item-desc">{t("dashboard.discover_together_desc")}</span>
+							</div>
+						</button>
+
+						<!-- Sagas / Franchises -->
+						<a
+							href={resolve("/franchise")}
+							class="plain discover-menu-item"
+							onclick={() => (discoverMenuShown = false)}
+						>
+							<span class="item-emoji reel-icon-wrap"><Icon i="reel" wh={16} /></span>
+							<div class="item-meta">
+								<span class="item-title">{t("dashboard.discover_sagas")}</span>
+								<span class="item-desc">{t("dashboard.discover_sagas_desc")}</span>
+							</div>
+						</a>
+					</Menu>
 				{/if}
 			</div>
 
@@ -300,54 +437,29 @@ let watchTogetherShown = $state(false);
 				<span class="toggle-label">{t("dashboard.bulk")}</span>
 			</button>
 
-			<!-- Watch Together Button -->
-			<button
-				type="button"
-				class="icon-toggle watch-together-btn"
-				class:active={watchTogetherShown}
-				onclick={() => {
-					detailedMenuShown = false;
-					filterMenuShown = false;
-					sortMenuShown = false;
-					watchTogetherShown = true;
-				}}
-				title="Ver em Conjunto (Cruzar Watchlists com Amigos/Parceiros)"
-				aria-label="Ver em Conjunto"
-			>
-				<span style="font-size: 13px;">🍿</span>
-				<span class="toggle-label">Ver em Conjunto</span>
-			</button>
-
-			<!-- Sagas & Franchises Button -->
-			<a
-				href={resolve("/franchise")}
-				class="icon-toggle sagas-btn"
-				title="Explorar Sagas, Coleções TMDB e Linhas Cronológicas"
-				aria-label="Sagas"
-			>
-				<Icon i="reel" wh={14} />
-				<span class="toggle-label">Sagas</span>
-			</a>
-
-			<!-- Smart Roulette Button -->
-			<button
-				type="button"
-				class="icon-toggle roulette-btn"
-				class:active={watchRouletteShown}
-				onclick={() => {
-					detailedMenuShown = false;
-					filterMenuShown = false;
-					sortMenuShown = false;
-					watchRouletteShown = true;
-				}}
-				title="Roleta Inteligente: Sorteia da tua Watchlist por duração e mood"
-				aria-label="Roleta O Que Ver"
-			>
-				<span style="font-size: 13px;">🎲</span>
-				<span class="toggle-label">O Que Ver?</span>
-			</button>
-
-			<div class="toolbar-separator"></div>
+			<!-- Detailed View Toggle -->
+			<div class="control-menu-wrap" class:menu-open={detailedMenuShown}>
+				<button
+					type="button"
+					class="icon-toggle details-toggle"
+					class:active={detailedMenuShown}
+					onclick={(e) => {
+						e.stopPropagation();
+						moreStatusMenuShown = false;
+						sortMenuShown = false;
+						filterMenuShown = false;
+						discoverMenuShown = false;
+						detailedMenuShown = !detailedMenuShown;
+					}}
+					title="Detailed View Badges"
+					aria-label="Detailed view badges"
+				>
+					<Icon i="eye" wh={14} />
+				</button>
+				{#if detailedMenuShown}
+					<DetailedMenu />
+				{/if}
+			</div>
 
 			<!-- View Switcher & Grid Density (Compact / Comfortable / Editorial / List) -->
 			<div
@@ -363,8 +475,8 @@ let watchTogetherShown = $state(false);
 						onDensityChange?.("compact");
 						if (viewMode !== "grid") onViewModeChange("grid");
 					}}
-					title="Compact Grid (Dense Wall)"
-					aria-label="Compact grid (dense wall)"
+					title="Compact Grid"
+					aria-label="Compact grid"
 					aria-pressed={viewMode === "grid" && density === "compact"}
 				>
 					<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
@@ -387,8 +499,8 @@ let watchTogetherShown = $state(false);
 						onDensityChange?.("comfortable");
 						if (viewMode !== "grid") onViewModeChange("grid");
 					}}
-					title="Comfortable Grid (Standard)"
-					aria-label="Comfortable grid (standard)"
+					title="Comfortable Grid"
+					aria-label="Comfortable grid"
 					aria-pressed={viewMode === "grid" && density === "comfortable"}
 				>
 					<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
@@ -406,8 +518,8 @@ let watchTogetherShown = $state(false);
 						onDensityChange?.("editorial");
 						if (viewMode !== "grid") onViewModeChange("grid");
 					}}
-					title="Editorial Grid (Large Showcase)"
-					aria-label="Editorial grid (large showcase)"
+					title="Editorial Grid"
+					aria-label="Editorial grid"
 					aria-pressed={viewMode === "grid" && density === "editorial"}
 				>
 					<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
@@ -647,6 +759,49 @@ let watchTogetherShown = $state(false);
 						box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 					}
 				}
+
+				.status-dropdown-wrap {
+					position: relative;
+					display: inline-flex;
+					align-items: center;
+
+					&.menu-open {
+						z-index: 120;
+					}
+
+					.more-tab-btn {
+						display: inline-flex;
+						align-items: center;
+						gap: 4px;
+					}
+				}
+
+				.status-dropdown-item {
+					display: flex !important;
+					align-items: center;
+					justify-content: space-between;
+					width: 100% !important;
+					padding: 7px 10px;
+					font-size: 12.5px;
+					font-weight: 500;
+					color: $text-color;
+					border-radius: 6px;
+					border: none;
+					background: transparent;
+					cursor: pointer;
+					transition: all 130ms ease;
+
+					&:hover {
+						background-color: var(--accent-color, rgba(255, 255, 255, 0.08));
+						color: #ffffff;
+					}
+
+					&.active {
+						color: #fbbf24;
+						background-color: rgba(245, 158, 11, 0.14);
+						font-weight: 600;
+					}
+				}
 			}
 		}
 
@@ -670,21 +825,22 @@ let watchTogetherShown = $state(false);
 				display: flex;
 				align-items: center;
 				position: relative;
-				width: 155px;
+				width: 135px;
 				height: 34px;
 				flex-shrink: 0;
-				transition: width 180ms ease;
+				transition: width 200ms cubic-bezier(0.16, 1, 0.3, 1);
 
-				@media screen and (max-width: 600px) {
-					width: 120px;
-				}
-
+				&.has-text,
 				&:focus-within {
-					width: 195px;
+					width: 185px;
 
 					@media screen and (max-width: 600px) {
-						width: 150px;
+						width: 140px;
 					}
+				}
+
+				@media screen and (max-width: 600px) {
+					width: 110px;
 				}
 
 				:global(svg) {
@@ -811,6 +967,98 @@ let watchTogetherShown = $state(false);
 					border-radius: 50%;
 					margin-left: 2px;
 					box-shadow: 0 0 6px #f59e0b;
+				}
+			}
+
+			.discover-toggle-btn {
+				background: linear-gradient(
+					135deg,
+					rgba(245, 158, 11, 0.12),
+					rgba(255, 255, 255, 0.04)
+				);
+				border-color: rgba(245, 158, 11, 0.3);
+				color: #fbbf24;
+
+				&:hover {
+					background: linear-gradient(
+						135deg,
+						rgba(245, 158, 11, 0.22),
+						rgba(255, 255, 255, 0.08)
+					);
+					border-color: rgba(245, 158, 11, 0.5);
+					color: #fef08a;
+				}
+
+				&.active {
+					background: rgba(245, 158, 11, 0.24);
+					border-color: #f59e0b;
+					color: #fbbf24;
+					box-shadow: 0 0 14px rgba(245, 158, 11, 0.25);
+				}
+
+				.sparkle-icon {
+					font-size: 13px;
+					line-height: 1;
+				}
+			}
+
+			.details-toggle {
+				padding: 0 9px;
+			}
+
+			.discover-menu-item {
+				display: flex !important;
+				align-items: center;
+				gap: 11px;
+				width: 100% !important;
+				padding: 8px 10px;
+				border-radius: 8px;
+				border: none;
+				background: transparent;
+				cursor: pointer;
+				text-decoration: none;
+				color: $text-color;
+				transition: all 130ms ease;
+
+				&:hover {
+					background-color: rgba(255, 255, 255, 0.08);
+					transform: translateX(2px);
+				}
+
+				.item-emoji {
+					font-size: 17px;
+					flex-shrink: 0;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					width: 28px;
+					height: 28px;
+					border-radius: 6px;
+					background: rgba(255, 255, 255, 0.06);
+
+					&.reel-icon-wrap {
+						color: #fbbf24;
+					}
+				}
+
+				.item-meta {
+					display: flex;
+					flex-direction: column;
+					align-items: flex-start;
+					gap: 2px;
+					text-align: left;
+
+					.item-title {
+						font-size: 12.5px;
+						font-weight: 600;
+						color: $text-color;
+					}
+
+					.item-desc {
+						font-size: 10.5px;
+						color: $text-color-accent;
+						line-height: 1.25;
+					}
 				}
 			}
 

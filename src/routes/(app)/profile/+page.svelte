@@ -35,6 +35,8 @@
 	import Modal from "@/lib/Modal.svelte";
 	import SpinnerTiny from "@/lib/SpinnerTiny.svelte";
 	import { t, i18n } from "@/lib/i18n";
+	import WatcharrWrappedCard from "@/lib/profile/WatcharrWrappedCard.svelte";
+	import GenreDonutChart from "@/lib/profile/GenreDonutChart.svelte";
 
 	let user = $derived(store.userInfo);
 	let settings = $derived(store.userSettings);
@@ -276,6 +278,9 @@
 					<p>{t("action.loading")}</p>
 				</div>
 			{:then profile}
+				<!-- Watcharr Wrapped Showcase -->
+				<WatcharrWrappedCard {profile} />
+
 				<!-- Hero Metrics Grid -->
 				<div class="hero-stats-grid">
 					<div class="stat-card primary">
@@ -612,7 +617,7 @@
 						{/if}
 					</div>
 
-					<!-- Genre Distribution -->
+					<!-- Genre Distribution with Interactive Donut Chart -->
 					<div class="dashboard-panel">
 						<div class="panel-header">
 							<div class="panel-title-wrap">
@@ -624,27 +629,7 @@
 						</div>
 
 						{#if profile.genreDistribution && profile.genreDistribution.length > 0}
-							{@const maxGenreCount = Math.max(
-								...profile.genreDistribution.map((g) => g.count),
-								1,
-							)}
-							<div class="genres-ranked-list small-scrollbar">
-								{#each profile.genreDistribution as g (g.name)}
-									{@const pct = (g.count / maxGenreCount) * 100}
-									<div class="genre-item">
-										<div class="genre-info">
-											<span class="genre-name">{g.name}</span>
-											<span class="genre-count">{g.count} titles</span>
-										</div>
-										<div class="genre-meter-track">
-											<div
-												class="genre-meter-fill"
-												style={`width: ${pct}%`}
-											></div>
-										</div>
-									</div>
-								{/each}
-							</div>
+							<GenreDonutChart genres={profile.genreDistribution} />
 						{:else}
 							<div class="empty-analytics-placeholder">
 								<Icon i="tag" wh={32} />
@@ -656,6 +641,49 @@
 						{/if}
 					</div>
 				</div>
+
+				<!-- Top Studios & Game Developers Grid -->
+				{#if (profile.topNetworks && profile.topNetworks.length > 0) || (profile.topDevelopers && profile.topDevelopers.length > 0)}
+					<div class="dashboard-split-grid">
+						{#if profile.topNetworks && profile.topNetworks.length > 0}
+							<div class="dashboard-panel">
+								<div class="panel-header">
+									<div class="panel-title-wrap">
+										<h4 class="panel-title">Top Studios & Networks</h4>
+										<span class="panel-subtitle">Produtoras e canais mais assistidos</span>
+									</div>
+								</div>
+								<div class="chips-cloud">
+									{#each profile.topNetworks as net}
+										<div class="cloud-chip">
+											<span class="chip-label">{net.name}</span>
+											<span class="chip-count">{net.count}</span>
+										</div>
+									{/each}
+								</div>
+							</div>
+						{/if}
+
+						{#if profile.topDevelopers && profile.topDevelopers.length > 0}
+							<div class="dashboard-panel">
+								<div class="panel-header">
+									<div class="panel-title-wrap">
+										<h4 class="panel-title">Top Game Developers</h4>
+										<span class="panel-subtitle">Estúdios de videojogos favoritos</span>
+									</div>
+								</div>
+								<div class="chips-cloud">
+									{#each profile.topDevelopers as dev}
+										<div class="cloud-chip">
+											<span class="chip-label">{dev.name}</span>
+											<span class="chip-count">{dev.count}</span>
+										</div>
+									{/each}
+								</div>
+							</div>
+						{/if}
+					</div>
+				{/if}
 
 				<!-- Recent History Stream -->
 				{#if profile.recentActivity && profile.recentActivity.length > 0}
@@ -1948,6 +1976,41 @@
 					cursor: not-allowed;
 				}
 			}
+		}
+	}
+
+	.chips-cloud {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		padding: 6px 0;
+	}
+
+	.cloud-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 6px 12px;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 999px;
+		font-size: 13px;
+		color: #e2e8f0;
+		transition: all 0.15s ease;
+
+		&:hover {
+			background: rgba(255, 255, 255, 0.1);
+			border-color: rgba(245, 158, 11, 0.3);
+			transform: translateY(-1px);
+		}
+
+		.chip-count {
+			font-size: 11px;
+			font-weight: 700;
+			padding: 2px 6px;
+			border-radius: 999px;
+			background: rgba(245, 158, 11, 0.2);
+			color: #fbbf24;
 		}
 	}
 </style>

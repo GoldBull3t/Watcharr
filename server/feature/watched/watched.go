@@ -501,6 +501,9 @@ func (s *Service) AddWatched(
 	watched.Status = ar.Status
 	watched.Rating = ar.Rating
 	watched.Thoughts = ar.Thoughts
+	watched.HoursPlayed = ar.HoursPlayed
+	watched.Platform = ar.Platform
+	watched.GameCompletionStatus = ar.GameCompletionStatus
 
 	// If custom WatchedDate passed, set CreatedAt and UpdatedAt fields to it.
 	if !ar.WatchedDate.IsZero() {
@@ -751,6 +754,21 @@ func (s *Service) UpdateWatched(
 	if ar.Pinned != nil {
 		anythingChanged = true
 		upwat.Pinned = *ar.Pinned
+	}
+	if ar.RemoveHoursPlayed && upwat.HoursPlayed != nil {
+		anythingChanged = true
+		upwat.HoursPlayed = nil
+	} else if ar.HoursPlayed != nil && (upwat.HoursPlayed == nil || *ar.HoursPlayed != *upwat.HoursPlayed) {
+		anythingChanged = true
+		upwat.HoursPlayed = ar.HoursPlayed
+	}
+	if ar.Platform != nil && *ar.Platform != upwat.Platform {
+		anythingChanged = true
+		upwat.Platform = *ar.Platform
+	}
+	if ar.GameCompletionStatus != nil && *ar.GameCompletionStatus != upwat.GameCompletionStatus {
+		anythingChanged = true
+		upwat.GameCompletionStatus = *ar.GameCompletionStatus
 	}
 
 	if !anythingChanged {

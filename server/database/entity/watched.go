@@ -47,4 +47,9 @@ type Watched struct {
 	// The last season that was viewed by the user for this watched entry.
 	// Only applies to tv shows of course.
 	LastViewedSeason *int `json:"lastViewedSeason,omitempty"`
+
+	// Gaming 2.0 tracker fields
+	HoursPlayed          *float64 `json:"hoursPlayed,omitempty" gorm:"type:numeric(6,1)"`
+	Platform             string   `json:"platform,omitempty"`
+	GameCompletionStatus string   `json:"gameCompletionStatus,omitempty"`
 }

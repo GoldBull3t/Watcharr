@@ -18,6 +18,8 @@
 		dateAdded,
 		dateModified,
 		lastWatched,
+		hoursPlayed,
+		platform,
 	}: PosterExtraDetails = $props();
 
 	let isUsingThumbs = $derived(
@@ -64,6 +66,11 @@
 				<span title="Latest season watched">
 					<i><Icon i="play" wh={15} /></i>
 					<span>{lastWatched}</span>
+				</span>
+			{/if}{#if typeof hoursPlayed === "number" && hoursPlayed > 0}
+				<span title="Horas jogadas">
+					<i>🎮</i>
+					<span>{hoursPlayed}h{#if platform} • {platform}{/if}</span>
 				</span>
 			{/if}{#if store.wlDetailedView.includes("statusRating")}
 				<span class="status-rating" title="Status and Rating">

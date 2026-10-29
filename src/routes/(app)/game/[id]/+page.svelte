@@ -1,6 +1,10 @@
 <script lang="ts">
 	import Spinner from "@/lib/Spinner.svelte";
-	import { type Media, type WatchedStatus } from "@/types";
+	import {
+		type Media,
+		type WatchedStatus,
+		type GameCompletionStatus,
+	} from "@/types";
 	import Activity from "@/lib/activity/Activity.svelte";
 	import Title from "@/lib/content/Title.svelte";
 	import Error from "@/lib/Error.svelte";
@@ -14,6 +18,7 @@
 	import { resolve } from "$app/paths";
 	import PageBackdrop from "@/lib/generic/PageBackdrop.svelte";
 	import MyReview from "@/lib/content/MyReview.svelte";
+	import GamingTrackerCard from "@/lib/content/GamingTrackerCard.svelte";
 	import ViewTrailerButton from "@/lib/content/ViewTrailerButton.svelte";
 	import ProvidersList from "@/lib/content/ProvidersList.svelte";
 	import PosterImage from "@/lib/content/PosterImage.svelte";
@@ -65,6 +70,9 @@
 		newRating?: number,
 		newThoughts?: string,
 		pinned?: boolean,
+		hoursPlayed?: number,
+		platform?: string,
+		gameCompletionStatus?: GameCompletionStatus,
 	): Promise<boolean> {
 		try {
 			if (!data.gameId) {
@@ -82,11 +90,46 @@
 				rating: newRating,
 				thoughts: newThoughts,
 				pinned: pinned,
+				hoursPlayed: hoursPlayed,
+				platform: platform,
+				gameCompletionStatus: gameCompletionStatus,
 			});
 			return true;
 		} catch {
 			return false;
 		}
+	}
+	async function handleHoursChanged(hours: number): Promise<boolean> {
+		return contentChanged(undefined, undefined, undefined, undefined, hours);
+	}
+
+	async function handlePlatformChanged(platform: string): Promise<boolean> {
+		return contentChanged(
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			platform,
+		);
+	}
+
+	async function handleCompletionStatusChanged(
+		status: GameCompletionStatus,
+	): Promise<boolean> {
+		return contentChanged(
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			status,
+		);
+	}
+
+	async function handleStartTracking(): Promise<boolean> {
+		return contentChanged("WATCHING");
 	}
 </script>
 
@@ -221,6 +264,15 @@
 		</div>
 
 		<div class="page">
+			<GamingTrackerCard
+				{game}
+				watched={game.watched}
+				onHoursChanged={handleHoursChanged}
+				onPlatformChanged={handlePlatformChanged}
+				onCompletionStatusChanged={handleCompletionStatusChanged}
+				onStartTracking={handleStartTracking}
+			/>
+
 			{#if data.gameId}
 				<FollowedThoughts mediaType="game" mediaId={data.gameId} />
 			{/if}

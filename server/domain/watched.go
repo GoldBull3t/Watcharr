@@ -84,6 +84,11 @@ type WatchedDto struct {
 	LastViewedSeason *int                    `json:"lastViewedSeason,omitempty"`
 	// Amount of plays this media has, calculated from activity.
 	Plays int `json:"plays,omitempty"`
+
+	// Gaming 2.0 tracker fields
+	HoursPlayed          *float64 `json:"hoursPlayed,omitempty"`
+	Platform             string   `json:"platform,omitempty"`
+	GameCompletionStatus string   `json:"gameCompletionStatus,omitempty"`
 }
 
 // New dto with base properties that we have for all WatchedDtos.
@@ -95,7 +100,10 @@ func NewWatchedDtoWithBaseProps(w *entity.Watched) WatchedDto {
 		UpdatedAt: w.UpdatedAt,
 		Status:    w.Status,
 		Rating:    w.Rating,
-		Pinned:    w.Pinned,
+		Pinned:               w.Pinned,
+		HoursPlayed:          w.HoursPlayed,
+		Platform:             w.Platform,
+		GameCompletionStatus: w.GameCompletionStatus,
 	}
 }
 
@@ -186,6 +194,10 @@ type WatchedAddRequest struct {
 	Status   entity.WatchedStatus `json:"status"`
 	Rating   float64              `json:"rating" binding:"max=10"`
 	Thoughts string               `json:"thoughts"`
+	// Gaming 2.0 tracker fields
+	HoursPlayed          *float64 `json:"hoursPlayed,omitempty"`
+	Platform             string   `json:"platform,omitempty"`
+	GameCompletionStatus string   `json:"gameCompletionStatus,omitempty"`
 	// Pass a watched date and we will set the CreatedAt (and initial UpdatedAt)
 	// properties for this watched entry to this specific date.
 	WatchedDate time.Time `json:"watchedDate,omitempty"`
@@ -216,6 +228,12 @@ type WatchedUpdateRequest struct {
 	// If the activity was going to count, this can stop it.
 	LetCountAsPlay *bool `json:"letCountAsPlay"`
 
+	// Gaming 2.0 tracker fields
+	HoursPlayed          *float64 `json:"hoursPlayed,omitempty"`
+	RemoveHoursPlayed    bool     `json:"removeHoursPlayed,omitempty"`
+	Platform             *string  `json:"platform,omitempty"`
+	GameCompletionStatus *string  `json:"gameCompletionStatus,omitempty"`
+
 	// Set the CreatedBy value on the created activity.
 	// Internal Only.
 	ActivityCreatedBy entity.ActivityCreatedBy `json:"-"`
@@ -230,7 +248,11 @@ func (w WatchedUpdateRequest) Valid() error {
 		!w.RemoveRating &&
 		(w.Thoughts == "" && !w.RemoveThoughts) &&
 		w.Pinned == nil &&
-		w.LetCountAsPlay == nil {
+		w.LetCountAsPlay == nil &&
+		w.HoursPlayed == nil &&
+		!w.RemoveHoursPlayed &&
+		w.Platform == nil &&
+		w.GameCompletionStatus == nil {
 		// No properties are set, so this struct is not valid.
 		return errors.New("no properties provided")
 	}
@@ -239,6 +261,9 @@ func (w WatchedUpdateRequest) Valid() error {
 	}
 	if w.Rating < 0 || w.Rating > 10 {
 		return errors.New("rating can only be a value from 0-10")
+	}
+	if w.HoursPlayed != nil && *w.HoursPlayed < 0 {
+		return errors.New("hours played cannot be negative")
 	}
 	return nil
 }

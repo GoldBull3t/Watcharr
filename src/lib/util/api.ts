@@ -14,6 +14,7 @@ import {
 	type Activity,
 	type SupportedMedia,
 	type ServerFeatures,
+	type GameCompletionStatus,
 } from "@/types";
 import { Reqer, ReqerError } from "./fetch";
 import { notify, unNotify } from "./notify";
@@ -79,12 +80,20 @@ async function _updateWatched(
 	thoughts?: string,
 	pinned?: boolean,
 	letCountAsPlay?: boolean,
+	hoursPlayed?: number,
+	removeHoursPlayed?: boolean,
+	platform?: string,
+	gameCompletionStatus?: GameCompletionStatus,
 ) {
 	if (
 		!status &&
 		!rating &&
 		typeof thoughts === "undefined" &&
-		typeof pinned === "undefined"
+		typeof pinned === "undefined" &&
+		typeof hoursPlayed === "undefined" &&
+		!removeHoursPlayed &&
+		typeof platform === "undefined" &&
+		typeof gameCompletionStatus === "undefined"
 	) {
 		console.warn(
 			"_updateWatched: Nothing was provided, so nothing can be updated!!!!",
@@ -100,6 +109,18 @@ async function _updateWatched(
 	if (typeof letCountAsPlay !== "undefined") {
 		obj.letCountAsPlay = letCountAsPlay;
 	}
+	if (typeof hoursPlayed !== "undefined") {
+		obj.hoursPlayed = hoursPlayed;
+	}
+	if (removeHoursPlayed) {
+		obj.removeHoursPlayed = true;
+	}
+	if (typeof platform !== "undefined") {
+		obj.platform = platform;
+	}
+	if (typeof gameCompletionStatus !== "undefined") {
+		obj.gameCompletionStatus = gameCompletionStatus;
+	}
 	const resp = await req.put<WatchedUpdateResponse>(
 		`/watched/${wEntry.id}`,
 		obj,
@@ -108,6 +129,11 @@ async function _updateWatched(
 	if (rating) wEntry.rating = rating;
 	if (typeof thoughts !== "undefined") wEntry.thoughts = thoughts;
 	if (typeof pinned !== "undefined") wEntry.pinned = pinned;
+	if (typeof hoursPlayed !== "undefined") wEntry.hoursPlayed = hoursPlayed;
+	if (removeHoursPlayed) wEntry.hoursPlayed = undefined;
+	if (typeof platform !== "undefined") wEntry.platform = platform;
+	if (typeof gameCompletionStatus !== "undefined")
+		wEntry.gameCompletionStatus = gameCompletionStatus;
 	if (resp?.newActivities && resp.newActivities.length > 0) {
 		if (!wEntry.activity) {
 			wEntry.activity = [];
@@ -151,6 +177,10 @@ export async function updateWatched(
 					opts.thoughts,
 					opts.pinned,
 					opts.letCountAsPlay,
+					opts.hoursPlayed,
+					opts.removeHoursPlayed,
+					opts.platform,
+					opts.gameCompletionStatus,
 				);
 				notify({ id: nid, text: `Saved!`, type: "success" });
 			} catch (err) {
@@ -168,6 +198,9 @@ export async function updateWatched(
 			contentType: opts.contentType,
 			status: opts.status,
 			rating: opts.rating,
+			hoursPlayed: opts.hoursPlayed,
+			platform: opts.platform,
+			gameCompletionStatus: opts.gameCompletionStatus,
 		};
 		if (opts.contentType === "movie" || opts.contentType === "tv") {
 			reqBody.tmdbId = opts.contentId;

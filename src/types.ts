@@ -193,8 +193,19 @@ export interface Watched {
 	// 'Watching Season/Ep' Extra detail.
 	watchingSeason?: string;
 
+	// Gaming 2.0 tracker
+	hoursPlayed?: number;
+	platform?: string;
+	gameCompletionStatus?: GameCompletionStatus;
+
 	media?: Media;
 }
+
+export type GameCompletionStatus =
+	| "MAIN_STORY"
+	| "MAIN_EXTRA"
+	| "COMPLETIONIST"
+	| "DROPPED";
 
 export interface WatchedAddRequest {
 	tmdbId?: number;
@@ -202,6 +213,9 @@ export interface WatchedAddRequest {
 	contentType: SupportedMedia;
 	rating?: number;
 	status?: WatchedStatus;
+	hoursPlayed?: number;
+	platform?: string;
+	gameCompletionStatus?: GameCompletionStatus;
 }
 
 export interface WatchedUpdateRequest {
@@ -211,6 +225,10 @@ export interface WatchedUpdateRequest {
 	removeThoughts?: boolean;
 	pinned?: boolean;
 	letCountAsPlay?: boolean;
+	hoursPlayed?: number;
+	removeHoursPlayed?: boolean;
+	platform?: string;
+	gameCompletionStatus?: GameCompletionStatus;
 }
 
 export interface WatchedUpdateResponse {
@@ -310,6 +328,7 @@ export interface Profile {
 	showsWatching: number;
 	episodesWatched: number;
 	gamesPlayed: number;
+	totalGamingHours?: number;
 	totalRuntime: number;
 	statusDistribution: Record<string, number>;
 	statusDistributionType: Record<string, Record<string, number>>;
@@ -317,6 +336,8 @@ export interface Profile {
 	activityByMonth: ActivityPeriod[];
 	activityByYear: ActivityPeriod[];
 	genreDistribution: GenreStat[];
+	topNetworks?: GenreStat[];
+	topDevelopers?: GenreStat[];
 	recentActivity: RecentActivityItem[];
 	hasPartialHistory: boolean;
 }

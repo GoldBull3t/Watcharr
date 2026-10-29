@@ -55,6 +55,7 @@ type Profile struct {
 	ShowsWatching          int32                     `json:"showsWatching"`
 	EpisodesWatched        int32                     `json:"episodesWatched"`
 	GamesPlayed            int32                     `json:"gamesPlayed"`
+	TotalGamingHours       float64                   `json:"totalGamingHours"`
 	TotalRuntime           uint64                    `json:"totalRuntime"` // in minutes
 	StatusDistribution     map[string]int            `json:"statusDistribution"`
 	StatusDistributionType map[string]map[string]int `json:"statusDistributionType"`
@@ -62,6 +63,8 @@ type Profile struct {
 	ActivityByMonth        []ActivityPeriod          `json:"activityByMonth"`
 	ActivityByYear         []ActivityPeriod          `json:"activityByYear"`
 	GenreDistribution      []GenreStat               `json:"genreDistribution"`
+	TopNetworks            []GenreStat               `json:"topNetworks"`
+	TopDevelopers          []GenreStat               `json:"topDevelopers"`
 	RecentActivity         []RecentActivityItem      `json:"recentActivity"`
 	HasPartialHistory      bool                      `json:"hasPartialHistory"`
 }
@@ -117,6 +120,7 @@ func (s *Service) getProfile(userId uint) (Profile, error) {
 		showsWatching        int32
 		moviesWatched        int32
 		gamesPlayed          int32
+		totalGamingHours     float64
 		episodesWatched      int32
 		moviesWatchedRuntime uint32
 		showsWatchedRuntime  uint32
@@ -151,6 +155,8 @@ func (s *Service) getProfile(userId uint) (Profile, error) {
 	)
 
 	genreCounts := make(map[string]int)
+	networkCounts := make(map[string]int)
+	developerCounts := make(map[string]int)
 	monthMap := make(map[string]*ActivityPeriod)
 	yearMap := make(map[string]*ActivityPeriod)
 	var recentActivities []RecentActivityItem
@@ -229,7 +235,26 @@ func (s *Service) getProfile(userId uint) (Profile, error) {
 			if isFinished {
 				gamesPlayed++
 			}
+			if w.HoursPlayed != nil && *w.HoursPlayed > 0 {
+				totalGamingHours += *w.HoursPlayed
+			}
+			if w.Game.Developers != "" {
+				for _, d := range strings.Split(w.Game.Developers, ",") {
+					d = strings.TrimSpace(d)
+					if d != "" {
+						developerCounts[d]++
+					}
+				}
+			}
 		} else if w.Content != nil {
+			if w.Content.Networks != "" {
+				for _, net := range strings.Split(w.Content.Networks, ",") {
+					net = strings.TrimSpace(net)
+					if net != "" {
+						networkCounts[net]++
+					}
+				}
+			}
 			c := *w.Content
 			switch c.Type {
 			case entity.MOVIE:
@@ -371,6 +396,30 @@ func (s *Service) getProfile(userId uint) (Profile, error) {
 		genreDist = genreDist[:12]
 	}
 
+	// Format top networks
+	var topNetworks []GenreStat
+	for name, count := range networkCounts {
+		topNetworks = append(topNetworks, GenreStat{Name: name, Count: count})
+	}
+	sort.Slice(topNetworks, func(i, j int) bool {
+		return topNetworks[i].Count > topNetworks[j].Count
+	})
+	if len(topNetworks) > 8 {
+		topNetworks = topNetworks[:8]
+	}
+
+	// Format top developers
+	var topDevelopers []GenreStat
+	for name, count := range developerCounts {
+		topDevelopers = append(topDevelopers, GenreStat{Name: name, Count: count})
+	}
+	sort.Slice(topDevelopers, func(i, j int) bool {
+		return topDevelopers[i].Count > topDevelopers[j].Count
+	})
+	if len(topDevelopers) > 8 {
+		topDevelopers = topDevelopers[:8]
+	}
+
 	// Rating calculations
 	var avgRating float64
 	if ratingCount > 0 {
@@ -395,6 +444,7 @@ func (s *Service) getProfile(userId uint) (Profile, error) {
 		ShowsWatching:          showsWatching,
 		MoviesWatched:          moviesWatched,
 		GamesPlayed:            gamesPlayed,
+		TotalGamingHours:       totalGamingHours,
 		EpisodesWatched:        episodesWatched,
 		MoviesWatchedRuntime:   moviesWatchedRuntime,
 		ShowsWatchedRuntime:    showsWatchedRuntime,
@@ -405,6 +455,8 @@ func (s *Service) getProfile(userId uint) (Profile, error) {
 		ActivityByMonth:        activityByMonth,
 		ActivityByYear:         activityByYear,
 		GenreDistribution:      genreDist,
+		TopNetworks:            topNetworks,
+		TopDevelopers:          topDevelopers,
 		RecentActivity:         recentActivities,
 		HasPartialHistory:      hasPartialHistory,
 	}

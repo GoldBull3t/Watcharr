@@ -9,6 +9,8 @@ export type PosterExtraDetails = {
 	 * Only for shows.
 	 */
 	lastWatched?: string;
+	hoursPlayed?: number;
+	platform?: string;
 };
 
 export function buildExtraDetails(
@@ -21,6 +23,8 @@ export function buildExtraDetails(
 		dateAdded: w.createdAt,
 		dateModified: w.updatedAt,
 		lastWatched: w.watchingSeason,
+		hoursPlayed: w.hoursPlayed,
+		platform: w.platform,
 	} as PosterExtraDetails;
 	return obj;
 }
