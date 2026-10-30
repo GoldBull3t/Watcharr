@@ -1,7 +1,10 @@
 #
-# Backend
+# Backend (Cross-compilation using host platform without QEMU)
 #
-FROM golang:1.27-alpine AS server
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS server
+
+ARG TARGETOS
+ARG TARGETARCH
 
 WORKDIR /server
 
@@ -12,13 +15,13 @@ RUN go mod download
 # Copy server source code
 COPY server/ ./
 
-# Build optimized binary
-RUN GOOS=linux CGO_ENABLED=0 go build -ldflags="-s -w" -o ./watcharr .
+# Cross-compile for target architecture (runs natively on build machine, super fast)
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -ldflags="-s -w" -o /server/watcharr .
 
 #
-# Frontend
+# Frontend (Static assets build runs natively on host platform)
 #
-FROM node:22-alpine AS ui
+FROM --platform=$BUILDPLATFORM node:22-alpine AS ui
 
 WORKDIR /app
 
@@ -26,7 +29,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-# Copy source and build
+# Copy source and build static bundle
 COPY ./src ./src
 COPY ./static ./static
 COPY vite.config.ts svelte.config.js tsconfig.json ./
@@ -34,7 +37,7 @@ COPY vite.config.ts svelte.config.js tsconfig.json ./
 RUN npm run build
 
 #
-# Production (Ultra-lightweight Alpine image: Zero Node.js runtime)
+# Production (Target architecture runner)
 #
 FROM alpine:3.21 AS runner
 
