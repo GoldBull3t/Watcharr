@@ -5,7 +5,7 @@
 	import Poster from "@/lib/poster/Poster.svelte";
 	import { req, updateWatched } from "@/lib/util/api";
 	import { notify } from "@/lib/util/notify";
-	import type { Media, RoulettePickRequest, RoulettePickResponse } from "@/types";
+	import { MediaTypeE, type Media, type RoulettePickRequest, type RoulettePickResponse } from "@/types";
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
@@ -148,8 +148,8 @@
 	}
 
 	function getMediaUrl(item: Media): string {
-		const type = item.type === "movie" ? "movie" : item.type === "tv" ? "tv" : "game";
-		const id = item.ids?.tmdbId || item.ids?.igdbId || item.ids?.id;
+		const type = (item.type as any) === "movie" || item.type === MediaTypeE.tmdbMovie ? "movie" : (item.type as any) === "tv" || item.type === MediaTypeE.tmdbShow ? "tv" : "game";
+		const id = item.ids?.tmdb || item.ids?.igdb || (item.ids as any)?.id || (item as any).id;
 		return resolve(`/${type}/${id}` as any);
 	}
 
@@ -157,9 +157,10 @@
 		if (!winner || isMarkingWatching) return;
 		isMarkingWatching = true;
 		try {
+			const targetId = winner.ids?.tmdb || winner.ids?.igdb || (winner.ids as any)?.id || (winner as any).id;
 			if (winner.watched?.id) {
 				await updateWatched(winner.watched, {
-					contentId: winner.ids?.tmdbId || (winner.ids?.id as number),
+					contentId: targetId,
 					contentType: winner.type as any,
 					status: "WATCHING",
 				});
@@ -168,7 +169,7 @@
 			} else {
 				// No existing watched entry, add new
 				await req.post("/watched", {
-					contentId: winner.ids?.tmdbId || (winner.ids?.id as number),
+					contentId: targetId,
 					contentType: winner.type,
 					status: "WATCHING",
 				});
@@ -429,7 +430,7 @@
 						<div class="winner-header">
 							<div class="winner-meta-pills">
 								<span class="pill type-pill">
-									{winner.type === "movie" ? "🎬 FILME" : winner.type === "tv" ? "📺 SÉRIE" : "🎮 JOGO"}
+									{(winner.type as any) === "movie" || winner.type === MediaTypeE.tmdbMovie ? "🎬 FILME" : (winner.type as any) === "tv" || winner.type === MediaTypeE.tmdbShow ? "📺 SÉRIE" : "🎮 JOGO"}
 								</span>
 								{#if winner.releaseDate}
 									<span class="pill year-pill">
@@ -441,9 +442,9 @@
 										⭐ {(winner.rating / 10).toFixed(1)}/10
 									</span>
 								{/if}
-								{#if winner.type === "movie" && winner.watched?.runtime}
+								{#if winner.runtime}
 									<span class="pill runtime-pill">
-										⏱️ {formatRuntime(winner.watched.runtime)}
+										⏱️ {formatRuntime(winner.runtime)}
 									</span>
 								{/if}
 							</div>
@@ -861,6 +862,7 @@
 				margin: 0;
 				display: -webkit-box;
 				-webkit-line-clamp: 4;
+				line-clamp: 4;
 				-webkit-box-orient: vertical;
 				overflow: hidden;
 			}

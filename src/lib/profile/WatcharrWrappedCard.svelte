@@ -89,7 +89,7 @@
 		{#if topGenre}
 			<div class="favorite-genre-chip" title="O teu género cinematográfico predileto">
 				<span class="chip-label">Género Favorito:</span>
-				<strong class="chip-val">👑 {topGenre.Name}</strong>
+				<strong class="chip-val">👑 {topGenre.name || (topGenre as any).Name}</strong>
 			</div>
 		{/if}
 	</div>

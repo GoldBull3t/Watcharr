@@ -629,7 +629,7 @@
 	<!-- Public List Grid -->
 	<PosterList>
 		{#if publicTag.items && publicTag.items.length > 0}
-			{#each publicTag.items as item (item.id || item.tmdbId)}
+			{#each publicTag.items as item, i ((item as any).id || (item as any).tmdbId || i)}
 				<Poster media={item} fluidSize={true} />
 			{/each}
 		{:else}

@@ -275,7 +275,7 @@
 				<div class="config-item toggle">
 					<label class="toggle-label" for="backup-enabled-toggle">
 						<Checkbox
-							id="backup-enabled-toggle"
+							name="backup-enabled-toggle"
 							value={config?.enabled ?? true}
 							toggled={(val) => updateSettings({ enabled: val })}
 						/>

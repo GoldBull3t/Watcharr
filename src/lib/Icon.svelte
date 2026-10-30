@@ -860,19 +860,6 @@
 		<circle cx="250" cy="250" r="95" fill="#00e054" opacity="0.9" />
 		<circle cx="350" cy="250" r="95" fill="#ff8000" opacity="0.9" />
 	</svg>
-{:else if i === "download"}
-	<svg
-		xmlns="http://www.w3.org/2000/svg"
-		viewBox="0 0 512 512"
-		width={wh}
-		height={wh}
-		fill="currentColor"
-	>
-		<path d="M336 240l-80 80-80-80h48V96h64v144h48z" />
-		<path
-			d="M392 352H120a24 24 0 00-24 24v24a24 24 0 0024 24h272a24 24 0 0024-24v-24a24 24 0 00-24-24z"
-		/>
-	</svg>
 {:else if i === "notifications"}
 	<svg
 		xmlns="http://www.w3.org/2000/svg"

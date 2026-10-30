@@ -258,6 +258,8 @@
 						{#each filteredItems as item (item.contentId)}
 							{@const content = item.content}
 							{#if content}
+								{@const pPath = (content as any).posterPath || (content as any).poster_path}
+								{@const rDate = (content as any).releaseDate || (content as any).release_date}
 								<a
 									class="matched-card"
 									href={getMediaUrl(item)}
@@ -265,10 +267,10 @@
 								>
 									<div class="poster-container">
 										<img
-											src={content.posterPath
-												? content.posterPath.startsWith("http")
-													? content.posterPath
-													: `https://image.tmdb.org/t/p/w500${content.posterPath}`
+											src={pPath
+												? pPath.startsWith("http")
+													? pPath
+													: `https://image.tmdb.org/t/p/w500${pPath}`
 												: "https://image.tmdb.org/t/p/w500/wwemzKWzjKYJFfCeiB57q3r4Bcm.png"}
 											alt={content.title}
 											loading="lazy"
@@ -290,9 +292,9 @@
 
 									<div class="card-meta">
 										<span class="card-title" title={content.title}>{content.title}</span>
-										{#if content.releaseDate}
+										{#if rDate}
 											<span class="card-year">
-												{new Date(content.releaseDate).getFullYear()}
+												{new Date(rDate).getFullYear()}
 											</span>
 										{/if}
 									</div>

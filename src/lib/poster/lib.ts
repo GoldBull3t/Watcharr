@@ -1,4 +1,4 @@
-import type { Media, SupportedMedia, Watched, WatchedStatus } from "@/types";
+import { MediaTypeE, type Media, type SupportedMedia, type Watched, type WatchedStatus } from "@/types";
 
 export type SeriesProgressionState =
 	| "FULLY_FINISHED"
@@ -167,7 +167,7 @@ export function buildExtraDetails(
 	w: Watched,
 	media?: Media,
 ): PosterExtraDetails {
-	const isTv = t === "tv" || media?.type === "tv";
+	const isTv = t === "tv" || media?.type === MediaTypeE.tmdbShow || (media?.type as any) === "tv";
 	const seasonProgress = isTv
 		? calculateSeasonProgress(media?.numberOfSeasons, w.watchedSeasons)
 		: null;

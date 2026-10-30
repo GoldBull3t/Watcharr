@@ -6,7 +6,7 @@
 	import { store } from "@/store.svelte";
 	import { req } from "@/lib/util/api";
 	import { notify } from "@/lib/util/notify";
-	import type { PrivateUser } from "@/types";
+	import type { PrivateUser, UserSettings } from "@/types";
 
 	interface Props {
 		open?: boolean;
@@ -15,19 +15,19 @@
 
 	let { open = $bindable(false), onClose }: Props = $props();
 
-	let webhookUrl = $state(store.userInfo?.activityWebhookUrl ?? "");
-	let isEnabled = $state(store.userInfo?.activityWebhookEnabled ?? false);
+	let webhookUrl = $state(store.userSettings?.activityWebhookUrl ?? "");
+	let isEnabled = $state(store.userSettings?.activityWebhookEnabled ?? false);
 	let filterType: "all" | "finished" | "watching" | "rating" = $state(
-		store.userInfo?.activityWebhookFilter ?? "all",
+		store.userSettings?.activityWebhookFilter ?? "all",
 	);
 
 	let isSaving = $state(false);
 
 	$effect(() => {
-		if (store.userInfo) {
-			webhookUrl = store.userInfo.activityWebhookUrl ?? "";
-			isEnabled = store.userInfo.activityWebhookEnabled ?? false;
-			filterType = store.userInfo.activityWebhookFilter ?? "all";
+		if (store.userSettings) {
+			webhookUrl = store.userSettings.activityWebhookUrl ?? "";
+			isEnabled = store.userSettings.activityWebhookEnabled ?? false;
+			filterType = store.userSettings.activityWebhookFilter ?? "all";
 		}
 	});
 
@@ -44,13 +44,13 @@
 	async function saveSettings() {
 		isSaving = true;
 		try {
-			const res = await req.put<PrivateUser>("/user", {
+			const res = await req.put<UserSettings>("/user/settings", {
 				activityWebhookUrl: webhookUrl.trim(),
 				activityWebhookEnabled: isEnabled,
 				activityWebhookFilter: filterType,
 			});
 			if (res) {
-				store.userInfo = res;
+				store.userSettings = res;
 			}
 			notify({
 				text: "Real-time activity webhook saved successfully!",
@@ -77,12 +77,16 @@
 
 		<!-- Enable Toggle -->
 		<div class="setting-row">
-			<Checkbox
-				name="activity_webhook_enabled"
-				label="Enable Activity Webhook"
-				desc="Automatically send an outbound JSON payload whenever you update your media list."
-				bind:value={isEnabled}
-			/>
+			<label class="checkbox-label" for="activity_webhook_enabled">
+				<Checkbox
+					name="activity_webhook_enabled"
+					bind:value={isEnabled}
+				/>
+				<div class="label-text">
+					<strong>Enable Activity Webhook</strong>
+					<span class="desc">Automatically send an outbound JSON payload whenever you update your media list.</span>
+				</div>
+			</label>
 		</div>
 
 		<!-- Webhook URL Input -->

@@ -175,7 +175,7 @@
 		</div>
 	{:else if error}
 		<div class="error-wrap">
-			<Icon i="alert-triangle" wh={32} />
+			<Icon i="close-circle" wh={32} />
 			<p>{error}</p>
 			<button type="button" class="retry-btn" onclick={loadFranchises}>Tentar Novamente</button>
 		</div>
@@ -566,6 +566,7 @@
 		line-height: 1.4;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}

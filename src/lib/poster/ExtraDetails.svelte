@@ -207,15 +207,6 @@
 					fill: white;
 					color: white;
 				}
-
-				&.caught-up {
-					color: #38bdf8;
-
-					i {
-						fill: #34d399;
-						color: #34d399;
-					}
-				}
 			}
 		}
 

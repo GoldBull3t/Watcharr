@@ -889,8 +889,8 @@
 {#if lightboxOpen}
 	<MediaLightbox
 		videos={lightboxVideos}
-		backdropPath={media.backdrop?.path || media.extBackdropPath}
-		posterPath={media.poster?.path || media.extPosterPath}
+		backdropPath={(media as any).backdropPath || (media as any).backdrop?.path || media.extBackdropPath}
+		posterPath={(media as any).posterPath || (media as any).poster?.path || media.extPosterPath}
 		mediaTitle={media.name}
 		initialType="video"
 		onclose={() => (lightboxOpen = false)}

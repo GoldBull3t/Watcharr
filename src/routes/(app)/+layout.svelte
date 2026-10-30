@@ -538,10 +538,10 @@
 		<Icon i="tag" wh={20} />
 		<span>Tags</span>
 	</button>
-	<button
-		class="nav-tab plain {subMenuShown ? 'active' : ''}"
-		onclick={handleProfileClick}
-		aria-label="Account menu"
+	<a
+		href={resolve("/profile")}
+		class="nav-tab {page.url?.pathname.startsWith('/profile') ? 'active' : ''}"
+		aria-label="Perfil & Definições"
 	>
 		{#if store.userInfo?.avatar?.path}
 			<img
@@ -556,8 +556,8 @@
 		{:else}
 			<Icon i="person" wh={20} />
 		{/if}
-		<span>Account</span>
-	</button>
+		<span>{t("nav.account")}</span>
+	</a>
 </nav>
 
 {#if page.state.handbook}

@@ -10,10 +10,12 @@
 		getOrdinalSuffix,
 		monthsShort,
 		toRelativeDate,
+		userHasPermission,
 	} from "@/lib/util/helpers";
 	import { store } from "@/store.svelte";
 	import {
 		UserType,
+		UserPermission,
 		type Image,
 		type Profile,
 		type RecentActivityItem,
@@ -193,7 +195,8 @@
 			: profile.statusDistributionType?.[tab] || {};
 	}
 
-	function getTotalInTab(dist: Record<string, number>): number {
+	function getTotalInTab(dist: Record<string, number> | undefined | null): number {
+		if (!dist) return 0;
 		return Object.values(dist).reduce((a, b) => a + b, 0);
 	}
 
@@ -995,7 +998,7 @@
 					<button class="btn-action" onclick={() => (exportModalOpen = true)}>
 						{t("profile.export_list")}
 					</button>
-					{#if userHasPermission(user?.permissions, UserPermission.PERM_ADMIN)}
+					{#if user && userHasPermission(user.permissions, UserPermission.PERM_ADMIN)}
 						<button
 							class="btn-action"
 							onclick={() => (backupModalOpen = true)}
@@ -1654,50 +1657,6 @@
 					font-size: 10px;
 					color: #ffffff;
 					font-weight: 700;
-				}
-			}
-		}
-	}
-
-	/* Genres list */
-	.genres-ranked-list {
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-		max-height: 180px;
-		overflow-y: auto;
-		padding-right: 4px;
-
-		.genre-item {
-			display: flex;
-			flex-direction: column;
-			gap: 4px;
-
-			.genre-info {
-				display: flex;
-				justify-content: space-between;
-				font-size: 12px;
-
-				.genre-name {
-					font-weight: 600;
-					color: #ffffff;
-				}
-
-				.genre-count {
-					color: rgba(255, 255, 255, 0.5);
-				}
-			}
-
-			.genre-meter-track {
-				height: 5px;
-				border-radius: 3px;
-				background: rgba(255, 255, 255, 0.06);
-				overflow: hidden;
-
-				.genre-meter-fill {
-					height: 100%;
-					border-radius: 3px;
-					background: linear-gradient(90deg, #6366f1, #a855f7);
 				}
 			}
 		}

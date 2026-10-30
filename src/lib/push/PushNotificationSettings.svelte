@@ -90,7 +90,7 @@
 						{#if testing}
 							<SpinnerTiny />
 						{:else}
-							<Icon i="send" wh={16} />
+							<Icon i="notifications" wh={16} />
 							<span>Enviar Teste</span>
 						{/if}
 					</button>

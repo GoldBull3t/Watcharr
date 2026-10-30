@@ -22,7 +22,7 @@
 	}: Props = $props();
 
 	// Hours state
-	let hoursInput = $state(watched?.hoursPlayed?.toString() || "");
+	let hoursInput = $state("");
 	let isSavingHours = $state(false);
 
 	$effect(() => {
@@ -290,7 +290,7 @@
 		<!-- Platform Selection Chips -->
 		<div class="tracker-section">
 			<div class="section-label">
-				<Icon i="desktop" wh={14} />
+				<Icon i="gamepad" wh={14} />
 				<span>Plataforma</span>
 			</div>
 
