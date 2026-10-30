@@ -245,8 +245,8 @@ func main() {
 	api := gine.Group("/api")
 	api.Use(gzip.Gzip(gzip.DefaultCompression))
 
-	// Health check endpoint for Docker, orchestrators and uptime monitoring
-	api.GET("/health", func(c *gin.Context) {
+	// Health check handler for Docker, orchestrators, reverse proxies and uptime monitoring
+	healthHandler := func(c *gin.Context) {
 		dbStatus := "connected"
 		sqlDB, err := db.DB()
 		if err != nil || sqlDB.Ping() != nil {
@@ -265,7 +265,12 @@ func main() {
 			"uptime":   time.Since(startTime).String(),
 			"database": dbStatus,
 		})
-	})
+	}
+
+	// Register on root /health (for proxies, uptime monitors and container runtimes)
+	gine.GET("/health", healthHandler)
+	// Register on /api/health (standard API endpoint)
+	api.GET("/health", healthHandler)
 
 	br := router.NewBaseRouter(db, api, cfg)
 
@@ -508,10 +513,10 @@ func ensureDirExists(dir string) error {
 
 func getListenPort() string {
 	if p := strings.TrimSpace(os.Getenv("PORT")); p != "" {
-		return p
+		return strings.TrimPrefix(p, ":")
 	}
 	if p := strings.TrimSpace(os.Getenv("WATCHARR_PORT")); p != "" {
-		return p
+		return strings.TrimPrefix(p, ":")
 	}
 	return "3080"
 }
