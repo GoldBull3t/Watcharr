@@ -103,8 +103,14 @@ function computeSortAndFiltersForQueryParams(
 			if (filters?.genre) {
 				qp["genre"] = filters.genre;
 			}
-			if (filters?.productionStatus) {
+						if (filters?.productionStatus) {
 				qp["productionStatus"] = filters.productionStatus;
+			}
+			if (filters?.tags && filters.tags.length > 0) {
+				qp["tags"] = filters.tags.join(",");
+				if (filters.tagMode) {
+					qp["tagMode"] = filters.tagMode;
+				}
 			}
 		}
 		return qp;
@@ -154,7 +160,7 @@ export const store = {
 				Boolean(this.activeFilters.minRating) ||
 				Boolean(this.activeFilters.maxRating) ||
 				Boolean(this.activeFilters.query) ||
-				Boolean(this.activeFilters.genre))
+				Boolean(this.activeFilters.genre) || Boolean(this.activeFilters.tags && this.activeFilters.tags.length > 0))
 		);
 	},
 	get hasSecondaryFilters(): boolean {
@@ -165,7 +171,7 @@ export const store = {
 				Boolean(this.activeFilters.minRating) ||
 				Boolean(this.activeFilters.maxRating) ||
 				Boolean(this.activeFilters.genre) ||
-				Boolean(this.activeFilters.productionStatus)),
+				Boolean(this.activeFilters.productionStatus) || Boolean(this.activeFilters.tags && this.activeFilters.tags.length > 0)),
 		);
 	},
 	get secondaryFilterCount(): number {
@@ -175,7 +181,8 @@ export const store = {
 		if (this.activeFilters.year) count++;
 		if (this.activeFilters.minRating || this.activeFilters.maxRating) count++;
 		if (this.activeFilters.genre) count++;
-		if (this.activeFilters.productionStatus) count++;
+				if (this.activeFilters.productionStatus) count++;
+		if (this.activeFilters.tags && this.activeFilters.tags.length > 0) count += this.activeFilters.tags.length;
 		return count;
 	},
 	set activeFilters(v) {
@@ -186,8 +193,10 @@ export const store = {
 			minRating: v?.minRating,
 			maxRating: v?.maxRating,
 			query: v?.query,
-			genre: v?.genre,
+						genre: v?.genre,
 			productionStatus: v?.productionStatus,
+			tags: Array.isArray(v?.tags) ? v.tags : [],
+			tagMode: v?.tagMode || "and",
 		};
 		if (browser) {
 			try {
@@ -323,7 +332,9 @@ export const clearActiveFilters = () => {
 		maxRating: undefined,
 		query: undefined,
 		genre: undefined,
-		productionStatus: undefined,
+				productionStatus: undefined,
+		tags: [],
+		tagMode: "and",
 	};
 };
 
@@ -335,7 +346,9 @@ export const clearSecondaryFilters = () => {
 		minRating: undefined,
 		maxRating: undefined,
 		genre: undefined,
-		productionStatus: undefined,
+				productionStatus: undefined,
+		tags: [],
+		tagMode: "and",
 	};
 };
 

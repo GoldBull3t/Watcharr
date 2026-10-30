@@ -43,10 +43,30 @@
 		};
 	}
 
-	function setProductionStatusFilter(ps: string | undefined) {
+		function setProductionStatusFilter(ps: string | undefined) {
 		store.activeFilters = {
 			...store.activeFilters,
 			productionStatus: ps,
+		};
+	}
+
+	function toggleTagFilter(tagId: number) {
+		const currentTags = store.activeFilters?.tags || [];
+		const exists = currentTags.includes(tagId);
+		const newTags = exists
+			? currentTags.filter((id) => id !== tagId)
+			: [...currentTags, tagId];
+		store.activeFilters = {
+			...store.activeFilters,
+			tags: newTags,
+		};
+	}
+
+	function toggleTagMode() {
+		const newMode = store.activeFilters?.tagMode === "or" ? "and" : "or";
+		store.activeFilters = {
+			...store.activeFilters,
+			tagMode: newMode,
 		};
 	}
 
@@ -230,8 +250,45 @@
 				<option value="canceled">❌ Cancelada pelos Produtores</option>
 				<option value="returning">📺 Em Exibição (Novas Temporadas)</option>
 				<option value="ended">✅ Terminada (Com Final)</option>
-			</select>
+						</select>
 		</div>
+
+		<!-- Tags Filter -->
+		{#if store.tags && store.tags.length > 0}
+			<div class="filter-group">
+				<div class="tag-header-row">
+					<span class="group-label">Tags / Listas</span>
+					{#if (store.activeFilters?.tags || []).length > 1}
+						<button
+							type="button"
+							class="tag-mode-btn"
+							onclick={toggleTagMode}
+							title="Alternar entre AND (todas) e OR (qualquer)"
+						>
+							{store.activeFilters?.tagMode === "or" ? "Modo: OU (Qualquer)" : "Modo: E (Todas)"}
+						</button>
+					{/if}
+				</div>
+				<div class="tags-pill-wrap small-scrollbar">
+					{#each store.tags as t}
+						{@const isSelected = (store.activeFilters?.tags || []).includes(t.id)}
+						<button
+							type="button"
+							class="tag-chip"
+							class:active={isSelected}
+							onclick={() => toggleTagFilter(t.id)}
+							title={isSelected ? `Remover filtro da tag ${t.name}` : `Filtrar por tag ${t.name}`}
+						>
+							<span class="tag-color-dot" style={t.color ? `background-color: ${t.color}` : ""}></span>
+							<span class="tag-name">{t.name}</span>
+							{#if isSelected}
+								<span class="tag-check">&#10004;</span>
+							{/if}
+						</button>
+					{/each}
+				</div>
+			</div>
+		{/if}
 	</div>
 </Menu>
 
@@ -360,6 +417,84 @@
 					box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.2);
 				}
 			}
+			.tag-header-row {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 6px;
+
+			.tag-mode-btn {
+				font-size: 10px;
+				font-weight: 700;
+				color: #eab308;
+				background: rgba(234, 179, 8, 0.12);
+				border: 1px solid rgba(234, 179, 8, 0.25);
+				border-radius: 4px;
+				padding: 1px 6px;
+				cursor: pointer;
+				transition: all 120ms ease;
+
+				&:hover {
+					background: rgba(234, 179, 8, 0.22);
+				}
+			}
+		}
+
+		.tags-pill-wrap {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 5px;
+			max-height: 120px;
+			overflow-y: auto;
+			padding-right: 2px;
+
+			.tag-chip {
+				display: inline-flex;
+				align-items: center;
+				gap: 5px;
+				padding: 3px 8px;
+				border-radius: 6px;
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				background: rgba(255, 255, 255, 0.05);
+				color: #e2e8f0;
+				font-size: 11px;
+				font-weight: 500;
+				cursor: pointer;
+				transition: all 120ms ease;
+
+				&:hover {
+					border-color: rgba(255, 255, 255, 0.25);
+					background: rgba(255, 255, 255, 0.1);
+				}
+
+				&.active {
+					border-color: #eab308;
+					background: rgba(234, 179, 8, 0.16);
+					color: #fef08a;
+					font-weight: 600;
+				}
+
+				.tag-color-dot {
+					width: 7px;
+					height: 7px;
+					border-radius: 50%;
+					background-color: #94a3b8;
+					flex-shrink: 0;
+				}
+
+				.tag-name {
+					max-width: 130px;
+					white-space: nowrap;
+					overflow: hidden;
+					text-overflow: ellipsis;
+				}
+
+				.tag-check {
+					font-size: 9px;
+					color: #eab308;
+				}
+			}
 		}
 	}
+}
 </style>

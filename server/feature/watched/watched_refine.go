@@ -194,8 +194,17 @@ func watchedRefineFilter(
 				db.Where("Content.status = ?", "Canceled")
 			case "returning":
 				db.Where("Content.status = ?", "Returning Series")
-			case "ended":
+						case "ended":
 				db.Where("Content.status = ?", "Ended")
+			}
+		}
+		if len(wr.TagIDs) > 0 {
+			if strings.ToLower(wr.TagMode) == "or" {
+				db.Where("watcheds.id IN (SELECT watched_id FROM watched_tags WHERE tag_id IN ?)", wr.TagIDs)
+			} else {
+				for _, tagId := range wr.TagIDs {
+					db.Where("watcheds.id IN (SELECT watched_id FROM watched_tags WHERE tag_id = ?)", tagId)
+				}
 			}
 		}
 		return db

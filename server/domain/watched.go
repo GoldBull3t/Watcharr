@@ -50,6 +50,8 @@ type WatchedGetPageRequest struct {
 	Genre            string                 `form:"genre"`
 	Query            string                 `form:"query"`
 	ProductionStatus string                 `form:"productionStatus"`
+	TagIDs           []uint                 `form:"tags" collection_format:"csv"`
+	TagMode          string                 `form:"tagMode"`
 }
 
 type WatchedGetPageExtraProps struct {

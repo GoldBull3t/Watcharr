@@ -856,6 +856,8 @@ export interface Filters {
 	query?: string;
 	genre?: string;
 	productionStatus?: string;
+	tags?: number[];
+	tagMode?: "and" | "or";
 }
 
 export interface ManagedUser {
