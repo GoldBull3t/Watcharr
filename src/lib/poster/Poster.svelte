@@ -20,7 +20,7 @@
 		calculateSeasonProgress,
 		type SeasonProgressStats,
 	} from "./lib";
-	import { updateWatchedSeason } from "@/lib/season/api";
+	import { removeWatchedSeason, updateWatchedSeason } from "@/lib/season/api";
 	import { decode } from "blurhash";
 	import { resolve } from "$app/paths";
 	import Icon from "../Icon.svelte";
@@ -178,18 +178,21 @@
 	) {
 		if (!watched || disableInteraction) return;
 
-		let targetStatus: WatchedStatus = "WATCHING";
 		if (currentStatus === "UNWATCHED") {
-			targetStatus = "PLANNED";
+			await updateWatchedSeason(watched, seasonNum, { status: "PLANNED" });
 		} else if (currentStatus === "PLANNED") {
-			targetStatus = "WATCHING";
+			await updateWatchedSeason(watched, seasonNum, { status: "WATCHING" });
 		} else if (currentStatus === "WATCHING") {
-			targetStatus = "FINISHED";
+			await updateWatchedSeason(watched, seasonNum, { status: "FINISHED" });
 		} else if (currentStatus === "FINISHED") {
-			targetStatus = "PLANNED";
+			const ws = watched.watchedSeasons?.find((s) => s.seasonNumber === seasonNum);
+			if (ws && ws.id) {
+				await removeWatchedSeason(watched, ws.id);
+			} else {
+				await updateWatchedSeason(watched, seasonNum, { status: "PLANNED" });
+			}
 		}
 
-		await updateWatchedSeason(watched, seasonNum, { status: targetStatus });
 		if (onUpdated) onUpdated();
 	}
 
@@ -795,16 +798,21 @@
 								Temporadas ({seasonProgress.finishedSeasons.length}/{seasonProgress.totalSeasons})
 							</span>
 							{#if seasonProgress.nextUpSeason}
-								<span class="tracker-next">
-									{#if seasonProgress.nextUpStatus === "PLANNED"}
+								<span class="tracker-next" class:caught-up={seasonProgress.isCaughtUp}>
+									{#if seasonProgress.isCaughtUp}
+										✨ Em dia (T{seasonProgress.nextUpSeason} {t("status.planned") || "Planeada"})
+									{:else if seasonProgress.nextUpStatus === "PLANNED"}
 										⏳ T{seasonProgress.nextUpSeason} {t("status.planned") || "Planeada"}
 									{:else if seasonProgress.nextUpStatus === "WATCHING"}
 										▶ {t("status.watching") || "A ver"} T{seasonProgress.nextUpSeason}
 									{/if}
 								</span>
+							{:else if seasonProgress.progressionState === "FULLY_FINISHED"}
+								<span class="tracker-next caught-up">
+									✔ {t("status.finished") || "Completa"}
+								</span>
 							{/if}
-						</div>
-						<div class="tracker-pills-row">
+						</div><div class="tracker-pills-row">
 							{#each seasonProgress.seasons as s}
 								<button
 									type="button"
@@ -815,7 +823,7 @@
 									}}
 									title={`Temporada ${s.number}: ${
 										s.status === 'FINISHED'
-											? (t('status.finished') || 'Concluída') + ' (clica para alterar)'
+											? (t('status.finished') || 'Concluída') + ' (clica para reiniciar)'
 											: s.status === 'PLANNED'
 												? (t('status.planned') || 'Planeada') + ' (clica para Marcar como A Ver)'
 												: s.status === 'WATCHING'

@@ -1094,6 +1094,20 @@ func (s *Service) getSeasonDetailsCached(showId string, seasonNum string) (tmdb.
 	return sd, nil
 }
 
+// InvalidateSeasonCache clears cached TMDB season details for a given show, or completely if showId is empty
+func InvalidateSeasonCache(showId string) {
+	if showId == "" {
+		seasonCache = sync.Map{}
+		return
+	}
+	seasonCache.Range(func(key, value any) bool {
+		if k, ok := key.(string); ok && strings.HasPrefix(k, showId+":") {
+			seasonCache.Delete(key)
+		}
+		return true
+	})
+}
+
 // GetUpNext computes the exact next episode to watch for all active TV shows using parallel worker pool and caching
 func (s *Service) GetUpNext(userId uint) ([]domain.UpNextItem, error) {
 	var watched []entity.Watched

@@ -148,11 +148,22 @@ func (s *Service) hookStatusChangedSetShowStatus(
 
 	// If newSeasonStatus is WATCHING or FINISHED & the show is PLANNED, then
 	// show status should be set to WATCHING (unless checks below change that).
-	if (newSeasonStatus == entity.WATCHING || newSeasonStatus == entity.FINISHED) &&
+		if (newSeasonStatus == entity.WATCHING || newSeasonStatus == entity.FINISHED) &&
 		(showWatchedStatus == "" || showWatchedStatus == entity.PLANNED) {
 		newShowStatus = entity.WATCHING
 		reason = fmt.Sprintf(
 			"Season %d was set to %s.",
+			seasonNum,
+			newSeasonStatus,
+		)
+	}
+
+	// If show was marked FINISHED but a season was set to PLANNED or WATCHING, reopen show to WATCHING
+	if (newSeasonStatus == entity.WATCHING || newSeasonStatus == entity.PLANNED) &&
+		showWatchedStatus == entity.FINISHED {
+		newShowStatus = entity.WATCHING
+		reason = fmt.Sprintf(
+			"Season %d was set to %s (reopened from finished).",
 			seasonNum,
 			newSeasonStatus,
 		)

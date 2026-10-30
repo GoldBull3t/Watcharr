@@ -101,8 +101,8 @@
 							></div>
 						</div>
 					{/if}
-					<span class="season-label">
-						<i><Icon i="play" wh={11} /></i>
+					<span class="season-label" class:caught-up={seasonProgress.isCaughtUp}>
+						<i><Icon i={seasonProgress.isCaughtUp ? "check" : "play"} wh={11} /></i>
 						<span>{seasonProgress.displayText}</span>
 					</span>
 				</div>
@@ -207,6 +207,15 @@
 					fill: white;
 					color: white;
 				}
+
+				&.caught-up {
+					color: #38bdf8;
+
+					i {
+						fill: #34d399;
+						color: #34d399;
+					}
+				}
 			}
 		}
 
@@ -284,6 +293,15 @@
 					width: 12px;
 					fill: white;
 					color: white;
+				}
+
+				&.caught-up {
+					color: #38bdf8;
+
+					i {
+						fill: #34d399;
+						color: #34d399;
+					}
 				}
 			}
 		}

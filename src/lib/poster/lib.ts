@@ -1,5 +1,12 @@
 import type { Media, SupportedMedia, Watched, WatchedStatus } from "@/types";
 
+export type SeriesProgressionState =
+	| "FULLY_FINISHED"
+	| "CAUGHT_UP_WAITING"
+	| "IN_PROGRESS"
+	| "PLANNED"
+	| "UNWATCHED";
+
 export interface SeasonProgressStats {
 	totalSeasons: number;
 	finishedSeasons: number[];
@@ -7,8 +14,11 @@ export interface SeasonProgressStats {
 	plannedSeasons: number[];
 	nextUpSeason?: number;
 	nextUpStatus?: "FINISHED" | "WATCHING" | "PLANNED" | "UNWATCHED";
+	progressionState: SeriesProgressionState;
+	isCaughtUp: boolean;
 	percentage: number;
 	displayText: string;
+	badgeText?: string;
 	seasons: {
 		number: number;
 		status: "FINISHED" | "WATCHING" | "PLANNED" | "UNWATCHED";
@@ -81,15 +91,45 @@ export function calculateSeasonProgress(
 
 	const percentage = Math.min(100, Math.round((finished.length / total) * 100));
 
+	// Determine progression state and smart labels
+	let progressionState: SeriesProgressionState = "UNWATCHED";
+	let isCaughtUp = false;
 	let displayText = `${finished.length}/${total} Temp.`;
-	if (nextUpSeason) {
-		if (nextUpStatus === "PLANNED") {
-			displayText += ` (T${nextUpSeason} Planeada)`;
-		} else if (nextUpStatus === "WATCHING") {
-			displayText += ` (A ver T${nextUpSeason})`;
-		}
-	} else if (finished.length === total) {
+	let badgeText: string | undefined;
+
+	if (finished.length === total && total > 0) {
+		progressionState = "FULLY_FINISHED";
+		isCaughtUp = true;
 		displayText = `Completa (${total}/${total} Temp.)`;
+		badgeText = "Completa";
+	} else if (watching.length > 0) {
+		progressionState = "IN_PROGRESS";
+		isCaughtUp = false;
+		displayText = `${finished.length}/${total} Temp. (A ver T${nextUpSeason})`;
+		badgeText = `A ver T${nextUpSeason}`;
+	} else if (finished.length > 0) {
+		// All currently watched seasons are finished, and either a season is planned or waiting
+		const maxFin = Math.max(...finished);
+		const allPriorFinished = finished.length === maxFin;
+		if (allPriorFinished && (nextUpStatus === "PLANNED" || nextUpStatus === "UNWATCHED")) {
+			progressionState = "CAUGHT_UP_WAITING";
+			isCaughtUp = true;
+			if (nextUpSeason && nextUpStatus === "PLANNED") {
+				displayText = `${finished.length}/${total} Temp. • T${nextUpSeason} Planeada`;
+				badgeText = `Em dia • T${nextUpSeason} Planeada`;
+			} else if (nextUpSeason) {
+				displayText = `Em dia (${finished.length}/${total} Temp.)`;
+				badgeText = "Em dia";
+			}
+		} else {
+			progressionState = "IN_PROGRESS";
+			displayText = `${finished.length}/${total} Temp.`;
+			badgeText = `${finished.length}/${total} Temp.`;
+		}
+	} else if (planned.length > 0) {
+		progressionState = "PLANNED";
+		displayText = `T${nextUpSeason} Planeada`;
+		badgeText = `Planeada`;
 	}
 
 	return {
@@ -99,8 +139,11 @@ export function calculateSeasonProgress(
 		plannedSeasons: planned,
 		nextUpSeason,
 		nextUpStatus,
+		progressionState,
+		isCaughtUp,
 		percentage,
 		displayText,
+		badgeText,
 		seasons: seasonsList,
 	};
 }

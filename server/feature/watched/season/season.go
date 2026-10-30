@@ -1,6 +1,7 @@
 package season
 
 import (
+	"time"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -186,10 +187,13 @@ func (s *Service) SetWatchedSeason(
 			AddToMultiCreator(activityMC)
 	}
 
-	if err := s.db.Save(wSeason).Error; err != nil {
+		if err := s.db.Save(wSeason).Error; err != nil {
 		slog.Debug("SetWatchedSeason: Save query failed.", "error", err)
 		return domain.WatchedSeasonSetResponse{}, errors.New("failed to save")
 	}
+
+	// Touch Watched entry UpdatedAt so Continue Watching and Up Next re-sort immediately
+	s.db.Model(&entity.Watched{}).Where("user_id = ? AND id = ?", userId, ar.WatchedID).Update("updated_at", time.Now())
 
 	addedActivities := activityMC.CreateAll()
 
@@ -232,7 +236,8 @@ func (s *Service) RmWatchedSeason(userId uint, seasonId uint) (entity.Activity, 
 		return entity.Activity{}, errors.New("wasn't removed from db.. may not exist")
 	}
 	slog.Debug("rmWatchedSeason, deleted row", "row", watchedSeason)
-	if watchedSeason.ID != 0 {
+		if watchedSeason.ID != 0 {
+		s.db.Model(&entity.Watched{}).Where("user_id = ? AND id = ?", userId, watchedSeason.WatchedID).Update("updated_at", time.Now())
 		json, _ := json.Marshal(map[string]interface{}{
 			"season": watchedSeason.SeasonNumber,
 			"status": watchedSeason.Status,
