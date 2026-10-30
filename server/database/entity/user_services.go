@@ -35,4 +35,5 @@ type UserServiceName string
 const (
 	UserServiceNameJellyfin UserServiceName = "jellyfin"
 	UserServiceNamePlex     UserServiceName = "plex"
+	UserServiceNameSteam    UserServiceName = "steam"
 )

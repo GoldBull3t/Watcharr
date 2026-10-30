@@ -1357,3 +1357,19 @@ export interface RoulettePickResponse {
 	items: Media[];
 	totalPool: number;
 }
+
+export interface SteamStatusResponse {
+	connected: boolean;
+	steamId?: string;
+	personaName?: string;
+	avatar?: string;
+	totalGames: number;
+	hasCustomKey: boolean;
+}
+
+export interface SteamSyncResponse {
+	syncedCount: number;
+	totalSteamGames: number;
+	updatedGames: string[];
+	message: string;
+}

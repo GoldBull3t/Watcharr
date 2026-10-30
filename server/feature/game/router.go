@@ -25,6 +25,7 @@ type Router struct {
 	br              *router.BaseRouter
 	service         *Service
 	watchedProvider WatchedProvider
+	steamService    *SteamService
 }
 
 func NewRouter(br *router.BaseRouter, service *Service, watchedProvider WatchedProvider) *Router {
@@ -32,11 +33,18 @@ func NewRouter(br *router.BaseRouter, service *Service, watchedProvider WatchedP
 		br,
 		service,
 		watchedProvider,
+		NewSteamService(br.DB, br.Cfg),
 	}
 }
 
 func (r *Router) AddRoutes() {
 	gamer := r.br.Router.Group("/game").Use(authmiddleware.AuthRequired(r.br.Cfg))
+
+	// Steam integration routes (all authenticated users)
+	gamer.GET("/steam/status", r.GetSteamStatus)
+	gamer.POST("/steam/connect", r.ConnectSteam)
+	gamer.POST("/steam/sync", r.SyncSteam)
+	gamer.DELETE("/steam/disconnect", r.DisconnectSteam)
 
 	// TODO This config init can be moved to NewRouter, then `gdb` can be accessible in Router for all service funcs.
 	r.br.Cfg.TWITCH.OnTokenRefreshed(func() {
@@ -63,6 +71,50 @@ func (r *Router) AddRoutes() {
 	{
 		gamer.POST("/config", r.UpdateConfig)
 	}
+}
+
+func (r *Router) GetSteamStatus(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	status, err := r.steamService.GetStatus(userId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, status)
+}
+
+func (r *Router) ConnectSteam(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	var req SteamConnectRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	res, err := r.steamService.ConnectUser(userId, req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (r *Router) SyncSteam(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	res, err := r.steamService.SyncUserPlaytime(userId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (r *Router) DisconnectSteam(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	if err := r.steamService.DisconnectUser(userId); err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.Status(http.StatusOK)
 }
 
 func (r *Router) GetGameDetails(c *gin.Context) {

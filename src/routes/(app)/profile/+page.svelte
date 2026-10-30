@@ -22,6 +22,7 @@
 	import UserAvatar from "@/lib/img/UserAvatar.svelte";
 	import PwChangeModal from "@/routes/(app)/profile/modals/PwChangeModal.svelte";
 	import SyncModal from "./modals/SyncModal.svelte";
+	import SteamSyncModal from "./modals/SteamSyncModal.svelte";
 	import RegionDropDown from "@/lib/RegionDropDown.svelte";
 	import LanguageDropDown from "@/lib/LanguageDropDown.svelte";
 	import RatingSetting from "@/lib/rating/RatingSetting.svelte";
@@ -56,6 +57,7 @@
 	let getProfilePromise = $state(getProfile());
 	let jellyfinSyncModalOpen = $state(false);
 	let plexSyncModalOpen = $state(false);
+	let steamSyncModalOpen = $state(false);
 	let calendarWebhookModalOpen = $state(false);
 	let activityWebhookModalOpen = $state(false);
 	let backupModalOpen = $state(false);
@@ -1029,6 +1031,13 @@
 						</button>
 					{/if}
 					<button
+						class="btn-action"
+						onclick={() => (steamSyncModalOpen = true)}
+						title="Sincronizar horas jogadas da Steam (Gaming 2.0)"
+					>
+						<Icon i="gamepad" wh={16} /> Steam Sync
+					</button>
+					<button
 						class="btn-action primary-accent"
 						onclick={() => (dashboardModalOpen = true)}
 					>
@@ -1064,6 +1073,9 @@
 			{/if}
 			{#if plexSyncModalOpen}
 				<SyncModal type="plex" onClose={() => (plexSyncModalOpen = false)} />
+			{/if}
+			{#if steamSyncModalOpen}
+				<SteamSyncModal onClose={() => (steamSyncModalOpen = false)} />
 			{/if}
 			{#if clearLibraryModalOpen}
 				<Modal

@@ -87,6 +87,9 @@ type ServerConfig struct {
 	// Optional: MDBList API Key for Letterboxd, Trakt, Rotten Tomatoes, IMDb & Metacritic scores.
 	MDBLIST_KEY string `json:",omitempty"`
 
+	// Optional: Steam Web API Key for syncing gaming playtime and stats.
+	STEAM_KEY string `json:",omitempty"`
+
 	// Optional: Point to Plex install to enable plex features.
 	PLEX_HOST string `json:",omitempty"`
 
@@ -142,6 +145,7 @@ func (c *ServerConfig) GetSafe() ServerConfig {
 		TMDB_KEY:                 c.TMDB_KEY,
 		OMDB_KEY:                 c.OMDB_KEY,
 		MDBLIST_KEY:              c.MDBLIST_KEY,
+		STEAM_KEY:                c.STEAM_KEY,
 		PLEX_HOST:                c.PLEX_HOST,
 		PLEX_MACHINE_ID:          c.PLEX_MACHINE_ID,
 		OVERSEERR_HOST:           c.OVERSEERR_HOST,
@@ -183,6 +187,18 @@ func (c *ServerConfig) GetMDBListKey() string {
 		return c.MDBLIST_KEY
 	}
 	return strings.TrimSpace(os.Getenv("MDBLIST_API_KEY"))
+}
+
+func (c *ServerConfig) GetSteamKey() string {
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+	if c.STEAM_KEY != "" {
+		return c.STEAM_KEY
+	}
+	if env := strings.TrimSpace(os.Getenv("STEAM_API_KEY")); env != "" {
+		return env
+	}
+	return strings.TrimSpace(os.Getenv("STEAM_KEY"))
 }
 
 func (c *ServerConfig) GetBackupEnabled() bool {
@@ -265,6 +281,8 @@ func (c *ServerConfig) Get(s string) (ServerConfigGetByName, error) {
 		return ServerConfigGetByName{Value: c.OMDB_KEY}, nil
 	case "MDBLIST_KEY":
 		return ServerConfigGetByName{Value: c.MDBLIST_KEY}, nil
+	case "STEAM_KEY":
+		return ServerConfigGetByName{Value: c.STEAM_KEY}, nil
 	case "PLEX_HOST":
 		return ServerConfigGetByName{Value: c.PLEX_HOST}, nil
 	case "PLEX_MACHINE_ID":
@@ -335,6 +353,13 @@ func (c *ServerConfig) UpdateConfig(k string, v any) error {
 			return errors.New("invalid value")
 		}
 		c.MDBLIST_KEY = strings.TrimSpace(str)
+	case "STEAM_KEY":
+		str, ok := v.(string)
+		if !ok {
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		c.STEAM_KEY = strings.TrimSpace(str)
 	case "DEBUG":
 		b, ok := v.(bool)
 		if !ok {
