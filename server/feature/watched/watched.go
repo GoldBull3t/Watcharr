@@ -1258,11 +1258,35 @@ func (s *Service) PickRoulette(userId uint, req domain.RoulettePickRequest) (dom
 		// 4. Genre filter
 		if genreFilter != "" {
 			matched := false
-			if w.Content != nil && strings.Contains(strings.ToLower(w.Content.Genres), genreFilter) {
-				matched = true
+			genreAliases := []string{genreFilter}
+			switch genreFilter {
+			case "action", "ação", "acao":
+				genreAliases = []string{"action", "ação", "acao"}
+			case "comedy", "comédia", "comedia":
+				genreAliases = []string{"comedy", "comédia", "comedia"}
+			case "science fiction", "sci-fi", "ficção científica", "ficcao cientifica":
+				genreAliases = []string{"science fiction", "sci-fi", "ficção científica", "ficcao cientifica"}
+			case "horror", "terror":
+				genreAliases = []string{"horror", "terror"}
+			case "animation", "animação", "animacao":
+				genreAliases = []string{"animation", "animação", "animacao"}
+			case "thriller", "suspense":
+				genreAliases = []string{"thriller", "suspense"}
+			case "fantasy", "fantasia":
+				genreAliases = []string{"fantasy", "fantasia"}
+			case "adventure", "aventura":
+				genreAliases = []string{"adventure", "aventura"}
 			}
-			if w.Game != nil && strings.Contains(strings.ToLower(w.Game.Genres), genreFilter) {
-				matched = true
+
+			for _, alias := range genreAliases {
+				if w.Content != nil && strings.Contains(strings.ToLower(w.Content.Genres), alias) {
+					matched = true
+					break
+				}
+				if w.Game != nil && strings.Contains(strings.ToLower(w.Game.Genres), alias) {
+					matched = true
+					break
+				}
 			}
 			if !matched {
 				continue

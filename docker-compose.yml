@@ -9,13 +9,19 @@ services:
     ports:
       - "3080:3080"
     environment:
+      - PORT=3080
+      - TZ=UTC
+      # Set to "true" to allow outbound webhooks to private LAN IPs (Home Assistant, Discord bots, etc.)
+      # - ALLOW_LOCAL_WEBHOOKS=true
+      # Optional external database (PostgreSQL or MySQL):
+      # - DB_TYPE=postgres
+      # - DATABASE_URL=postgres://user:password@localhost:5432/watcharr?sslmode=disable
       # Optional: Preconfigure keys via environment if preferred
-      # - OMDB_API_KEY=your_omdb_key
-      # - MDBLIST_API_KEY=your_mdblist_key
+      # - OMDB_KEY=your_omdb_key
+      # - MDBLIST_KEY=your_mdblist_key
       # - TMDB_KEY=your_tmdb_key
       # - TWITCH_CLIENT_ID=your_twitch_client_id
       # - TWITCH_CLIENT_SECRET=your_twitch_client_secret
-      - TZ=UTC
     volumes:
       # Contains all watcharr data (database & cache)
       - ./data:/data

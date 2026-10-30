@@ -15,7 +15,12 @@
 	import PosterStatus from "./PosterStatus.svelte";
 	import PosterRating from "./PosterRating.svelte";
 	import ExtraDetails from "./ExtraDetails.svelte";
-	import { buildExtraDetails } from "./lib";
+	import {
+		buildExtraDetails,
+		calculateSeasonProgress,
+		type SeasonProgressStats,
+	} from "./lib";
+	import { updateWatchedSeason } from "@/lib/season/api";
 	import { decode } from "blurhash";
 	import { resolve } from "$app/paths";
 	import Icon from "../Icon.svelte";
@@ -154,6 +159,39 @@
 			type,
 		};
 	});
+
+	const isTv = $derived(
+		meta?.type === "tv" ||
+			media.type === MediaTypeE.tmdbShow ||
+			(media.type as string) === "tv",
+	);
+
+	const seasonProgress = $derived<SeasonProgressStats | null>(
+		isTv
+			? calculateSeasonProgress(media.numberOfSeasons, watched?.watchedSeasons)
+			: null,
+	);
+
+	async function handleSeasonQuickToggle(
+		seasonNum: number,
+		currentStatus: "FINISHED" | "WATCHING" | "PLANNED" | "UNWATCHED",
+	) {
+		if (!watched || disableInteraction) return;
+
+		let targetStatus: WatchedStatus = "WATCHING";
+		if (currentStatus === "UNWATCHED") {
+			targetStatus = "PLANNED";
+		} else if (currentStatus === "PLANNED") {
+			targetStatus = "WATCHING";
+		} else if (currentStatus === "WATCHING") {
+			targetStatus = "FINISHED";
+		} else if (currentStatus === "FINISHED") {
+			targetStatus = "PLANNED";
+		}
+
+		await updateWatchedSeason(watched, seasonNum, { status: targetStatus });
+		if (onUpdated) onUpdated();
+	}
 
 	const poster = $derived.by(() => {
 		if (media.poster?.path) {
@@ -415,8 +453,26 @@
 	let isSwiping = $state(false);
 	let swipeAction: "FINISHED" | "PLANNED" | null = $state(null);
 
+	function isInsideHorizontalScroll(el: HTMLElement | undefined): boolean {
+		let curr = el?.parentElement;
+		while (curr && curr !== document.body) {
+			if (
+				curr.classList.contains("up-next-rail") ||
+				curr.classList.contains("cw-rail-wrap") ||
+				curr.classList.contains("horizontal-list") ||
+				curr.classList.contains("small-scrollbar") ||
+				curr.dataset?.noSwipe === "true" ||
+				(curr.scrollWidth > curr.clientWidth && getComputedStyle(curr).overflowX !== "visible")
+			) {
+				return true;
+			}
+			curr = curr.parentElement;
+		}
+		return false;
+	}
+
 	function handleTouchStart(e: TouchEvent) {
-		if (disableInteraction || e.touches.length !== 1) return;
+		if (disableInteraction || e.touches.length !== 1 || isInsideHorizontalScroll(containerEl)) return;
 		touchStartX = e.touches[0].clientX;
 		touchStartY = e.touches[0].clientY;
 		touchStartTime = Date.now();
@@ -467,7 +523,7 @@
 				triggerHaptic();
 				executeStatusClick("FINISHED");
 				notify({
-					text: `✓ ${media.name}: Marcado como Concluído`,
+					text: `✓ ${media.name}: ${t("watched.finished") || "Marked as Finished"}`,
 					type: "success",
 					time: 2500,
 				});
@@ -475,7 +531,7 @@
 				triggerHaptic();
 				executeStatusClick("PLANNED");
 				notify({
-					text: `🔖 ${media.name}: Adicionado aos Planeados`,
+					text: `🔖 ${media.name}: ${t("watched.planned") || "Added to Planned"}`,
 					type: "success",
 					time: 2500,
 				});
@@ -635,7 +691,7 @@
 		{/if}
 		{#if watched && meta && !posterActive}
 			<!-- Must be on watched list, and poster not hovered -->
-			<ExtraDetails {...buildExtraDetails(meta.type, watched)} />
+			<ExtraDetails {...buildExtraDetails(meta.type, watched, media)} />
 		{/if}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
@@ -686,21 +742,7 @@
 					>
 						<Icon i="close-circle" wh={12} />
 						<span>Cancelada sem desfecho</span>
-						<button
-						type="button"
-						class="quick-trailer-btn"
-						onclick={openQuickTrailer}
-						title="Ver Trailer Oficial"
-						aria-label="Ver Trailer Oficial"
-						disabled={isFetchingTrailer || disableInteraction}
-					>
-						{#if isFetchingTrailer}
-							<span class="mini-spinner"></span>
-						{:else}
-							<Icon i="play" wh={14} />
-						{/if}
-					</button>
-				</div>
+					</div>
 				{:else if media.cancellation?.status === "hiatus"}
 					<div
 						class="card-canceled-alert hiatus-alert"
@@ -708,21 +750,7 @@
 					>
 						<Icon i="clock" wh={12} />
 						<span>Hiato (+2 anos)</span>
-						<button
-						type="button"
-						class="quick-trailer-btn"
-						onclick={openQuickTrailer}
-						title="Ver Trailer Oficial"
-						aria-label="Ver Trailer Oficial"
-						disabled={isFetchingTrailer || disableInteraction}
-					>
-						{#if isFetchingTrailer}
-							<span class="mini-spinner"></span>
-						{:else}
-							<Icon i="play" wh={14} />
-						{/if}
-					</button>
-				</div>
+					</div>
 				{:else if media.status === "Canceled" || media.cancellation?.status === "canceled"}
 					<div
 						class="card-canceled-alert"
@@ -730,21 +758,7 @@
 					>
 						<Icon i="close-circle" wh={12} />
 						<span>Cancelada pela produção</span>
-						<button
-						type="button"
-						class="quick-trailer-btn"
-						onclick={openQuickTrailer}
-						title="Ver Trailer Oficial"
-						aria-label="Ver Trailer Oficial"
-						disabled={isFetchingTrailer || disableInteraction}
-					>
-						{#if isFetchingTrailer}
-							<span class="mini-spinner"></span>
-						{:else}
-							<Icon i="play" wh={14} />
-						{/if}
-					</button>
-				</div>
+					</div>
 				{/if}
 				{#if publicRating}
 					<div
@@ -757,22 +771,73 @@
 							<span class="rating-count">({formattedRatingCount})</span>
 						{/if}
 						<button
-						type="button"
-						class="quick-trailer-btn"
-						onclick={openQuickTrailer}
-						title="Ver Trailer Oficial"
-						aria-label="Ver Trailer Oficial"
-						disabled={isFetchingTrailer || disableInteraction}
-					>
-						{#if isFetchingTrailer}
-							<span class="mini-spinner"></span>
-						{:else}
-							<Icon i="play" wh={14} />
-						{/if}
-					</button>
-				</div>
+							type="button"
+							class="quick-trailer-btn"
+							onclick={openQuickTrailer}
+							title="Ver Trailer Oficial"
+							aria-label="Ver Trailer Oficial"
+							disabled={isFetchingTrailer || disableInteraction}
+						>
+							{#if isFetchingTrailer}
+								<span class="mini-spinner"></span>
+							{:else}
+								<Icon i="play" wh={11} />
+							{/if}
+						</button>
+					</div>
 				{/if}
 				<span class="summary">{media.summary}</span>
+
+				{#if seasonProgress && watched}
+					<div class="hover-season-tracker">
+						<div class="tracker-header">
+							<span class="tracker-title">
+								Temporadas ({seasonProgress.finishedSeasons.length}/{seasonProgress.totalSeasons})
+							</span>
+							{#if seasonProgress.nextUpSeason}
+								<span class="tracker-next">
+									{#if seasonProgress.nextUpStatus === "PLANNED"}
+										⏳ T{seasonProgress.nextUpSeason} Planeada
+									{:else if seasonProgress.nextUpStatus === "WATCHING"}
+										▶ A ver T{seasonProgress.nextUpSeason}
+									{/if}
+								</span>
+							{/if}
+						</div>
+						<div class="tracker-pills-row">
+							{#each seasonProgress.seasons as s}
+								<button
+									type="button"
+									class="season-pill {s.status.toLowerCase()}"
+									onclick={(e) => {
+										e.stopPropagation();
+										handleSeasonQuickToggle(s.number, s.status);
+									}}
+									title={`Temporada ${s.number}: ${
+										s.status === 'FINISHED'
+											? 'Concluída (clica para alterar)'
+											: s.status === 'PLANNED'
+												? 'Planeada (clica para Marcar como A Ver)'
+												: s.status === 'WATCHING'
+													? 'A ver (clica para Concluir)'
+													: 'Não iniciada (clica para Planear)'
+									}`}
+								>
+									<span class="pill-num">T{s.number}</span>
+									{#if s.status === "FINISHED"}
+										<Icon i="check" wh={10} />
+									{:else if s.status === "WATCHING"}
+										<Icon i="play" wh={9} />
+									{:else if s.status === "PLANNED"}
+										<span class="pill-status-dot planned">⏳</span>
+									{:else}
+										<span class="pill-status-dot empty">·</span>
+									{/if}
+								</button>
+							{/each}
+						</div>
+					</div>
+				{/if}
 			</a>
 
 			{#if !hideButtons}
@@ -787,20 +852,6 @@
 						{handleStatusClick}
 						{disableInteraction}
 					/>
-					<button
-						type="button"
-						class="quick-trailer-btn"
-						onclick={openQuickTrailer}
-						title="Ver Trailer Oficial"
-						aria-label="Ver Trailer Oficial"
-						disabled={isFetchingTrailer || disableInteraction}
-					>
-						{#if isFetchingTrailer}
-							<span class="mini-spinner"></span>
-						{:else}
-							<Icon i="play" wh={14} />
-						{/if}
-					</button>
 				</div>
 			{/if}
 		</div>
@@ -1206,10 +1257,45 @@
 					font-weight: 400;
 					color: rgba(255, 255, 255, 0.6);
 				}
+
+				.quick-trailer-btn {
+					display: inline-flex;
+					align-items: center;
+					justify-content: center;
+					width: 22px;
+					height: 22px;
+					margin-left: 6px;
+					padding: 0;
+					border-radius: 6px;
+					border: 1px solid rgba(251, 191, 36, 0.35);
+					background: rgba(251, 191, 36, 0.12);
+					color: #fbbf24;
+					cursor: pointer;
+					transition: all 140ms ease;
+
+					&:hover:not(:disabled) {
+						background: rgba(251, 191, 36, 0.3);
+						border-color: #fbbf24;
+						transform: scale(1.08);
+					}
+
+					&:disabled {
+						opacity: 0.5;
+						cursor: wait;
+					}
+
+					.mini-spinner {
+						width: 11px;
+						height: 11px;
+						border: 2px solid rgba(251, 191, 36, 0.3);
+						border-top-color: #fbbf24;
+						border-radius: 50%;
+						animation: spin 600ms linear infinite;
+					}
+				}
 			}
 
-			span.summary,
-			span:not(.inner-rating *) {
+			span.summary {
 				color: rgba(255, 255, 255, 0.85);
 				margin: 6px 0;
 				font-size: 11px;
@@ -1223,6 +1309,96 @@
 				text-overflow: ellipsis;
 			}
 
+			.hover-season-tracker {
+				display: flex;
+				flex-direction: column;
+				gap: 5px;
+				margin: 6px 0 6px;
+				padding: 7px 9px;
+				background: rgba(15, 20, 30, 0.75);
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				border-radius: 8px;
+				backdrop-filter: blur(8px);
+
+				.tracker-header {
+					display: flex;
+					align-items: center;
+					justify-content: space-between;
+					gap: 6px;
+					font-size: 10px;
+					font-weight: 700;
+					text-transform: uppercase;
+					letter-spacing: 0.04em;
+					color: rgba(255, 255, 255, 0.7);
+
+					.tracker-next {
+						font-size: 9.5px;
+						color: #fbbf24;
+						font-weight: 600;
+						text-transform: none;
+						white-space: nowrap;
+						overflow: hidden;
+						text-overflow: ellipsis;
+					}
+				}
+
+				.tracker-pills-row {
+					display: flex;
+					flex-wrap: wrap;
+					gap: 4px;
+					max-height: 52px;
+					overflow-y: auto;
+
+					.season-pill {
+						display: inline-flex;
+						align-items: center;
+						gap: 3px;
+						padding: 2px 6px;
+						border-radius: 5px;
+						font-size: 10px;
+						font-weight: 700;
+						cursor: pointer;
+						border: 1px solid rgba(255, 255, 255, 0.12);
+						background: rgba(255, 255, 255, 0.06);
+						color: rgba(255, 255, 255, 0.85);
+						transition: all 120ms ease;
+
+						&:hover {
+							transform: translateY(-1px);
+							border-color: rgba(255, 255, 255, 0.35);
+						}
+
+						&.finished {
+							background: rgba(16, 185, 129, 0.22);
+							border-color: rgba(16, 185, 129, 0.5);
+							color: #34d399;
+						}
+
+						&.watching {
+							background: rgba(59, 130, 246, 0.22);
+							border-color: rgba(59, 130, 246, 0.5);
+							color: #60a5fa;
+						}
+
+						&.planned {
+							background: rgba(245, 158, 11, 0.2);
+							border-color: rgba(245, 158, 11, 0.45);
+							color: #fbbf24;
+						}
+
+						&.unwatched {
+							background: rgba(255, 255, 255, 0.04);
+							color: rgba(255, 255, 255, 0.4);
+						}
+
+						.pill-status-dot {
+							font-size: 9px;
+							line-height: 1;
+						}
+					}
+				}
+			}
+
 			.buttons {
 				display: flex;
 				flex-flow: row;
@@ -1230,42 +1406,6 @@
 				gap: 8px;
 				height: 34px;
 				flex-shrink: 0;
-
-				.quick-trailer-btn {
-					display: inline-flex;
-					align-items: center;
-					justify-content: center;
-					width: 34px;
-					height: 34px;
-					flex-shrink: 0;
-					border-radius: 8px;
-					border: 1px solid rgba(99, 102, 241, 0.4);
-					background: rgba(99, 102, 241, 0.2);
-					color: #ffffff;
-					cursor: pointer;
-					transition: all 140ms ease;
-
-					&:hover:not(:disabled) {
-						background: rgba(99, 102, 241, 0.4);
-						border-color: #818cf8;
-						transform: scale(1.06);
-						box-shadow: 0 0 12px rgba(99, 102, 241, 0.45);
-					}
-
-					&:disabled {
-						opacity: 0.6;
-						cursor: wait;
-					}
-
-					.mini-spinner {
-						width: 13px;
-						height: 13px;
-						border: 2px solid rgba(255, 255, 255, 0.25);
-						border-top-color: #ffffff;
-						border-radius: 50%;
-						animation: spin 600ms linear infinite;
-					}
-				}
 			}
 		}
 

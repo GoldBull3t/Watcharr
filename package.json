@@ -12,7 +12,7 @@
 		"prepare": "svelte-kit sync",
 		"lint": "prettier --check ./src/ && eslint ./src/",
 		"format": "prettier --write .",
-		"server": "powershell -Command \"$env:Path += ';C:\\Program Files\\Go\\bin'; $env:MODE = 'DEV'; cd server; go run .\""
+		"server": "cd server && go run ."
 	},
 	"devDependencies": {
 		"@eslint/js": "10.0.1",

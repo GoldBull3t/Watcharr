@@ -18,7 +18,7 @@ RUN GOOS=linux CGO_ENABLED=0 go build -ldflags="-s -w" -o ./watcharr .
 #
 # Frontend
 #
-FROM node:24-alpine AS ui
+FROM node:22-alpine AS ui
 
 WORKDIR /app
 
@@ -52,6 +52,6 @@ COPY --from=ui /app/build /ui
 EXPOSE 3080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:3080/api/health || exit 1
+  CMD wget -qO- http://127.0.0.1:${PORT:-3080}/api/health || exit 1
 
 CMD ["/watcharr"]

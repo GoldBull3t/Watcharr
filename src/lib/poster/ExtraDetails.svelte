@@ -18,6 +18,7 @@
 		dateAdded,
 		dateModified,
 		lastWatched,
+		seasonProgress,
 		hoursPlayed,
 		platform,
 	}: PosterExtraDetails = $props();
@@ -62,7 +63,22 @@
 						{formatDate(Date.parse(dateModified))}
 					</span>
 				</span>
-			{/if}{#if lastWatched && store.wlDetailedView.includes("lastWatched")}
+			{/if}{#if seasonProgress && store.wlDetailedView.includes("lastWatched")}
+				<div class="season-progress-pill" title={seasonProgress.displayText}>
+					<div class="segments-row">
+						{#each seasonProgress.seasons as s}
+							<span
+								class="seg {s.status.toLowerCase()}"
+								title={`T${s.number}: ${s.status === 'FINISHED' ? 'Concluída' : s.status === 'PLANNED' ? 'Planeada' : s.status === 'WATCHING' ? 'A ver' : 'Por ver'}`}
+							></span>
+						{/each}
+					</div>
+					<span class="season-label">
+						<i><Icon i="play" wh={11} /></i>
+						<span>{seasonProgress.displayText}</span>
+					</span>
+				</div>
+			{:else if lastWatched && store.wlDetailedView.includes("lastWatched")}
 				<span title="Latest season watched">
 					<i><Icon i="play" wh={15} /></i>
 					<span>{lastWatched}</span>
@@ -155,6 +171,67 @@
 					display: flex;
 					align-items: center;
 					width: 14px;
+					fill: white;
+					color: white;
+				}
+			}
+		}
+
+		.season-progress-pill {
+			display: flex;
+			flex-direction: column;
+			gap: 4px;
+			width: 100%;
+			margin-bottom: 5px;
+
+			.segments-row {
+				display: flex;
+				flex-flow: row;
+				gap: 2.5px;
+				width: 100%;
+				height: 4px;
+
+				.seg {
+					flex: 1;
+					height: 100%;
+					border-radius: 2px;
+					background: rgba(255, 255, 255, 0.2);
+
+					&.finished {
+						background: #10b981;
+						box-shadow: 0 0 4px rgba(16, 185, 129, 0.4);
+					}
+
+					&.watching {
+						background: #3b82f6;
+					}
+
+					&.planned {
+						background: #f59e0b;
+					}
+
+					&.unwatched {
+						background: rgba(255, 255, 255, 0.15);
+					}
+				}
+			}
+
+			.season-label {
+				display: flex;
+				flex-flow: row;
+				align-items: center;
+				gap: 4px;
+				font-size: 10.5px;
+				font-weight: 600;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				color: rgba(255, 255, 255, 0.9);
+
+				i {
+					display: flex;
+					align-items: center;
+					width: 12px;
 					fill: white;
 					color: white;
 				}

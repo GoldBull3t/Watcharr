@@ -9,7 +9,7 @@
 	import Spinner from "@/lib/Spinner.svelte";
 	import CreateTagModal from "@/lib/tag/CreateTagModal.svelte";
 	import DeleteTagModal from "@/lib/tag/DeleteTagModal.svelte";
-	import { req } from "@/lib/util/api";
+	import { req, noAuthReq } from "@/lib/util/api";
 	import infScroll from "@/lib/util/infScroll";
 	import paginatedLoader, {
 		PaginatedLoaderRunFnAction,
@@ -46,8 +46,8 @@
 		publicLoading = true;
 		publicError = undefined;
 		try {
-			const r = await req.get<PublicTagResponse>(`/tag/public/${id}`);
-			publicTag = r.data;
+			const r = await noAuthReq.get<PublicTagResponse>(`/tag/public/${id}`);
+			publicTag = r;
 		} catch (err: any) {
 			console.error("fetchPublicTag error:", err);
 			publicError = "Esta lista é privada ou não existe.";

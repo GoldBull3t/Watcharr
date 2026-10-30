@@ -386,16 +386,28 @@ func (s *Service) searchMyList(
 				Where(&entity.Watched{UserID: userId}).
 				Joins("Content").
 				Joins("Game").
-				Preload("Game.Poster").
-				Preload("Tags").
+				Limit(1000).
 				Find(&userWatched).Error
 			if dbErr == nil && len(userWatched) > 0 {
 				ranked := RankAndFilterLibrary(userWatched, query, 0.50)
 				if len(ranked) > 0 {
-					var fuzzyMatched []entity.Watched
-					for _, r := range ranked {
-						fuzzyMatched = append(fuzzyMatched, r.Watched)
+					if len(ranked) > 20 {
+						ranked = ranked[:20]
 					}
+					var matchedIDs []uint
+					for _, r := range ranked {
+						matchedIDs = append(matchedIDs, r.Watched.ID)
+					}
+					var fuzzyMatched []entity.Watched
+					s.db.
+						Model(&entity.Watched{}).
+						Where("id IN ?", matchedIDs).
+						Joins("Content").
+						Joins("Game").
+						Preload("Game.Poster").
+						Preload("Tags").
+						Find(&fuzzyMatched)
+
 					resp.Results = domain.NewWatchedGetPageResponse(fuzzyMatched)
 					resp.Page = 1
 					resp.TotalPages = 1

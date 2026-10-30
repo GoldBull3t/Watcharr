@@ -396,7 +396,7 @@ func main() {
 	go contentService.BackfillMissingMetadata()
 
 	srv := &http.Server{
-		Addr:              "0.0.0.0:3080",
+		Addr:              fmt.Sprintf("0.0.0.0:%s", getListenPort()),
 		Handler:           gine.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
@@ -405,7 +405,7 @@ func main() {
 	}
 
 	go func() {
-		slog.Info("Watcharr is listening on 0.0.0.0:3080")
+		slog.Info(fmt.Sprintf("Watcharr is listening on 0.0.0.0:%s", getListenPort()))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("ListenAndServe failed!", "error", err)
 			os.Exit(1)
@@ -504,4 +504,14 @@ func ensureDirExists(dir string) error {
 		return err
 	}
 	return nil
+}
+
+func getListenPort() string {
+	if p := strings.TrimSpace(os.Getenv("PORT")); p != "" {
+		return p
+	}
+	if p := strings.TrimSpace(os.Getenv("WATCHARR_PORT")); p != "" {
+		return p
+	}
+	return "3080"
 }

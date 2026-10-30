@@ -498,55 +498,75 @@ func (s *Service) restoreJSON(archivePath string) error {
 	}
 
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		// Replace all core data in transaction
+		// Replace all core data in transaction with strict error checks
 		if len(dump.Users) > 0 {
 			for _, u := range dump.Users {
-				_ = tx.Save(&u).Error
+				if err := tx.Save(&u).Error; err != nil {
+					return fmt.Errorf("failed to restore user %s: %w", u.Username, err)
+				}
 			}
 		}
 		if len(dump.UserServices) > 0 {
 			for _, us := range dump.UserServices {
-				_ = tx.Save(&us).Error
+				if err := tx.Save(&us).Error; err != nil {
+					return fmt.Errorf("failed to restore user service: %w", err)
+				}
 			}
 		}
 		if len(dump.Content) > 0 {
 			for _, c := range dump.Content {
-				_ = tx.Save(&c).Error
+				if err := tx.Save(&c).Error; err != nil {
+					return fmt.Errorf("failed to restore content %s: %w", c.Title, err)
+				}
 			}
 		}
 		if len(dump.Watched) > 0 {
 			for _, w := range dump.Watched {
-				_ = tx.Save(&w).Error
+				if err := tx.Save(&w).Error; err != nil {
+					return fmt.Errorf("failed to restore watched item: %w", err)
+				}
 			}
 		}
 		if len(dump.Seasons) > 0 {
 			for _, s := range dump.Seasons {
-				_ = tx.Save(&s).Error
+				if err := tx.Save(&s).Error; err != nil {
+					return fmt.Errorf("failed to restore watched season: %w", err)
+				}
 			}
 		}
 		if len(dump.Episodes) > 0 {
 			for _, ep := range dump.Episodes {
-				_ = tx.Save(&ep).Error
+				if err := tx.Save(&ep).Error; err != nil {
+					return fmt.Errorf("failed to restore watched episode: %w", err)
+				}
 			}
 		}
 		if len(dump.Activity) > 0 {
 			for _, act := range dump.Activity {
-				_ = tx.Save(&act).Error
+				if err := tx.Save(&act).Error; err != nil {
+					return fmt.Errorf("failed to restore activity: %w", err)
+				}
 			}
 		}
 		if len(dump.Tags) > 0 {
 			for _, t := range dump.Tags {
-				_ = tx.Save(&t).Error
+				if err := tx.Save(&t).Error; err != nil {
+					return fmt.Errorf("failed to restore tag: %w", err)
+				}
 			}
 		}
 		if len(dump.Games) > 0 {
 			for _, g := range dump.Games {
-				_ = tx.Save(&g).Error
+				if err := tx.Save(&g).Error; err != nil {
+					return fmt.Errorf("failed to restore game: %w", err)
+				}
 			}
 		}
 		if len(dump.ArrRequests) > 0 {
 			for _, r := range dump.ArrRequests {
-				_ = tx.Save(&r).Error
+				if err := tx.Save(&r).Error; err != nil {
+					return fmt.Errorf("failed to restore arr request: %w", err)
+				}
 			}
 		}
 		return nil

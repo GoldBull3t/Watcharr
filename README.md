@@ -109,7 +109,7 @@ Pre-built multi-architecture container images (`amd64`, `arm64`) are automatical
 ```bash
 docker run -d \
   --name watcharr \
-  -p 3077:3077 \
+  -p 3080:3080 \
   -v ./data:/data \
   --restart unless-stopped \
   ghcr.io/goldbull3t/watcharr:latest
@@ -125,11 +125,12 @@ services:
     container_name: watcharr
     restart: unless-stopped
     ports:
-      - "3077:3077"
+      - "3080:3080"
     volumes:
       - ./data:/data
     environment:
-      - PORT=3077
+      - PORT=3080
+      # - ALLOW_LOCAL_WEBHOOKS=true
       # Optional external database (defaults to SQLite in /data):
       # - DB_TYPE=postgres
       # - DATABASE_URL=postgres://user:password@localhost:5432/watcharr?sslmode=disable
@@ -139,7 +140,7 @@ Run with:
 ```bash
 docker compose up -d
 ```
-Access the web UI at: **`http://localhost:3077`**.
+Access the web UI at: **`http://localhost:3080`**.
 
 ---
 

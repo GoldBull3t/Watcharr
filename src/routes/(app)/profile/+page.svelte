@@ -37,6 +37,8 @@
 	import { t, i18n } from "@/lib/i18n";
 	import WatcharrWrappedCard from "@/lib/profile/WatcharrWrappedCard.svelte";
 	import GenreDonutChart from "@/lib/profile/GenreDonutChart.svelte";
+	import BackupManagementModal from "@/lib/profile/BackupManagementModal.svelte";
+	import ActivityWebhookModal from "@/lib/profile/ActivityWebhookModal.svelte";
 
 	let user = $derived(store.userInfo);
 	let settings = $derived(store.userSettings);
@@ -55,6 +57,8 @@
 	let jellyfinSyncModalOpen = $state(false);
 	let plexSyncModalOpen = $state(false);
 	let calendarWebhookModalOpen = $state(false);
+	let activityWebhookModalOpen = $state(false);
+	let backupModalOpen = $state(false);
 	let dashboardModalOpen = $state(false);
 	let clearLibraryModalOpen = $state(false);
 	let isWipingLibrary = $state(false);
@@ -953,6 +957,24 @@
 				</div>
 			</div>
 
+			<!-- Real-Time Activity Webhooks -->
+			<div class="settings-card">
+				<div class="webhook-settings-header">
+					<div>
+						<h4 class="card-title">Real-Time Activity Webhooks</h4>
+						<p class="card-desc">
+							Transmite eventos em tempo real (Watched, Avaliações, Status) para automações no Home Assistant, Discord, Slack ou Ntfy.
+						</p>
+					</div>
+					<button
+						class="btn-action primary-accent"
+						onclick={() => (activityWebhookModalOpen = true)}
+					>
+						<Icon i="notifications" wh={16} /> Configurar Atividade
+					</button>
+				</div>
+			</div>
+
 			<!-- Web Push Notifications & PWA -->
 			<div class="settings-card">
 				<PushNotificationSettings />
@@ -971,6 +993,15 @@
 					<button class="btn-action" onclick={() => (exportModalOpen = true)}>
 						{t("profile.export_list")}
 					</button>
+					{#if userHasPermission(user?.permissions, UserPermission.PERM_ADMIN)}
+						<button
+							class="btn-action"
+							onclick={() => (backupModalOpen = true)}
+							title="Gerir cópias de segurança e recuperação de desastres"
+						>
+							<Icon i="database" wh={16} /> Backups & Restauro
+						</button>
+					{/if}
 					{#if user?.type === UserType.Watcharr}
 						<button
 							class="btn-action"
@@ -1069,6 +1100,12 @@
 				</Modal>
 			{/if}
 			<CalendarWebhookModal bind:open={calendarWebhookModalOpen} />
+			{#if activityWebhookModalOpen}
+				<ActivityWebhookModal bind:open={activityWebhookModalOpen} onClose={() => (activityWebhookModalOpen = false)} />
+			{/if}
+			{#if backupModalOpen}
+				<BackupManagementModal bind:open={backupModalOpen} onClose={() => (backupModalOpen = false)} />
+			{/if}
 			<DashboardIntegrationModal bind:open={dashboardModalOpen} />
 		</section>
 	</div>

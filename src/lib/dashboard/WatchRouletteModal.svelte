@@ -35,15 +35,16 @@
 
 	const genreOptions = [
 		{ id: "", label: "Qualquer Género" },
-		{ id: "ação", label: "💥 Ação" },
-		{ id: "comédia", label: "😂 Comédia" },
-		{ id: "ficção científica", label: "🚀 Sci-Fi" },
-		{ id: "terror", label: "👻 Terror" },
+		{ id: "action", label: "💥 Ação" },
+		{ id: "comedy", label: "😂 Comédia" },
+		{ id: "science fiction", label: "🚀 Sci-Fi" },
+		{ id: "horror", label: "👻 Terror" },
 		{ id: "drama", label: "🎭 Drama" },
-		{ id: "animação", label: "🎨 Animação" },
-		{ id: "suspense", label: "🔍 Suspense" },
+		{ id: "animation", label: "🎨 Animação" },
+		{ id: "thriller", label: "🔍 Suspense" },
 		{ id: "romance", label: "❤️ Romance" },
-		{ id: "fantasia", label: "🧙 Fantasia" },
+		{ id: "fantasy", label: "🧙 Fantasia" },
+		{ id: "adventure", label: "🗺️ Aventura" },
 	];
 
 	const runtimeOptions = [

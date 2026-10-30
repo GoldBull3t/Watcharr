@@ -19,9 +19,9 @@ jobs:
         working-directory: server
 
     steps:
-      - uses: actions/checkout@v7.0.0
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v7.0.0
+      - uses: actions/setup-go@v5
         with:
           go-version-file: "server/go.mod"
 

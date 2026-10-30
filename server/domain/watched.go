@@ -111,6 +111,7 @@ func NewWatchedDtoForLists(w *entity.Watched) WatchedDto {
 	dto := NewWatchedDtoWithBaseProps(w)
 
 	if w.Content != nil && w.Content.Type == entity.SHOW {
+		dto.WatchedSeasons = w.WatchedSeasons
 		dto.WatchingSeason = watchedutil.GetLatestWatchedInTv(
 			w.WatchedSeasons, w.WatchedEpisodes)
 	}
@@ -123,6 +124,7 @@ func NewWatchedDtoForPublicLists(w *entity.Watched) WatchedDto {
 	dto := NewWatchedDtoWithBaseProps(w)
 
 	if w.Content != nil && w.Content.Type == entity.SHOW {
+		dto.WatchedSeasons = w.WatchedSeasons
 		dto.WatchingSeason = watchedutil.GetLatestWatchedInTv(
 			w.WatchedSeasons, w.WatchedEpisodes)
 	}
