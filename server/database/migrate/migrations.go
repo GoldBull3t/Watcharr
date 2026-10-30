@@ -401,4 +401,21 @@ var migrations = []Migration{
 			return nil
 		},
 	},
+	{
+		// Adding composite index for user_id + status + updated_at DESC (optimizes GetUpNext and Continue Watching)
+		ID: "202610301400_0010",
+		Up: func(tx *gorm.DB) error {
+			migID := "202610301400_0010"
+			slog.Info("Migration is starting.", "mig", migID)
+
+			q := "CREATE INDEX IF NOT EXISTS idx_watcheds_user_status_updated ON watcheds(user_id, status, updated_at DESC);"
+			if res := tx.Exec(q); res.Error != nil {
+				slog.Error("Creating composite index failed!", "mig", migID, "query", q, "error", res.Error)
+				return res.Error
+			}
+
+			slog.Info("Composite index created successfully.", "mig", migID)
+			return nil
+		},
+	},
 }

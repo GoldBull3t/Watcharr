@@ -12,7 +12,7 @@
 		onEpisodeWatched?: () => void;
 	}
 
-	let { items = [], onEpisodeWatched }: Props = $props();
+	let { items = $bindable([]), onEpisodeWatched }: Props = $props();
 
 	let updatingWatchedId: number | null = $state(null);
 
@@ -40,6 +40,15 @@
 				type: "success",
 				text: `${item.showTitle} ${label} marcado como visto!`,
 			});
+
+			// Optimistic local update: advance episode or remove card if season finished
+			if (item.episodesRemaining && item.episodesRemaining > 1) {
+				item.episodeNumber += 1;
+				item.episodesRemaining -= 1;
+				item.episodeName = `Episódio ${item.episodeNumber}`;
+			} else {
+				items = items.filter((it) => it.watchedId !== item.watchedId);
+			}
 
 			if (onEpisodeWatched) {
 				onEpisodeWatched();

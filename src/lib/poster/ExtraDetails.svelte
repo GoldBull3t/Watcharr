@@ -9,7 +9,7 @@
 	} from "../util/helpers";
 	import Icon from "../Icon.svelte";
 	import { toShowableRating, toWhichThumb } from "../rating/helpers";
-	import { page } from "$app/state";
+	import { t } from "@/lib/i18n";
 	import type { PosterExtraDetails } from "./lib";
 
 	let {
@@ -37,27 +37,34 @@
 			d.getFullYear(),
 		).substring(2, 4)}`;
 	}
+
+	// Compute whether any item is actually eligible to be shown, avoiding empty "ghost badges"
+	const hasItemsToShow = $derived(
+		Boolean(
+			store.wlDetailedView &&
+				store.wlDetailedView.length > 0 &&
+				((dateAdded && store.wlDetailedView.includes("dateAdded")) ||
+					(dateModified && store.wlDetailedView.includes("dateModified")) ||
+					(seasonProgress && store.wlDetailedView.includes("lastWatched")) ||
+					(lastWatched && store.wlDetailedView.includes("lastWatched")) ||
+					(typeof hoursPlayed === "number" && hoursPlayed > 0) ||
+					(store.wlDetailedView.includes("statusRating") && (status || rating))),
+		),
+	);
 </script>
 
-{#if (page.url?.pathname === "/" || page.url?.pathname.startsWith("/search")) && store.wlDetailedView && store.wlDetailedView.length > 0}
+{#if hasItemsToShow}
 	<div class="extra-details">
-		<!--
-      The `if` statements can't be on their own line to look pretty
-      because that will cause whitespace in the generated markup,
-      which causes the :empty css tag to not work.
-      Can be reverted when its possible to trim whitespace in svelte
-      OR when :empty tag is updated in browsers to new spec and counts whitespace as empty.
-    -->
 		<div>
 			{#if dateAdded && store.wlDetailedView.includes("dateAdded")}
-				<span title="Date added to watch list">
+				<span title={t("poster.date_added") || "Date added to watch list"}>
 					<i><Icon i="calendar" /></i>
 					<span>
 						{formatDate(Date.parse(dateAdded))}
 					</span>
 				</span>
 			{/if}{#if dateModified && store.wlDetailedView.includes("dateModified")}
-				<span title="Date last modified">
+				<span title={t("poster.date_modified") || "Date last modified"}>
 					<i><Icon i="pencil" wh={15} /></i>
 					<span>
 						{formatDate(Date.parse(dateModified))}
@@ -65,31 +72,55 @@
 				</span>
 			{/if}{#if seasonProgress && store.wlDetailedView.includes("lastWatched")}
 				<div class="season-progress-pill" title={seasonProgress.displayText}>
-					<div class="segments-row">
-						{#each seasonProgress.seasons as s}
-							<span
-								class="seg {s.status.toLowerCase()}"
-								title={`T${s.number}: ${s.status === 'FINISHED' ? 'Concluída' : s.status === 'PLANNED' ? 'Planeada' : s.status === 'WATCHING' ? 'A ver' : 'Por ver'}`}
-							></span>
-						{/each}
-					</div>
+					{#if seasonProgress.totalSeasons <= 10}
+						<div class="segments-row">
+							{#each seasonProgress.seasons as s}
+								<span
+									class="seg {s.status.toLowerCase()}"
+									title={`T${s.number}: ${
+										s.status === "FINISHED"
+											? t("status.finished") || "Concluída"
+											: s.status === "PLANNED"
+												? t("status.planned") || "Planeada"
+												: s.status === "WATCHING"
+													? t("status.watching") || "A ver"
+													: t("status.unwatched") || "Por ver"
+									}`}
+								></span>
+							{/each}
+						</div>
+					{:else}
+						<!-- Continuous sleek bar for shows with more than 10 seasons -->
+						<div
+							class="continuous-progress-track"
+							title={`${seasonProgress.finishedSeasons.length}/${seasonProgress.totalSeasons} (${seasonProgress.percentage}%)`}
+						>
+							<div
+								class="continuous-progress-fill"
+								style="width: {seasonProgress.percentage}%;"
+							></div>
+						</div>
+					{/if}
 					<span class="season-label">
 						<i><Icon i="play" wh={11} /></i>
 						<span>{seasonProgress.displayText}</span>
 					</span>
 				</div>
 			{:else if lastWatched && store.wlDetailedView.includes("lastWatched")}
-				<span title="Latest season watched">
+				<span title={t("poster.latest_season") || "Latest season watched"}>
 					<i><Icon i="play" wh={15} /></i>
 					<span>{lastWatched}</span>
 				</span>
 			{/if}{#if typeof hoursPlayed === "number" && hoursPlayed > 0}
-				<span title="Horas jogadas">
+				<span title={t("gaming.hours_played") || "Horas jogadas"}>
 					<i>🎮</i>
 					<span>{hoursPlayed}h{#if platform} • {platform}{/if}</span>
 				</span>
 			{/if}{#if store.wlDetailedView.includes("statusRating")}
-				<span class="status-rating" title="Status and Rating">
+				<span
+					class="status-rating"
+					title={t("poster.status_and_rating") || "Status and Rating"}
+				>
 					{#if !isUsingThumbs}
 						<i><Icon i="star" /></i>
 					{/if}
@@ -141,7 +172,7 @@
 		backdrop-filter: blur(8px);
 		-webkit-backdrop-filter: blur(8px);
 		transition: opacity 100ms ease-out;
-		pointer-events: none !important;
+		pointer-events: none;
 
 		& > div {
 			padding: 6px 10px;
@@ -158,6 +189,8 @@
 				gap: 6px;
 				height: 16px;
 				font-weight: 600;
+				pointer-events: auto;
+				cursor: default;
 
 				&.status-rating {
 					gap: 8px;
@@ -183,6 +216,8 @@
 			gap: 4px;
 			width: 100%;
 			margin-bottom: 5px;
+			pointer-events: auto;
+			cursor: default;
 
 			.segments-row {
 				display: flex;
@@ -213,6 +248,21 @@
 					&.unwatched {
 						background: rgba(255, 255, 255, 0.15);
 					}
+				}
+			}
+
+			.continuous-progress-track {
+				width: 100%;
+				height: 4px;
+				border-radius: 2px;
+				background: rgba(255, 255, 255, 0.18);
+				overflow: hidden;
+
+				.continuous-progress-fill {
+					height: 100%;
+					border-radius: 2px;
+					background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%);
+					transition: width 0.3s ease;
 				}
 			}
 

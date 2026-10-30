@@ -623,10 +623,10 @@
 			>
 				{#if swipeAction === "FINISHED"}
 					<Icon i="check" wh={22} />
-					<span>Concluído</span>
+					<span>{t("status.finished") || "Concluído"}</span>
 				{:else}
 					<Icon i="clock" wh={22} />
-					<span>Planeado</span>
+					<span>{t("status.planned") || "Planeado"}</span>
 				{/if}
 			</div>
 		{/if}
@@ -797,9 +797,9 @@
 							{#if seasonProgress.nextUpSeason}
 								<span class="tracker-next">
 									{#if seasonProgress.nextUpStatus === "PLANNED"}
-										⏳ T{seasonProgress.nextUpSeason} Planeada
+										⏳ T{seasonProgress.nextUpSeason} {t("status.planned") || "Planeada"}
 									{:else if seasonProgress.nextUpStatus === "WATCHING"}
-										▶ A ver T{seasonProgress.nextUpSeason}
+										▶ {t("status.watching") || "A ver"} T{seasonProgress.nextUpSeason}
 									{/if}
 								</span>
 							{/if}
@@ -815,12 +815,12 @@
 									}}
 									title={`Temporada ${s.number}: ${
 										s.status === 'FINISHED'
-											? 'Concluída (clica para alterar)'
+											? (t('status.finished') || 'Concluída') + ' (clica para alterar)'
 											: s.status === 'PLANNED'
-												? 'Planeada (clica para Marcar como A Ver)'
+												? (t('status.planned') || 'Planeada') + ' (clica para Marcar como A Ver)'
 												: s.status === 'WATCHING'
-													? 'A ver (clica para Concluir)'
-													: 'Não iniciada (clica para Planear)'
+													? (t('status.watching') || 'A ver') + ' (clica para Concluir)'
+													: (t('status.unwatched') || 'Não iniciada') + ' (clica para Planear)'
 									}`}
 								>
 									<span class="pill-num">T{s.number}</span>
@@ -906,6 +906,8 @@
 
 	li {
 		perspective: 900px;
+		content-visibility: auto;
+		contain-intrinsic-size: 150px 225px;
 
 		&:not(.active) {
 			.container .inner,
