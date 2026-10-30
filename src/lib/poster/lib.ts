@@ -1,4 +1,4 @@
-import { MediaTypeE, type Media, type SupportedMedia, type Watched, type WatchedStatus } from "@/types";
+import type { Media, SupportedMedia, Watched, WatchedStatus } from "@/types";
 
 export type SeriesProgressionState =
 	| "FULLY_FINISHED"

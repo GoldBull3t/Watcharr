@@ -258,14 +258,13 @@
 						{#each filteredItems as item (item.contentId)}
 							{@const content = item.content}
 							{#if content}
-								{@const pPath = (content as any).posterPath || (content as any).poster_path}
-								{@const rDate = (content as any).releaseDate || (content as any).release_date}
 								<a
 									class="matched-card"
 									href={getMediaUrl(item)}
 									onclick={() => onClose()}
 								>
 									<div class="poster-container">
+										{@const pPath = (content as any).posterPath || (content as any).poster_path}
 										<img
 											src={pPath
 												? pPath.startsWith("http")
@@ -291,6 +290,7 @@
 									</div>
 
 									<div class="card-meta">
+										{@const rDate = (content as any).releaseDate || (content as any).release_date}
 										<span class="card-title" title={content.title}>{content.title}</span>
 										{#if rDate}
 											<span class="card-year">

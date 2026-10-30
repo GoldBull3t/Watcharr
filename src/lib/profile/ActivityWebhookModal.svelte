@@ -6,7 +6,7 @@
 	import { store } from "@/store.svelte";
 	import { req } from "@/lib/util/api";
 	import { notify } from "@/lib/util/notify";
-	import type { PrivateUser, UserSettings } from "@/types";
+	import type { PrivateUser } from "@/types";
 
 	interface Props {
 		open?: boolean;

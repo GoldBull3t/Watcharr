@@ -5,7 +5,7 @@
 	import Poster from "@/lib/poster/Poster.svelte";
 	import { req, updateWatched } from "@/lib/util/api";
 	import { notify } from "@/lib/util/notify";
-	import { MediaTypeE, type Media, type RoulettePickRequest, type RoulettePickResponse } from "@/types";
+	import type { Media, RoulettePickRequest, RoulettePickResponse } from "@/types";
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
@@ -862,7 +862,6 @@
 				margin: 0;
 				display: -webkit-box;
 				-webkit-line-clamp: 4;
-				line-clamp: 4;
 				-webkit-box-orient: vertical;
 				overflow: hidden;
 			}
