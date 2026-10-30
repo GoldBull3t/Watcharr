@@ -42,6 +42,36 @@ export default defineConfig({
 							},
 						},
 					},
+					{
+						urlPattern: /\/api\/watched(\?.*)?$/i,
+						handler: "NetworkFirst",
+						options: {
+							cacheName: "watched-api-cache",
+							networkTimeoutSeconds: 3,
+							expiration: {
+								maxEntries: 50,
+								maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days offline availability
+							},
+							cacheableResponse: {
+								statuses: [0, 200],
+							},
+						},
+					},
+					{
+						urlPattern: /\/api\/tag(\/.*)?$/i,
+						handler: "NetworkFirst",
+						options: {
+							cacheName: "tag-api-cache",
+							networkTimeoutSeconds: 3,
+							expiration: {
+								maxEntries: 50,
+								maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days offline availability
+							},
+							cacheableResponse: {
+								statuses: [0, 200],
+							},
+						},
+					},
 				],
 			},
 			manifest: {
