@@ -11,7 +11,6 @@
 	import { store } from "@/store.svelte";
 	import { removeWatchedEpisode, updateWatchedEpisode } from "./api";
 	import { onMount } from "svelte";
-	import { toRelativeDate } from "../util/helpers";
 	import RelativeDateBadge from "@/lib/content/RelativeDateBadge.svelte";
 
 	interface Props {

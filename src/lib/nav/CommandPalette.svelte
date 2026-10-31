@@ -41,7 +41,6 @@
 	let searchTimeout: number | undefined;
 	let inputEl: HTMLInputElement | undefined = $state();
 	let resultsContainerEl: HTMLDivElement | undefined = $state();
-	let isMac = $state(false);
 
 	interface PaletteAction {
 		id: string;
@@ -298,7 +297,7 @@
 
 	function navigateTo(path: string) {
 		close();
-		goto(resolve(path as any));
+		goto(resolve(path as "/"));
 	}
 
 	function close() {
@@ -343,9 +342,6 @@
 	}
 
 	onMount(() => {
-		isMac =
-			typeof navigator !== "undefined" &&
-			/Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 		window.addEventListener("keydown", handleKeyDown);
 		return () => {
 			window.removeEventListener("keydown", handleKeyDown);
@@ -424,13 +420,13 @@
 					{@const sections = Array.from(
 						new Set(filteredActions.map((a) => a.section)),
 					)}
-					{#each sections as section}
+					{#each sections as section (section)}
 						{@const sectionItems = filteredActions
 							.map((item, originalIndex) => ({ item, originalIndex }))
 							.filter(({ item }) => item.section === section)}
 						<div class="palette-section">
 							<div class="palette-section-title">{section}</div>
-							{#each sectionItems as { item, originalIndex }}
+							{#each sectionItems as { item, originalIndex } (item.id)}
 								<button
 									class="palette-item"
 									class:selected={selectedIndex === originalIndex}

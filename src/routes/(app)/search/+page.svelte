@@ -32,12 +32,8 @@
 
 	let { data } = $props();
 
-	let searchInputText = $state("");
+	let searchInputText = $derived(data?.query || "");
 	let searchInputEl: HTMLInputElement | undefined = $state();
-
-	$effect(() => {
-		searchInputText = data?.query || "";
-	});
 
 	function clearSearchInput() {
 		searchInputText = "";

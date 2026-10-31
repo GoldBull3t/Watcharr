@@ -3,6 +3,7 @@
 		MediaSeason,
 		TMDBSeasonDetails,
 		Watched,
+		WatchedEpisode,
 		WatchedSeason,
 		WatchedStatus,
 	} from "@/types";
@@ -134,7 +135,7 @@
 						episodeNumber: ep.episode_number,
 						status: "FINISHED",
 						rating: 0,
-					} as any);
+					} as WatchedEpisode);
 				}
 			}
 			watchedItem.watchedEpisodes = [...watchedItem.watchedEpisodes];
