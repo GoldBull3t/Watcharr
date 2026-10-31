@@ -35,7 +35,7 @@ func (s *Service) hookStatusChanged(
 
 	// Small local add activity helper.
 	addHookActivity := func(aType entity.ActivityType, data map[string]any, reason string) {
-		addedActivity, _ := activity.
+		addedActivity, err := activity.
 			NewCreator(
 				s.db,
 				userID,
@@ -47,6 +47,10 @@ func (s *Service) hookStatusChanged(
 			SetDataJSON(data).
 			SetReason(reason).
 			Create()
+		if err != nil {
+			slog.Error("hookStatusChanged: Failed to create hook activity", "error", err)
+			return
+		}
 		hookResponse.AddedActivities = append(hookResponse.AddedActivities, addedActivity)
 	}
 

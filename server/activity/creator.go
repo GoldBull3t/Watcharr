@@ -44,6 +44,14 @@ func NewCreator(
 	}
 }
 
+// WithDB overrides the active gorm.DB (for running within a transaction).
+func (c *Creator) WithDB(db *gorm.DB) *Creator {
+	if db != nil {
+		c.db = db
+	}
+	return c
+}
+
 // Set Type.
 func (c *Creator) SetType(d entity.ActivityType) *Creator { c.typ = d; return c }
 

@@ -6,6 +6,7 @@
 	import Icon from "@/lib/Icon.svelte";
 	import Poster from "@/lib/poster/Poster.svelte";
 	import PosterList from "@/lib/poster/PosterList.svelte";
+	import PosterGridSkeleton from "@/lib/dashboard/PosterGridSkeleton.svelte";
 	import Spinner from "@/lib/Spinner.svelte";
 	import CreateTagModal from "@/lib/tag/CreateTagModal.svelte";
 	import DeleteTagModal from "@/lib/tag/DeleteTagModal.svelte";
@@ -275,12 +276,18 @@
 					{dataLoader.state.data?.length === 1 ? "item" : "items"}
 				</span>
 				{#if tag.isPublic}
-					<span class="visibility-badge public" title="Qualquer pessoa com o link pode visualizar esta lista">
+					<span
+						class="visibility-badge public"
+						title="Qualquer pessoa com o link pode visualizar esta lista"
+					>
 						<span>🌐</span>
 						<span>Lista Pública</span>
 					</span>
 				{:else}
-					<span class="visibility-badge private" title="Apenas tu podes visualizar esta lista">
+					<span
+						class="visibility-badge private"
+						title="Apenas tu podes visualizar esta lista"
+					>
 						<span>🔒</span>
 						<span>Privada</span>
 					</span>
@@ -315,7 +322,9 @@
 					<span>Partilhar Lista</span>
 				</button>
 				<button
-					class="btn secondary tag-btn {tag.isPublic ? '' : 'highlight-public-btn'}"
+					class="btn secondary tag-btn {tag.isPublic
+						? ''
+						: 'highlight-public-btn'}"
 					onclick={toggleVisibility}
 					title={tag.isPublic ? "Tornar Privada" : "Tornar Pública"}
 				>
@@ -503,51 +512,55 @@
 	{/if}
 
 	<!-- Poster Grid -->
-	<PosterList>
-		{#if dataLoader.state.data?.length > 0}
-			{#each dataLoader.state.data as w, i (w.watched?.id ? `w-${w.watched.id}` : `${i}-${w.type}`)}
-				{#if w}
-					<Poster
-						bind:watched={dataLoader.state.data[i].watched}
-						media={w}
-						fluidSize={true}
-					/>
-				{/if}
-			{/each}
-		{:else if !dataLoader.state.reqLoading && !dataLoader.state.reqLoadError}
-			<div class="empty-list">
-				<div class="empty-icon-wrap">
-					<Icon i="tag" wh={48} />
-				</div>
-				<h2 class="norm">
-					{store.hasActiveFilters
-						? "No matching media found"
-						: "This tag is empty"}
-				</h2>
-				<p class="empty-desc">
-					{#if store.hasActiveFilters}
-						No items in "{tag.name}" match your current filters.
-					{:else}
-						Add movies, shows, or games to this tag from their media detail
-						pages.
+	{#if dataLoader.state.reqLoading && (!dataLoader.state.data || dataLoader.state.data.length === 0)}
+		<PosterGridSkeleton count={12} />
+	{:else}
+		<PosterList>
+			{#if dataLoader.state.data?.length > 0}
+				{#each dataLoader.state.data as w, i (w.watched?.id ? `w-${w.watched.id}` : `${i}-${w.type}`)}
+					{#if w}
+						<Poster
+							bind:watched={dataLoader.state.data[i].watched}
+							media={w}
+							fluidSize={true}
+						/>
 					{/if}
-				</p>
-				<div class="empty-actions">
-					{#if store.hasActiveFilters}
-						<button class="btn primary" onclick={() => clearActiveFilters()}>
-							Clear Filters
-						</button>
-					{:else}
-						<button class="btn primary" onclick={() => goto(resolve("/"))}>
-							Browse Library
-						</button>
-					{/if}
+				{/each}
+			{:else if !dataLoader.state.reqLoading && !dataLoader.state.reqLoadError}
+				<div class="empty-list">
+					<div class="empty-icon-wrap">
+						<Icon i="tag" wh={48} />
+					</div>
+					<h2 class="norm">
+						{store.hasActiveFilters
+							? "No matching media found"
+							: "This tag is empty"}
+					</h2>
+					<p class="empty-desc">
+						{#if store.hasActiveFilters}
+							No items in "{tag.name}" match your current filters.
+						{:else}
+							Add movies, shows, or games to this tag from their media detail
+							pages.
+						{/if}
+					</p>
+					<div class="empty-actions">
+						{#if store.hasActiveFilters}
+							<button class="btn primary" onclick={() => clearActiveFilters()}>
+								Clear Filters
+							</button>
+						{:else}
+							<button class="btn primary" onclick={() => goto(resolve("/"))}>
+								Browse Library
+							</button>
+						{/if}
+					</div>
 				</div>
-			</div>
-		{/if}
-	</PosterList>
+			{/if}
+		</PosterList>
+	{/if}
 
-	{#if dataLoader.state.reqLoading}
+	{#if dataLoader.state.reqLoading && dataLoader.state.data?.length > 0}
 		<div class="loader-wrap">
 			<Spinner />
 		</div>
@@ -566,9 +579,7 @@
 		</div>
 	{/if}
 {:else if publicLoading}
-	<div class="loader-wrap">
-		<Spinner />
-	</div>
+	<PosterGridSkeleton count={12} />
 {:else if publicTag}
 	<!-- Public Thematic List Hero -->
 	<header
@@ -591,7 +602,9 @@
 				</div>
 				<span class="tag-count-chip">
 					{publicTag.totalItems || publicTag.items?.length || 0}
-					{(publicTag.totalItems || publicTag.items?.length || 0) === 1 ? "item" : "items"}
+					{(publicTag.totalItems || publicTag.items?.length || 0) === 1
+						? "item"
+						: "items"}
 				</span>
 				<span class="visibility-badge public">
 					<span>🌐</span>
@@ -638,7 +651,9 @@
 					<Icon i="tag" wh={48} />
 				</div>
 				<h2 class="norm">Esta lista está vazia</h2>
-				<p class="empty-desc">O criador ainda não adicionou títulos a esta lista.</p>
+				<p class="empty-desc">
+					O criador ainda não adicionou títulos a esta lista.
+				</p>
 			</div>
 		{/if}
 	</PosterList>
@@ -646,7 +661,10 @@
 	<div class="tag-not-found">
 		<Icon i="lock-closed" wh={48} />
 		<h2>{publicError ? "Lista Privada ou Inexistente" : "Tag Not Found"}</h2>
-		<p>{publicError || "The tag you are looking for does not exist or may have been deleted."}</p>
+		<p>
+			{publicError ||
+				"The tag you are looking for does not exist or may have been deleted."}
+		</p>
 		<button class="btn primary" onclick={() => goto(resolve("/"))}>
 			Voltar ao Início
 		</button>

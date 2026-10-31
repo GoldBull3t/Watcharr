@@ -10,7 +10,7 @@
 </script>
 
 <div class={`skeleton-grid density-${density}`} aria-hidden="true">
-	{#each Array(count) as _, i (i)}
+	{#each Array.from({ length: count }, (__, idx) => idx) as i (i)}
 		<div class="skeleton-card">
 			<div class="skeleton-poster shimmer"></div>
 			<div class="skeleton-info">

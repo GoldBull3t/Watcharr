@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	vapidMu         sync.RWMutex
+	vapidMu          sync.RWMutex
 	cachedPublicKey  string
 	cachedPrivateKey string
 )
@@ -84,8 +84,8 @@ func (s *Service) GetPublicKey() (string, error) {
 }
 
 type SubscribeRequest struct {
-	Endpoint  string `json:"endpoint" binding:"required"`
-	Keys      struct {
+	Endpoint string `json:"endpoint" binding:"required"`
+	Keys     struct {
 		P256dh string `json:"p256dh" binding:"required"`
 		Auth   string `json:"auth" binding:"required"`
 	} `json:"keys" binding:"required"`
@@ -204,7 +204,9 @@ func (s *Service) SendNotification(sub *entity.PushSubscription, payload Notific
 
 	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone {
 		slog.Info("Push: Subscription has expired or unsubscribed, pruning from database", "sub_id", sub.ID)
-		_ = s.db.Delete(sub).Error
+		if err := s.db.Delete(sub).Error; err != nil {
+			slog.Warn("Push: Failed to delete expired subscription", "sub_id", sub.ID, "error", err)
+		}
 		return fmt.Errorf("subscription expired (status %d)", resp.StatusCode)
 	}
 

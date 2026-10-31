@@ -9,8 +9,6 @@
 
 	let { children }: Props = $props();
 
-
-
 	function resetTooltipPos() {
 		const t = document.getElementById("tooltip");
 		if (t) {

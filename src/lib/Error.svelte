@@ -4,7 +4,7 @@
 	interface Props {
 		pretty: string;
 		error: unknown;
-		onRetry?: () => void | undefined;
+		onRetry?: () => void | Promise<void>;
 	}
 	let { pretty, error, onRetry = undefined }: Props = $props();
 

@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/sbondCo/Watcharr/database/entity"
+	"gorm.io/gorm"
 )
 
 // The way to add multiple activities easily.
@@ -40,4 +41,21 @@ func (mc *MultiCreator) CreateAll() []entity.Activity {
 	}
 
 	return newActivities
+}
+
+// CreateAllTx creates all added Creators within the specified transaction.
+func (mc *MultiCreator) CreateAllTx(tx *gorm.DB) ([]entity.Activity, error) {
+	newActivities := []entity.Activity{}
+	for _, v := range mc.creators {
+		if tx != nil {
+			v.db = tx
+		}
+		a, err := v.Create()
+		if err != nil {
+			slog.Error("CreateAllTx: Failed creating an activity.", "error", err)
+			return newActivities, err
+		}
+		newActivities = append(newActivities, a)
+	}
+	return newActivities, nil
 }

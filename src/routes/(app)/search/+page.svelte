@@ -83,7 +83,10 @@
 			nextLoadParams.page,
 		);
 		if (cached) {
-			console.debug("load: Returning cached search result for:", nextLoadParams.query);
+			console.debug(
+				"load: Returning cached search result for:",
+				nextLoadParams.query,
+			);
 			scroll.dataLoaded();
 			return cached;
 		}

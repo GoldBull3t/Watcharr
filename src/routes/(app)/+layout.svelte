@@ -151,7 +151,10 @@
 	async function getInitialData() {
 		if (!localStorage.getItem("token")) {
 			if (isPublicRoute(page.url.pathname)) {
-				console.debug("getInitialData: No token, but viewing public route:", page.url.pathname);
+				console.debug(
+					"getInitialData: No token, but viewing public route:",
+					page.url.pathname,
+				);
 				return;
 			}
 			console.warn("getInitialData: No token found, redirecting to login!");

@@ -1,4 +1,10 @@
-import type { Media, SupportedMedia, Watched, WatchedStatus } from "@/types";
+import {
+	MediaTypeE,
+	type Media,
+	type SupportedMedia,
+	type Watched,
+	type WatchedStatus,
+} from "@/types";
 
 export type SeriesProgressionState =
 	| "FULLY_FINISHED"
@@ -111,7 +117,10 @@ export function calculateSeasonProgress(
 		// All currently watched seasons are finished, and either a season is planned or waiting
 		const maxFin = Math.max(...finished);
 		const allPriorFinished = finished.length === maxFin;
-		if (allPriorFinished && (nextUpStatus === "PLANNED" || nextUpStatus === "UNWATCHED")) {
+		if (
+			allPriorFinished &&
+			(nextUpStatus === "PLANNED" || nextUpStatus === "UNWATCHED")
+		) {
 			progressionState = "CAUGHT_UP_WAITING";
 			isCaughtUp = true;
 			if (nextUpSeason && nextUpStatus === "PLANNED") {
@@ -167,7 +176,10 @@ export function buildExtraDetails(
 	w: Watched,
 	media?: Media,
 ): PosterExtraDetails {
-	const isTv = t === "tv" || media?.type === MediaTypeE.tmdbShow || (media?.type as any) === "tv";
+	const isTv =
+		t === "tv" ||
+		media?.type === MediaTypeE.tmdbShow ||
+		(media?.type as any) === "tv";
 	const seasonProgress = isTv
 		? calculateSeasonProgress(media?.numberOfSeasons, w.watchedSeasons)
 		: null;

@@ -1,11 +1,11 @@
 package season
 
 import (
-	"time"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/sbondCo/Watcharr/activity"
 	"github.com/sbondCo/Watcharr/database/entity"
@@ -187,18 +187,29 @@ func (s *Service) SetWatchedSeason(
 			AddToMultiCreator(activityMC)
 	}
 
-		if err := s.db.Save(wSeason).Error; err != nil {
-		slog.Debug("SetWatchedSeason: Save query failed.", "error", err)
-		return domain.WatchedSeasonSetResponse{}, errors.New("failed to save")
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(wSeason).Error; err != nil {
+			slog.Debug("SetWatchedSeason: Save query failed.", "error", err)
+			return errors.New("failed to save")
+		}
+
+		// Touch Watched entry UpdatedAt so Continue Watching and Up Next re-sort immediately
+		if err := tx.Model(&entity.Watched{}).Where("user_id = ? AND id = ?", userId, ar.WatchedID).Update("updated_at", time.Now()).Error; err != nil {
+			return err
+		}
+
+		addedActivities, err := activityMC.CreateAllTx(tx)
+		if err != nil {
+			return err
+		}
+
+		resp.WatchedSeason = *wSeason
+		resp.AddedActivities = addedActivities
+		return nil
+	})
+	if err != nil {
+		return domain.WatchedSeasonSetResponse{}, err
 	}
-
-	// Touch Watched entry UpdatedAt so Continue Watching and Up Next re-sort immediately
-	s.db.Model(&entity.Watched{}).Where("user_id = ? AND id = ?", userId, ar.WatchedID).Update("updated_at", time.Now())
-
-	addedActivities := activityMC.CreateAll()
-
-	resp.WatchedSeason = *wSeason
-	resp.AddedActivities = addedActivities
 
 	if ar.Status != "" {
 		slog.Debug("SetWatchedSeason: Season status was changed, calling hook.")
@@ -220,36 +231,54 @@ func (s *Service) SetWatchedSeason(
 // Remove a watched season
 func (s *Service) RmWatchedSeason(userId uint, seasonId uint) (entity.Activity, error) {
 	slog.Debug("rmWatchedSeason called", "user_id", userId, "season_id", seasonId)
-	var watchedSeason entity.WatchedSeason
-	resp := s.db.
-		Clauses(clause.Returning{}).
-		Model(&entity.WatchedSeason{}).
-		Unscoped().
-		Where("id = ? AND user_id = ?", seasonId, userId).
-		Delete(&watchedSeason)
-	if resp.Error != nil {
-		slog.Error("Failed when removing a watched season", "error", resp.Error)
-		return entity.Activity{}, errors.New("failed when removing watched season")
-	}
-	if resp.RowsAffected == 0 {
-		slog.Error("Failed when removing a watched season", "error", "zero rows affected")
-		return entity.Activity{}, errors.New("wasn't removed from db.. may not exist")
-	}
-	slog.Debug("rmWatchedSeason, deleted row", "row", watchedSeason)
+	var (
+		watchedSeason entity.WatchedSeason
+		addedActivity entity.Activity
+	)
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		resp := tx.
+			Clauses(clause.Returning{}).
+			Model(&entity.WatchedSeason{}).
+			Unscoped().
+			Where("id = ? AND user_id = ?", seasonId, userId).
+			Delete(&watchedSeason)
+		if resp.Error != nil {
+			slog.Error("Failed when removing a watched season", "error", resp.Error)
+			return errors.New("failed when removing watched season")
+		}
+		if resp.RowsAffected == 0 {
+			slog.Error("Failed when removing a watched season", "error", "zero rows affected")
+			return errors.New("wasn't removed from db.. may not exist")
+		}
+		slog.Debug("rmWatchedSeason, deleted row", "row", watchedSeason)
 		if watchedSeason.ID != 0 {
-		s.db.Model(&entity.Watched{}).Where("user_id = ? AND id = ?", userId, watchedSeason.WatchedID).Update("updated_at", time.Now())
-		json, _ := json.Marshal(map[string]interface{}{
-			"season": watchedSeason.SeasonNumber,
-			"status": watchedSeason.Status,
-			"rating": watchedSeason.Rating,
-		})
-		addedActivity, _ := activity.
-			NewCreator(s.db, userId, watchedSeason.WatchedID, entity.SEASON_REMOVED, false, 0).
-			SetData(string(json)).
-			Create()
-		return addedActivity, nil
+			if err := tx.Model(&entity.Watched{}).Where("user_id = ? AND id = ?", userId, watchedSeason.WatchedID).Update("updated_at", time.Now()).Error; err != nil {
+				return err
+			}
+			jsonBytes, err := json.Marshal(map[string]interface{}{
+				"season": watchedSeason.SeasonNumber,
+				"status": watchedSeason.Status,
+				"rating": watchedSeason.Rating,
+			})
+			if err != nil {
+				slog.Error("rmWatchedSeason: failed to marshal json", "error", err)
+			}
+			act, err := activity.
+				NewCreator(tx, userId, watchedSeason.WatchedID, entity.SEASON_REMOVED, false, 0).
+				SetData(string(jsonBytes)).
+				Create()
+			if err != nil {
+				slog.Error("rmWatchedSeason: failed to create activity in tx", "error", err)
+				return err
+			}
+			addedActivity = act
+		}
+		return nil
+	})
+	if err != nil {
+		return entity.Activity{}, err
 	}
-	return entity.Activity{}, errors.New("removed, but failed to add activity entry")
+	return addedActivity, nil
 }
 
 func (s *Service) getNumberOfWatchedSeasonsInShow(

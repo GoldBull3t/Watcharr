@@ -23,7 +23,11 @@
 <div
 	class="floating-menu"
 	style={`--w: ${conf?.width || "180px"}; --r: ${
-		conf?.right ? conf.right : (conf?.left && conf.left !== "unset" ? "unset" : "0px")
+		conf?.right
+			? conf.right
+			: conf?.left && conf.left !== "unset"
+				? "unset"
+				: "0px"
 	}; --l: ${conf?.left || "unset"}; --t: ${conf?.top || "calc(100% + 6px)"}; --origin: ${
 		conf?.left && conf.left !== "unset" ? "top left" : "top right"
 	};`}

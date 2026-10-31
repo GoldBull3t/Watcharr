@@ -195,14 +195,8 @@
 	});
 </script>
 
-<div
-	class="sticky-subnav-wrapper"
-	class:has-open-menu={isAnyMenuOpen}
->
-	<header
-		class="unified-command-bar"
-		class:has-open-menu={isAnyMenuOpen}
-	>
+<div class="sticky-subnav-wrapper" class:has-open-menu={isAnyMenuOpen}>
+	<header class="unified-command-bar" class:has-open-menu={isAnyMenuOpen}>
 		<!-- Left Side: Status Segmented Tabs -->
 		<nav class="status-tabs-container" aria-label="Media status tabs">
 			<div class="status-tabs-track" role="tablist">
@@ -242,7 +236,14 @@
 					</button>
 
 					{#if moreStatusMenuShown}
-						<Menu conf={{ width: "170px", left: "0px", right: "unset", top: "calc(100% + 6px)" }}>
+						<Menu
+							conf={{
+								width: "170px",
+								left: "0px",
+								right: "unset",
+								top: "calc(100% + 6px)",
+							}}
+						>
 							<h5>Outros Estados</h5>
 							{#each secondaryStatusTabs as tab (tab.id)}
 								<button
@@ -270,7 +271,10 @@
 		<!-- Right Side: Search, Filters, Sort, Discover, Bulk, View Mode -->
 		<div class="actions-cluster">
 			<!-- In-Library Search Input (auto-expanding) -->
-			<div class="library-search-box" class:has-text={Boolean(librarySearchText)}>
+			<div
+				class="library-search-box"
+				class:has-text={Boolean(librarySearchText)}
+			>
 				<Icon i="search" wh={14} />
 				<input
 					type="text"
@@ -352,7 +356,9 @@
 				<button
 					type="button"
 					class="icon-toggle discover-toggle-btn"
-					class:active={discoverMenuShown || watchTogetherShown || watchRouletteShown}
+					class:active={discoverMenuShown ||
+						watchTogetherShown ||
+						watchRouletteShown}
 					onclick={(e) => {
 						e.stopPropagation();
 						moreStatusMenuShown = false;
@@ -372,7 +378,9 @@
 				</button>
 
 				{#if discoverMenuShown}
-					<Menu conf={{ width: "260px", right: "0px", top: "calc(100% + 6px)" }}>
+					<Menu
+						conf={{ width: "260px", right: "0px", top: "calc(100% + 6px)" }}
+					>
 						<h5>{t("dashboard.discover_subtitle")}</h5>
 
 						<!-- Roulette / What to Watch -->
@@ -386,8 +394,12 @@
 						>
 							<span class="item-emoji">🎲</span>
 							<div class="item-meta">
-								<span class="item-title">{t("dashboard.discover_roulette")}</span>
-								<span class="item-desc">{t("dashboard.discover_roulette_desc")}</span>
+								<span class="item-title"
+									>{t("dashboard.discover_roulette")}</span
+								>
+								<span class="item-desc"
+									>{t("dashboard.discover_roulette_desc")}</span
+								>
 							</div>
 						</button>
 
@@ -402,8 +414,12 @@
 						>
 							<span class="item-emoji">🍿</span>
 							<div class="item-meta">
-								<span class="item-title">{t("dashboard.discover_together")}</span>
-								<span class="item-desc">{t("dashboard.discover_together_desc")}</span>
+								<span class="item-title"
+									>{t("dashboard.discover_together")}</span
+								>
+								<span class="item-desc"
+									>{t("dashboard.discover_together_desc")}</span
+								>
 							</div>
 						</button>
 
@@ -413,10 +429,14 @@
 							class="plain discover-menu-item"
 							onclick={() => (discoverMenuShown = false)}
 						>
-							<span class="item-emoji reel-icon-wrap"><Icon i="reel" wh={16} /></span>
+							<span class="item-emoji reel-icon-wrap"
+								><Icon i="reel" wh={16} /></span
+							>
 							<div class="item-meta">
 								<span class="item-title">{t("dashboard.discover_sagas")}</span>
-								<span class="item-desc">{t("dashboard.discover_sagas_desc")}</span>
+								<span class="item-desc"
+									>{t("dashboard.discover_sagas_desc")}</span
+								>
 							</div>
 						</a>
 					</Menu>

@@ -55,7 +55,9 @@
 		if (info.qualityName) {
 			parts.push(info.qualityName);
 		} else if (info.statistics && info.statistics.totalEpisodeCount > 0) {
-			parts.push(`${info.statistics.episodeFileCount}/${info.statistics.totalEpisodeCount} eps`);
+			parts.push(
+				`${info.statistics.episodeFileCount}/${info.statistics.totalEpisodeCount} eps`,
+			);
 		}
 		const sizeStr = formatDiskSize(info.sizeOnDisk);
 		if (sizeStr) {
@@ -154,7 +156,9 @@
 	async function checkSeerrStatus(): Promise<boolean> {
 		if (!store.serverFeatures?.overseerr) return false;
 		try {
-			const res = await req.get<SeerrContentStatus>(`/seerr/status/${type}/${tmdbId}`);
+			const res = await req.get<SeerrContentStatus>(
+				`/seerr/status/${type}/${tmdbId}`,
+			);
 			if (res && res.configured) {
 				seerrStatus = res;
 				if (res.isAvailable) {
@@ -261,7 +265,9 @@
 	onMount(async () => {
 		const handledBySeerr = await checkSeerrStatus();
 		if (!handledBySeerr) {
-			const hasArr = (type === "movie" && store.serverFeatures?.radarr) || (type === "tv" && store.serverFeatures?.sonarr);
+			const hasArr =
+				(type === "movie" && store.serverFeatures?.radarr) ||
+				(type === "tv" && store.serverFeatures?.sonarr);
 			if (hasArr) {
 				lookForExisting();
 			}

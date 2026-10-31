@@ -21,7 +21,60 @@
 	/**
 	 * Percentage star step.
 	 */
-	let starStep = $state(10);
+	let starStep = $derived.by(() => {
+		try {
+			if (store.userSettings) {
+				let step = 10;
+				if (typeof store.userSettings.ratingSystem === "number") {
+					switch (store.userSettings.ratingSystem) {
+						case RatingSystem.OutOf100:
+							step = 1;
+							break;
+						case RatingSystem.OutOf5:
+							step = 20;
+							break;
+						case RatingSystem.OutOf10:
+						default:
+							step = 10;
+							break;
+					}
+				}
+				if (typeof store.userSettings.ratingStep === "number") {
+					if (
+						store.userSettings.ratingSystem === RatingSystem.OutOf5 ||
+						store.userSettings.ratingSystem === RatingSystem.OutOf10 ||
+						!store.userSettings.ratingSystem
+					) {
+						if (
+							store.userSettings.ratingStep === RatingStep.Point1 ||
+							store.userSettings.ratingStep === RatingStep.Point5 ||
+							store.userSettings.ratingStep === RatingStep.One
+						) {
+							const actualRatingStep =
+								store.userSettings.ratingStep === RatingStep.Point1
+									? 0.1
+									: store.userSettings.ratingStep === RatingStep.Point5
+										? 0.5
+										: 1;
+							step =
+								store.userSettings.ratingSystem === RatingSystem.OutOf5
+									? actualRatingStep * 20
+									: actualRatingStep * 10;
+						} else {
+							step =
+								store.userSettings.ratingSystem === RatingSystem.OutOf5
+									? 20
+									: 10;
+						}
+					}
+				}
+				return step;
+			}
+		} catch (err) {
+			console.error("Failed to calculate starStep from settings:", err);
+		}
+		return 10;
+	});
 	/**
 	 * The scroll position at start of star pointer click,
 	 * saved for comparison at end of star click. If same,
@@ -276,66 +329,6 @@
 		} else {
 			console.debug("showRatingCaller: We have nothing.");
 			showRating(0);
-		}
-	});
-	$effect(() => {
-		// console.log("block", starStep, settings?.ratingStep, settings.ratingSystem);
-		try {
-			if (store.userSettings) {
-				if (typeof store.userSettings.ratingSystem === "number") {
-					// Set default star step for system.
-					switch (store.userSettings.ratingSystem) {
-						case RatingSystem.OutOf100:
-							starStep = 1;
-							break;
-
-						case RatingSystem.OutOf5:
-							starStep = 20;
-							break;
-
-						case RatingSystem.OutOf10:
-						default:
-							starStep = 10;
-							break;
-					}
-				}
-				// Override default with user set step if supported by this system.
-				if (typeof store.userSettings.ratingStep === "number") {
-					if (
-						store.userSettings.ratingSystem === RatingSystem.OutOf5 ||
-						store.userSettings.ratingSystem === RatingSystem.OutOf10 ||
-						!store.userSettings.ratingSystem
-					) {
-						if (
-							store.userSettings.ratingStep === RatingStep.Point1 ||
-							store.userSettings.ratingStep === RatingStep.Point5 ||
-							store.userSettings.ratingStep === RatingStep.One
-						) {
-							// Turn enum value into an actual step value.
-							const actualRatingStep =
-								store.userSettings.ratingStep === RatingStep.Point1
-									? 0.1
-									: store.userSettings.ratingStep === RatingStep.Point5
-										? 0.5
-										: 1;
-							console.log("actualRatingStep", actualRatingStep);
-							starStep =
-								store.userSettings.ratingSystem === RatingSystem.OutOf5
-									? actualRatingStep * 20
-									: actualRatingStep * 10;
-							console.debug("Set starStep from setting:", starStep);
-						} else {
-							starStep =
-								store.userSettings.ratingSystem === RatingSystem.OutOf5
-									? 20
-									: 10;
-							console.debug("Set starStep using default:", starStep);
-						}
-					}
-				}
-			}
-		} catch (err) {
-			console.error("Failed to set startStep from settings:", err);
 		}
 	});
 </script>

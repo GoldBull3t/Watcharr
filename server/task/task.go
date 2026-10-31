@@ -106,7 +106,9 @@ func SetupTasks(cfg *config.ServerConfig, db *gorm.DB, calendarNotifier Calendar
 		taskFuncs["Calendar Release Notifications"] = TaskFunc{
 			f: func() {
 				slog.Debug("Running Calendar Release Notifications recurring task")
-				_ = calendarNotifier.CheckAndNotifyAllUsers()
+				if err := calendarNotifier.CheckAndNotifyAllUsers(); err != nil {
+					slog.Error("Calendar Release Notifications task failed", "error", err)
+				}
 			},
 			dd: 6 * time.Hour,
 		}

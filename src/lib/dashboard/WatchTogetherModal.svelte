@@ -5,7 +5,11 @@
 	import UserAvatar from "@/lib/img/UserAvatar.svelte";
 	import { req } from "@/lib/util/api";
 	import { notify } from "@/lib/util/notify";
-	import type { WatchTogetherItem, WatchTogetherResponse, WatchTogetherUser } from "@/types";
+	import type {
+		WatchTogetherItem,
+		WatchTogetherResponse,
+		WatchTogetherUser,
+	} from "@/types";
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
@@ -34,7 +38,8 @@
 			if (res && res.length > 0) {
 				users = res;
 				if (initialTargetUserId) {
-					selectedUser = users.find((u) => u.id === initialTargetUserId) || users[0];
+					selectedUser =
+						users.find((u) => u.id === initialTargetUserId) || users[0];
 				} else {
 					selectedUser = users[0];
 				}
@@ -42,7 +47,10 @@
 			}
 		} catch (err) {
 			console.error("loadUsers error:", err);
-			notify({ type: "error", text: "Falha ao carregar utilizadores da instância" });
+			notify({
+				type: "error",
+				text: "Falha ao carregar utilizadores da instância",
+			});
 		} finally {
 			loadingUsers = false;
 		}
@@ -58,7 +66,10 @@
 			comparison = res;
 		} catch (err) {
 			console.error("loadComparison error:", err);
-			notify({ type: "error", text: "Erro ao comparar listas com o utilizador" });
+			notify({
+				type: "error",
+				text: "Erro ao comparar listas com o utilizador",
+			});
 		} finally {
 			loadingComparison = false;
 		}
@@ -119,7 +130,8 @@
 				</div>
 			{:else if users.length === 0}
 				<div class="no-users-msg">
-					Nenhum outro utilizador público encontrado na instância. Segue outros utilizadores para poderes cruzar as vossas listas!
+					Nenhum outro utilizador público encontrado na instância. Segue outros
+					utilizadores para poderes cruzar as vossas listas!
 				</div>
 			{:else}
 				<div class="users-pill-bar">
@@ -245,11 +257,14 @@
 						<h4>Nenhum resultado encontrado</h4>
 						<p>
 							{#if mode === "common"}
-								Tu e o(a) @{selectedUser.username} ainda não têm filmes ou séries em comum marcados como "Por Ver" na Watchlist.
+								Tu e o(a) @{selectedUser.username} ainda não têm filmes ou séries
+								em comum marcados como "Por Ver" na Watchlist.
 							{:else if mode === "unwatched"}
-								Nenhum item da tua watchlist pendente que o(a) @{selectedUser.username} ainda não tenha começado ou visto.
+								Nenhum item da tua watchlist pendente que o(a) @{selectedUser.username}
+								ainda não tenha começado ou visto.
 							{:else}
-								O(A) @{selectedUser.username} ainda não tem avaliações $\ge 8$ de obras que tu não tenhas visto.
+								O(A) @{selectedUser.username} ainda não tem avaliações $\ge 8$ de
+								obras que tu não tenhas visto.
 							{/if}
 						</p>
 					</div>
@@ -258,13 +273,16 @@
 						{#each filteredItems as item (item.contentId)}
 							{@const content = item.content}
 							{#if content}
+								{@const pPath =
+									(content as any).posterPath || (content as any).poster_path}
+								{@const rDate =
+									(content as any).releaseDate || (content as any).release_date}
 								<a
 									class="matched-card"
 									href={getMediaUrl(item)}
 									onclick={() => onClose()}
 								>
 									<div class="poster-container">
-										{@const pPath = (content as any).posterPath || (content as any).poster_path}
 										<img
 											src={pPath
 												? pPath.startsWith("http")
@@ -276,11 +294,17 @@
 										/>
 										<div class="card-overlay-badge">
 											{#if mode === "common"}
-												<span class="badge common-badge">🎯 Match Watchlist</span>
+												<span class="badge common-badge"
+													>🎯 Match Watchlist</span
+												>
 											{:else if mode === "unwatched"}
-												<span class="badge unwatched-badge">🍿 Por Descobrir</span>
+												<span class="badge unwatched-badge"
+													>🍿 Por Descobrir</span
+												>
 											{:else if mode === "recommended"}
-												<span class="badge recommended-badge">★ {item.targetUserRating} ({selectedUser.username})</span>
+												<span class="badge recommended-badge"
+													>★ {item.targetUserRating} ({selectedUser.username})</span
+												>
 											{/if}
 										</div>
 
@@ -290,8 +314,9 @@
 									</div>
 
 									<div class="card-meta">
-										{@const rDate = (content as any).releaseDate || (content as any).release_date}
-										<span class="card-title" title={content.title}>{content.title}</span>
+										<span class="card-title" title={content.title}
+											>{content.title}</span
+										>
 										{#if rDate}
 											<span class="card-year">
 												{new Date(rDate).getFullYear()}
@@ -621,7 +646,11 @@
 						bottom: 0;
 						left: 0;
 						right: 0;
-						background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 20%, transparent);
+						background: linear-gradient(
+							to top,
+							rgba(0, 0, 0, 0.95) 20%,
+							transparent
+						);
 						padding: 8px 6px 6px 6px;
 
 						.badge {

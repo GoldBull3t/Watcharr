@@ -235,9 +235,8 @@
 				position: absolute;
 				bottom: 0;
 				left: 0;
-				height: 2.5px;
-				background: linear-gradient(90deg, #6366f1, #818cf8, #38bdf8);
-				box-shadow: 0 0 8px rgba(99, 102, 241, 0.8);
+				height: 2px;
+				background: $brand-color;
 				animation-name: progressDrain;
 				animation-timing-function: linear;
 				animation-fill-mode: forwards;

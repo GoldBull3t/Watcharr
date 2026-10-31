@@ -609,13 +609,9 @@
 				results.sort((a, b) => {
 					try {
 						const ar = a.releaseDate;
-						const ay = ar
-							? new Date(Date.parse(ar)).getFullYear()
-							: undefined;
+						const ay = ar ? new Date(Date.parse(ar)).getFullYear() : undefined;
 						const br = b.releaseDate;
-						const by = br
-							? new Date(Date.parse(br)).getFullYear()
-							: undefined;
+						const by = br ? new Date(Date.parse(br)).getFullYear() : undefined;
 						if (ay == item.year) return -1;
 						else if (by == item.year) return 1;
 					} catch (err) {

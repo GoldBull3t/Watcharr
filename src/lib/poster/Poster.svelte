@@ -185,7 +185,9 @@
 		} else if (currentStatus === "WATCHING") {
 			await updateWatchedSeason(watched, seasonNum, { status: "FINISHED" });
 		} else if (currentStatus === "FINISHED") {
-			const ws = watched.watchedSeasons?.find((s) => s.seasonNumber === seasonNum);
+			const ws = watched.watchedSeasons?.find(
+				(s) => s.seasonNumber === seasonNum,
+			);
 			if (ws && ws.id) {
 				await removeWatchedSeason(watched, ws.id);
 			} else {
@@ -465,7 +467,8 @@
 				curr.classList.contains("horizontal-list") ||
 				curr.classList.contains("small-scrollbar") ||
 				curr.dataset?.noSwipe === "true" ||
-				(curr.scrollWidth > curr.clientWidth && getComputedStyle(curr).overflowX !== "visible")
+				(curr.scrollWidth > curr.clientWidth &&
+					getComputedStyle(curr).overflowX !== "visible")
 			) {
 				return true;
 			}
@@ -475,7 +478,12 @@
 	}
 
 	function handleTouchStart(e: TouchEvent) {
-		if (disableInteraction || e.touches.length !== 1 || isInsideHorizontalScroll(containerEl)) return;
+		if (
+			disableInteraction ||
+			e.touches.length !== 1 ||
+			isInsideHorizontalScroll(containerEl)
+		)
+			return;
 		touchStartX = e.touches[0].clientX;
 		touchStartY = e.touches[0].clientY;
 		touchStartTime = Date.now();
@@ -485,7 +493,8 @@
 	}
 
 	function handleTouchMove(e: TouchEvent) {
-		if (disableInteraction || e.touches.length !== 1 || touchStartX === 0) return;
+		if (disableInteraction || e.touches.length !== 1 || touchStartX === 0)
+			return;
 		const currentX = e.touches[0].clientX;
 		const currentY = e.touches[0].clientY;
 		const dx = currentX - touchStartX;
@@ -609,10 +618,9 @@
 		class:is-tilting={isTilting}
 		style={posterActive && (tiltX !== 0 || tiltY !== 0)
 			? `transform: perspective(800px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) translateY(-5px) scale3d(1.025, 1.025, 1.025);`
-			: (isSwiping && swipeDeltaX !== 0)
-			? `transform: translateX(${swipeDeltaX * 0.4}px) rotate(${swipeDeltaX * 0.05}deg);`
-			: undefined}
-
+			: isSwiping && swipeDeltaX !== 0
+				? `transform: translateX(${swipeDeltaX * 0.4}px) rotate(${swipeDeltaX * 0.05}deg);`
+				: undefined}
 		bind:this={containerEl}
 	>
 		{@render children?.()}
@@ -656,7 +664,6 @@
 				decoding="async"
 				src={poster}
 				alt={media.name || "Poster"}
-
 				class:loaded={posterImgLoaded === 1}
 				onload={() => {
 					posterImgLoaded = 1;
@@ -678,7 +685,8 @@
 		{#if !posterActive && (media.cancellation?.hasCliffhanger || media.cancellation?.status === "cliffhanger")}
 			<div
 				class="corner-cancellation-badge"
-				title={media.cancellation?.description || "Cancelada sem desfecho conclusivo"}
+				title={media.cancellation?.description ||
+					"Cancelada sem desfecho conclusivo"}
 			>
 				<Icon i="close-circle" wh={11} />
 				<span>Sem Fim</span>
@@ -715,7 +723,6 @@
 				data-sveltekit-preload-data="tap"
 				href={link ? resolve(link) : undefined}
 				class="small-scrollbar"
-
 			>
 				<h2>
 					{media.name}
@@ -725,23 +732,27 @@
 					{#if media.cancellation?.hasCliffhanger || media.cancellation?.status === "cliffhanger"}
 						<span
 							class="canceled-tag cliffhanger-tag"
-							title={media.cancellation?.description || "Cancelada sem desfecho conclusivo"}
-						>Sem Fim</span>
+							title={media.cancellation?.description ||
+								"Cancelada sem desfecho conclusivo"}>Sem Fim</span
+						>
 					{:else if media.cancellation?.status === "hiatus"}
 						<span
 							class="canceled-tag hiatus-tag"
-							title={media.cancellation?.description || "Hiato prolongado (+2 anos)"}
-						>Hiato</span>
+							title={media.cancellation?.description ||
+								"Hiato prolongado (+2 anos)"}>Hiato</span
+						>
 					{:else if media.status === "Canceled" || media.cancellation?.status === "canceled"}
 						<span
 							class="canceled-tag"
-							title="Série cancelada pela emissora/produtores">Cancelada</span>
+							title="Série cancelada pela emissora/produtores">Cancelada</span
+						>
 					{/if}
 				</h2>
 				{#if media.cancellation?.hasCliffhanger || media.cancellation?.status === "cliffhanger"}
 					<div
 						class="card-canceled-alert cliffhanger-alert"
-						title={media.cancellation?.description || "Série cancelada sem desfecho"}
+						title={media.cancellation?.description ||
+							"Série cancelada sem desfecho"}
 					>
 						<Icon i="close-circle" wh={12} />
 						<span>Cancelada sem desfecho</span>
@@ -749,7 +760,8 @@
 				{:else if media.cancellation?.status === "hiatus"}
 					<div
 						class="card-canceled-alert hiatus-alert"
-						title={media.cancellation?.description || "Hiato prolongado (+2 anos)"}
+						title={media.cancellation?.description ||
+							"Hiato prolongado (+2 anos)"}
 					>
 						<Icon i="clock" wh={12} />
 						<span>Hiato (+2 anos)</span>
@@ -795,14 +807,20 @@
 					<div class="hover-season-tracker">
 						<div class="tracker-header">
 							<span class="tracker-title">
-								Temporadas ({seasonProgress.finishedSeasons.length}/{seasonProgress.totalSeasons})
+								Temporadas ({seasonProgress.finishedSeasons
+									.length}/{seasonProgress.totalSeasons})
 							</span>
 							{#if seasonProgress.nextUpSeason}
-								<span class="tracker-next" class:caught-up={seasonProgress.isCaughtUp}>
+								<span
+									class="tracker-next"
+									class:caught-up={seasonProgress.isCaughtUp}
+								>
 									{#if seasonProgress.isCaughtUp}
-										✨ Em dia (T{seasonProgress.nextUpSeason} {t("status.planned") || "Planeada"})
+										✨ Em dia (T{seasonProgress.nextUpSeason}
+										{t("status.planned") || "Planeada"})
 									{:else if seasonProgress.nextUpStatus === "PLANNED"}
-										⏳ T{seasonProgress.nextUpSeason} {t("status.planned") || "Planeada"}
+										⏳ T{seasonProgress.nextUpSeason}
+										{t("status.planned") || "Planeada"}
 									{:else if seasonProgress.nextUpStatus === "WATCHING"}
 										▶ {t("status.watching") || "A ver"} T{seasonProgress.nextUpSeason}
 									{/if}
@@ -812,7 +830,8 @@
 									✔ {t("status.finished") || "Completa"}
 								</span>
 							{/if}
-						</div><div class="tracker-pills-row">
+						</div>
+						<div class="tracker-pills-row">
 							{#each seasonProgress.seasons as s}
 								<button
 									type="button"
@@ -822,13 +841,17 @@
 										handleSeasonQuickToggle(s.number, s.status);
 									}}
 									title={`Temporada ${s.number}: ${
-										s.status === 'FINISHED'
-											? (t('status.finished') || 'Concluída') + ' (clica para reiniciar)'
-											: s.status === 'PLANNED'
-												? (t('status.planned') || 'Planeada') + ' (clica para Marcar como A Ver)'
-												: s.status === 'WATCHING'
-													? (t('status.watching') || 'A ver') + ' (clica para Concluir)'
-													: (t('status.unwatched') || 'Não iniciada') + ' (clica para Planear)'
+										s.status === "FINISHED"
+											? (t("status.finished") || "Concluída") +
+												" (clica para reiniciar)"
+											: s.status === "PLANNED"
+												? (t("status.planned") || "Planeada") +
+													" (clica para Marcar como A Ver)"
+												: s.status === "WATCHING"
+													? (t("status.watching") || "A ver") +
+														" (clica para Concluir)"
+													: (t("status.unwatched") || "Não iniciada") +
+														" (clica para Planear)"
 									}`}
 								>
 									<span class="pill-num">T{s.number}</span>
@@ -889,8 +912,12 @@
 {#if lightboxOpen}
 	<MediaLightbox
 		videos={lightboxVideos}
-		backdropPath={media.backdropPath || (media as any).backdrop?.path || (media as any).extBackdropPath}
-		posterPath={media.posterPath || (media as any).poster?.path || (media as any).extPosterPath}
+		backdropPath={media.extBackdropPath ||
+			(media as any).backdropPath ||
+			(media as any).backdrop?.path}
+		posterPath={media.extPosterPath ||
+			(media as any).posterPath ||
+			(media as any).poster?.path}
 		mediaTitle={media.name}
 		initialType="video"
 		onclose={() => (lightboxOpen = false)}

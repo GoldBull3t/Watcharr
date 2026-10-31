@@ -228,7 +228,8 @@
 			</div>
 			<div class="banner-text">
 				<strong class="banner-title">
-					{cancellation?.warning || "Atenção: Cancelada com Gancho Aberto (Cliffhanger)"}
+					{cancellation?.warning ||
+						"Atenção: Cancelada com Gancho Aberto (Cliffhanger)"}
 				</strong>
 				{#if cancellation?.description}
 					<p class="banner-subtext">{cancellation.description}</p>
@@ -438,4 +439,3 @@
 		}
 	}
 </style>
-

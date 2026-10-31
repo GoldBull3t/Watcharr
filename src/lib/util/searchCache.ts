@@ -119,12 +119,7 @@ class SearchCache {
 	/**
 	 * Check if a query is present in cache without moving LRU order.
 	 */
-	has(
-		query: string,
-		type?: string,
-		preferMyList?: boolean,
-		page = 1,
-	): boolean {
+	has(query: string, type?: string, preferMyList?: boolean, page = 1): boolean {
 		const key = this.normalizeKey(query, type, preferMyList, page);
 		const entry = this.memoryCache.get(key);
 		if (!entry) return false;
@@ -152,4 +147,3 @@ class SearchCache {
 }
 
 export const searchCache = new SearchCache();
-

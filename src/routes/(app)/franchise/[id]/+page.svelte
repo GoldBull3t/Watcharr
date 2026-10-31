@@ -3,9 +3,9 @@
 	import { goto } from "$app/navigation";
 	import { req } from "@/lib/util/api";
 	import type { FranchiseRoadmap } from "@/types";
-	import Spinner from "@/lib/Spinner.svelte";
 	import Error from "@/lib/Error.svelte";
 	import FranchiseTimeline from "@/lib/franchise/FranchiseTimeline.svelte";
+	import MediaDetailSkeleton from "@/lib/content/MediaDetailSkeleton.svelte";
 	import Icon from "@/lib/Icon.svelte";
 
 	let franchiseId = $derived(page.params.id);
@@ -14,27 +14,42 @@
 	let loading = $state(true);
 	let error = $state<string | undefined>();
 
-	async function loadRoadmap(order: "timeline" | "release") {
+	async function loadRoadmap(
+		order: "timeline" | "release",
+		signal?: AbortSignal,
+	) {
 		if (!franchiseId) return;
 		try {
 			loading = true;
 			error = undefined;
-			const data = await req.get<FranchiseRoadmap>(`/franchise/${franchiseId}?order=${order}`);
+			const data = await req.get<FranchiseRoadmap>(
+				`/franchise/${franchiseId}?order=${order}`,
+				{
+					signal,
+				},
+			);
+			if (signal?.aborted) return;
 			roadmap = data;
 			activeOrder = data?.activeOrder || order;
 		} catch (err: any) {
+			if (signal?.aborted) return;
 			console.error("Failed to load franchise roadmap:", err);
-			error = err?.message || "Não foi possível carregar a rota desta franquia.";
+			error =
+				err?.message || "Não foi possível carregar a rota desta franquia.";
 		} finally {
-			loading = false;
+			if (!signal?.aborted) {
+				loading = false;
+			}
 		}
 	}
 
 	$effect(() => {
+		const controller = new AbortController();
 		const orderParam = page.url.searchParams.get("order");
-		const initialOrder = orderParam === "release" ? "release" : "timeline";
-		activeOrder = initialOrder;
-		loadRoadmap(initialOrder);
+		const currentOrder = orderParam === "release" ? "release" : "timeline";
+		activeOrder = currentOrder;
+		loadRoadmap(currentOrder, controller.signal);
+		return () => controller.abort();
 	});
 
 	function handleOrderChange(newOrder: "timeline" | "release") {
@@ -42,30 +57,38 @@
 		const url = new URL(window.location.href);
 		url.searchParams.set("order", newOrder);
 		goto(url.toString(), { replaceState: true, noScroll: true });
-		loadRoadmap(newOrder);
 	}
 </script>
 
 <svelte:head>
-	<title>{roadmap ? `${roadmap.name} • Linha Cronológica` : "Franquia"} | Watcharr</title>
+	<title
+		>{roadmap ? `${roadmap.name} • Linha Cronológica` : "Franquia"} | Watcharr</title
+	>
 </svelte:head>
 
 <div class="franchise-detail-page">
 	<div class="back-nav-bar">
-		<button type="button" class="back-link" onclick={() => window.history.back()}>
+		<button
+			type="button"
+			class="back-link"
+			onclick={() => window.history.back()}
+		>
 			<span class="back-arrow">←</span>
 			<span>Voltar</span>
 		</button>
 	</div>
 
 	{#if loading && !roadmap}
-		<div class="loading-state">
-			<Spinner />
-			<p>A construir linha cronológica...</p>
-		</div>
+		<MediaDetailSkeleton type="movie" />
 	{:else if error}
 		<div class="error-state">
-			<Error pretty="Falha ao carregar linha cronológica" error={error} onRetry={() => { loadRoadmap(activeOrder); }} />
+			<Error
+				pretty="Falha ao carregar linha cronológica"
+				{error}
+				onRetry={() => {
+					loadRoadmap(activeOrder);
+				}}
+			/>
 		</div>
 	{:else if roadmap}
 		<!-- Universe Hero Banner -->
@@ -91,9 +114,13 @@
 				<div class="hero-text">
 					<div class="hero-badges">
 						<span class="badge cosmic-badge">🌌 Saga & Universo</span>
-						<span class="badge stats-badge">{roadmap.totalItems} Produções</span>
+						<span class="badge stats-badge">{roadmap.totalItems} Produções</span
+						>
 						{#if roadmap.watchedCount > 0}
-							<span class="badge completion-badge" class:completed={roadmap.percentWatched === 100}>
+							<span
+								class="badge completion-badge"
+								class:completed={roadmap.percentWatched === 100}
+							>
 								<Icon i="check" wh={13} />
 								{roadmap.watchedCount} / {roadmap.totalItems} Vistos ({roadmap.percentWatched}%)
 							</span>
@@ -146,16 +173,6 @@
 	.back-arrow {
 		transition: transform 0.2s ease;
 		display: inline-block;
-	}
-
-	.loading-state {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 100px 20px;
-		gap: 16px;
-		color: #8b949e;
 	}
 
 	.error-state {

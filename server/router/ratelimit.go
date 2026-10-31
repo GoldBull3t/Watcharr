@@ -17,31 +17,26 @@ type ipRateBucket struct {
 // within the given time window.
 func RateLimit(maxRequests int, window time.Duration) gin.HandlerFunc {
 	var (
-		mu      sync.Mutex
-		buckets = make(map[string]*ipRateBucket)
+		mu          sync.Mutex
+		buckets     = make(map[string]*ipRateBucket)
+		lastCleanup = time.Now()
 	)
-
-	// Periodic background cleanup of expired IP buckets
-	go func() {
-		ticker := time.NewTicker(window * 2)
-		defer ticker.Stop()
-		for range ticker.C {
-			now := time.Now()
-			mu.Lock()
-			for ip, b := range buckets {
-				if now.After(b.resetTime) {
-					delete(buckets, ip)
-				}
-			}
-			mu.Unlock()
-		}
-	}()
 
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
 		now := time.Now()
 
 		mu.Lock()
+		// Lazy cleanup of expired buckets without background goroutine leaks
+		if now.Sub(lastCleanup) > window*2 {
+			for k, b := range buckets {
+				if now.After(b.resetTime) {
+					delete(buckets, k)
+				}
+			}
+			lastCleanup = now
+		}
+
 		b, exists := buckets[ip]
 		if !exists || now.After(b.resetTime) {
 			buckets[ip] = &ipRateBucket{
@@ -66,4 +61,3 @@ func RateLimit(maxRequests int, window time.Duration) gin.HandlerFunc {
 		c.Next()
 	}
 }
-

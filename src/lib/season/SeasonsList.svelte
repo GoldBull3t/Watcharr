@@ -10,7 +10,7 @@
 	import Spinner from "@/lib/Spinner.svelte";
 	import Error from "@/lib/Error.svelte";
 	import SeasonsListEpisode from "./SeasonsListEpisode.svelte";
-		import PosterStatus from "@/lib/poster/PosterStatus.svelte";
+	import PosterStatus from "@/lib/poster/PosterStatus.svelte";
 	import { notify } from "@/lib/util/notify";
 	import PosterRating from "@/lib/poster/PosterRating.svelte";
 	import Icon from "@/lib/Icon.svelte";
@@ -283,8 +283,6 @@
 					{/if}
 				</div>
 
-
-
 				{#if season?.episodes?.length > 0}
 					<ul>
 						{#each season.episodes as ep (ep.id)}
@@ -437,8 +435,7 @@
 
 				.season-mini-fill {
 					height: 100%;
-					background: linear-gradient(90deg, #f59e0b, #fbbf24);
-					box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+					background: $brand-color;
 					border-radius: 999px;
 					transition: width 220ms ease;
 				}

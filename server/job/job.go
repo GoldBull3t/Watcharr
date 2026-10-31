@@ -40,7 +40,16 @@ type Job struct {
 var (
 	jobsMu     sync.RWMutex
 	activeJobs = make(map[string]*Job)
+	stopOnce   sync.Once
+	stopCh     = make(chan struct{})
 )
+
+// ShutdownJobs signals any waiting cleanup timers to terminate immediately.
+func ShutdownJobs() {
+	stopOnce.Do(func() {
+		close(stopCh)
+	})
+}
 
 // Add a job to our activeJobs map.
 // Returns id of job on success, or error if failed to add.
@@ -132,7 +141,13 @@ func UpdateJobStatus(id string, userId uint, status JobStatus) error {
 	if status == JOB_DONE || status == JOB_CANCELLED {
 		slog.Debug("updateJobStatus: Job set to done or cancelled. Will be removed after 30m.", "id", id, "status", status)
 		go func() {
-			time.Sleep(30 * time.Minute)
+			t := time.NewTimer(30 * time.Minute)
+			defer t.Stop()
+			select {
+			case <-t.C:
+			case <-stopCh:
+				return
+			}
 			slog.Debug("updateJobStatus: Job done. waited 30m.. removing job now.", "id", id)
 			RmJob(id, userId)
 		}()

@@ -285,12 +285,7 @@
 			}
 
 			&.finished {
-				background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
-				box-shadow: 0 0 8px rgba(245, 158, 11, 0.35);
-
-				&:hover {
-					box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
-				}
+				background: $brand-color;
 			}
 
 			&.next-target:not(.finished) {

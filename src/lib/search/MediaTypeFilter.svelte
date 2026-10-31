@@ -55,7 +55,7 @@
 		padding: 4px;
 		background: rgba(255, 255, 255, 0.04);
 		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 30px;
+		border-radius: 9999px;
 		backdrop-filter: blur(8px);
 		-webkit-backdrop-filter: blur(8px);
 
@@ -64,9 +64,9 @@
 			flex-flow: row;
 			gap: 7px;
 			align-items: center;
-			height: 34px;
+			height: 32px;
 			padding: 0 14px;
-			border-radius: 20px;
+			border-radius: 9999px;
 			font-size: 13.5px;
 			font-weight: 500;
 			color: $text-color;

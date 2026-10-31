@@ -245,10 +245,16 @@
 							<div
 								class="dock-flyout rate-flyout"
 								role="dialog"
-								aria-label={t("dashboard.bulk_rate_items", { count: selectedCount })}
+								aria-label={t("dashboard.bulk_rate_items", {
+									count: selectedCount,
+								})}
 							>
 								<div class="rate-popover-header">
-									<span>{t("dashboard.bulk_rate_items", { count: selectedCount })}</span>
+									<span
+										>{t("dashboard.bulk_rate_items", {
+											count: selectedCount,
+										})}</span
+									>
 									{#if hoveredScore}
 										<span class="live-score">
 											★ {isOutOf100 ? hoveredScore * 10 : hoveredScore}
@@ -367,7 +373,8 @@
 	}
 
 	@keyframes pulseDanger {
-		0%, 100% {
+		0%,
+		100% {
 			box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6);
 		}
 		50% {

@@ -2,13 +2,11 @@
 	import { resolve } from "$app/paths";
 	import { SvelteDate } from "svelte/reactivity";
 	import Icon from "@/lib/Icon.svelte";
-	import Spinner from "@/lib/Spinner.svelte";
 	import Error from "@/lib/Error.svelte";
 	import Modal from "@/lib/Modal.svelte";
 	import { req } from "@/lib/util/api";
 	import { store } from "@/store.svelte";
 	import type { CalendarEvent, CalendarFilter, CalendarType } from "@/types";
-	import { toRelativeDate } from "@/lib/util/helpers";
 	import CalendarWebhookModal from "@/lib/calendar/CalendarWebhookModal.svelte";
 	import RelativeDateBadge from "@/lib/content/RelativeDateBadge.svelte";
 
@@ -498,11 +496,40 @@
 	</header>
 
 	{#if error}
-		<Error pretty="Failed to load calendar events" {error} />
+		<Error
+			pretty="Failed to load calendar events"
+			{error}
+			onRetry={() => {
+				lastReqKey = "";
+			}}
+		/>
 	{:else if loading && events.length === 0}
-		<div class="loading-state">
-			<Spinner />
-			<p>Loading release calendar...</p>
+		<div
+			class="month-container skeleton-calendar"
+			aria-hidden="true"
+			role="status"
+		>
+			<div class="month-header-row">
+				<div class="day-name">Mon</div>
+				<div class="day-name">Tue</div>
+				<div class="day-name">Wed</div>
+				<div class="day-name">Thu</div>
+				<div class="day-name">Fri</div>
+				<div class="day-name">Sat</div>
+				<div class="day-name">Sun</div>
+			</div>
+			<div class="month-grid">
+				{#each Array.from({ length: 28 }, (__, idx) => idx) as i (i)}
+					<div class="month-cell skeleton-cell">
+						<div class="cell-top">
+							<span class="day-num shimmer skeleton-num"></span>
+						</div>
+						{#if i % 3 === 0}
+							<div class="skeleton-chip shimmer"></div>
+						{/if}
+					</div>
+				{/each}
+			</div>
 		</div>
 	{:else}
 		<!-- MONTH VIEW -->
@@ -2136,5 +2163,47 @@
 				}
 			}
 		}
+	}
+
+	.skeleton-calendar {
+		pointer-events: none;
+
+		.skeleton-cell {
+			min-height: 100px;
+		}
+
+		.skeleton-num {
+			display: inline-block;
+			width: 18px;
+			height: 16px;
+			border-radius: 4px;
+		}
+
+		.skeleton-chip {
+			height: 20px;
+			width: 85%;
+			border-radius: 4px;
+			margin-top: 8px;
+		}
+	}
+
+	@keyframes shimmer {
+		0% {
+			background-position: -200% 0;
+		}
+		100% {
+			background-position: 200% 0;
+		}
+	}
+
+	.shimmer {
+		background: linear-gradient(
+			90deg,
+			rgba(20, 24, 36, 0.75) 0%,
+			rgba(38, 46, 68, 0.9) 50%,
+			rgba(20, 24, 36, 0.75) 100%
+		);
+		background-size: 200% 100%;
+		animation: shimmer 1.8s infinite ease-in-out;
 	}
 </style>

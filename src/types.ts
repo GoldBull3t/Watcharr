@@ -202,10 +202,7 @@ export interface Watched {
 }
 
 export type GameCompletionStatus =
-	| "MAIN_STORY"
-	| "MAIN_EXTRA"
-	| "COMPLETIONIST"
-	| "DROPPED";
+	"MAIN_STORY" | "MAIN_EXTRA" | "COMPLETIONIST" | "DROPPED";
 
 export interface WatchedAddRequest {
 	tmdbId?: number;
@@ -450,12 +447,7 @@ export enum MediaTypeE {
 }
 
 export type CancellationStatus =
-	| "cliffhanger"
-	| "canceled"
-	| "hiatus"
-	| "concluded"
-	| "returning"
-	| "unknown";
+	"cliffhanger" | "canceled" | "hiatus" | "concluded" | "returning" | "unknown";
 
 export interface CancellationInfo {
 	status: CancellationStatus;
@@ -1251,11 +1243,11 @@ export interface FranchiseMatch {
 	releaseOrder?: number;
 }
 
-
 export interface SeerrContentStatus {
 	configured: boolean;
 	status: number;
-	statusName: "UNKNOWN" | "PENDING" | "PROCESSING" | "PARTIALLY_AVAILABLE" | "AVAILABLE";
+	statusName:
+		"UNKNOWN" | "PENDING" | "PROCESSING" | "PARTIALLY_AVAILABLE" | "AVAILABLE";
 	isAvailable: boolean;
 	isProcessing: boolean;
 	isPending: boolean;
@@ -1266,7 +1258,6 @@ export interface SeerrContentStatus {
 		status: number;
 	};
 }
-
 
 export interface WatchTogetherUser {
 	id: number;
@@ -1345,8 +1336,8 @@ export interface UpNextItem {
 }
 
 export interface RoulettePickRequest {
-	type?: 'movie' | 'tv' | 'game' | 'all';
-	status?: 'planned' | 'watching' | 'finished' | 'all';
+	type?: "movie" | "tv" | "game" | "all";
+	status?: "planned" | "watching" | "finished" | "all";
 	maxRuntime?: number;
 	genre?: string;
 	minRating?: number;

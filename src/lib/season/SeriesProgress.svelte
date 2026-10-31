@@ -137,14 +137,12 @@
 
 		.progress-fill {
 			height: 100%;
-			background: linear-gradient(90deg, #6366f1 0%, #818cf8 100%);
-			box-shadow: 0 0 12px rgba(99, 102, 241, 0.6);
+			background: #6366f1;
 			border-radius: 999px;
 			transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1);
 
 			&.completed {
-				background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);
-				box-shadow: 0 0 12px rgba(34, 197, 94, 0.6);
+				background: $success;
 			}
 		}
 	}

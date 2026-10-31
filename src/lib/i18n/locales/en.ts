@@ -67,17 +67,21 @@ export const en = {
 	"dashboard.discover": "Discover",
 	"dashboard.discover_subtitle": "Smart discovery & franchise tools",
 	"dashboard.discover_roulette": "What to Watch? (Roulette)",
-	"dashboard.discover_roulette_desc": "Spin through your watchlist by mood & length",
+	"dashboard.discover_roulette_desc":
+		"Spin through your watchlist by mood & length",
 	"dashboard.discover_together": "Watch Together",
-	"dashboard.discover_together_desc": "Find common movies with friends & partners",
+	"dashboard.discover_together_desc":
+		"Find common movies with friends & partners",
 	"dashboard.discover_sagas": "Sagas & Collections",
 	"dashboard.discover_sagas_desc": "Explore TMDB universes and timelines",
 	"dashboard.more": "More",
 
 	"empty.library_title": "Your Library is Empty",
-	"empty.library_desc": "Start building your personal collection by discovering movies, TV shows, and games.",
+	"empty.library_desc":
+		"Start building your personal collection by discovering movies, TV shows, and games.",
 	"empty.no_match_title": "No Matching Media",
-	"empty.no_match_desc": "No titles match your active filters or search terms. Try clearing them to see all your media.",
+	"empty.no_match_desc":
+		"No titles match your active filters or search terms. Try clearing them to see all your media.",
 	"empty.discover_media": "Discover Media",
 	"empty.import_list": "Import List",
 	"empty.clear_filters": "Clear All Filters",
@@ -140,34 +144,43 @@ export const en = {
 	"profile.theme_dark": "Dark",
 	"profile.regional_title": "Regional & Localization",
 	"profile.ui_language": "Interface Language",
-	"profile.ui_language_desc": "Change the display language of the Watcharr user interface.",
+	"profile.ui_language_desc":
+		"Change the display language of the Watcharr user interface.",
 	"profile.country_title": "Country & Region",
-	"profile.country_desc": "Select your region to display local streaming availability and watch providers.",
+	"profile.country_desc":
+		"Select your region to display local streaming availability and watch providers.",
 	"profile.meta_language_title": "Metadata Language",
-	"profile.meta_language_desc": "Preferred language for movie and show titles, overviews, and season details from TMDB.",
+	"profile.meta_language_desc":
+		"Preferred language for movie and show titles, overviews, and season details from TMDB.",
 	"profile.privacy_title": "Privacy & Social",
 	"profile.private_account": "Private Account",
-	"profile.private_account_desc": "Hide your profile and watched library from community searches.",
+	"profile.private_account_desc":
+		"Hide your profile and watched library from community searches.",
 	"profile.private_thoughts": "Private Thoughts",
-	"profile.private_thoughts_desc": "Hide your personal notes and written thoughts from followers.",
+	"profile.private_thoughts_desc":
+		"Hide your personal notes and written thoughts from followers.",
 	"profile.behavior_title": "Playback & Library Behavior",
 	"profile.hide_spoilers": "Hide Spoilers",
-	"profile.hide_spoilers_desc": "Blur episode titles, descriptions, and thumbnails until marked as watched.",
+	"profile.hide_spoilers_desc":
+		"Blur episode titles, descriptions, and thumbnails until marked as watched.",
 	"profile.automate_statuses": "Automate Show Statuses",
-	"profile.automate_statuses_desc": "Automatically update show and season watch status when episodes are tracked.",
+	"profile.automate_statuses_desc":
+		"Automatically update show and season watch status when episodes are tracked.",
 	"profile.include_previously_watched": "Include Previously Watched",
-	"profile.include_previously_watched_desc": "Include previously finished items in the 'Finished' library filter.",
+	"profile.include_previously_watched_desc":
+		"Include previously finished items in the 'Finished' library filter.",
 	"profile.rating_scale": "Rating Scale",
 	"profile.data_integrations": "Data & Integrations",
-	"profile.data_integrations_desc": "Manage library imports, exports, and server synchronization.",
+	"profile.data_integrations_desc":
+		"Manage library imports, exports, and server synchronization.",
 	"profile.import_data": "Import Data",
 	"profile.export_list": "Export List",
 	"profile.change_password": "Change Password",
 	"profile.sync_with": "Sync With {service}",
 	"profile.dashboard_integrations": "Homelab & Dashboards",
 	"profile.clear_library": "Clear Entire Library",
-	"profile.clear_library_desc": "Delete all movies, shows and games from your personal library (ideal for resetting tests or re-configuring).",
+	"profile.clear_library_desc":
+		"Delete all movies, shows and games from your personal library (ideal for resetting tests or re-configuring).",
 } as const;
 
 export type TranslationKey = keyof typeof en;
-

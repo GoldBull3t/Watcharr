@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
 	import Error from "@/lib/Error.svelte";
-	import Spinner from "@/lib/Spinner.svelte";
 	import RequestMovie from "@/lib/request/RequestMovie.svelte";
 	import RequestShow from "@/lib/request/RequestShow.svelte";
 	import { baseURL, req } from "@/lib/util/api";
@@ -14,6 +13,7 @@
 	let showBeingApproved: Media | undefined = $state();
 	let movieBeingApproved: Media | undefined = $state();
 	let beingApprovedOriginalRequest: ArrRequestResponse | undefined = $state();
+	let getRequestsPromise = $state(getRequests());
 
 	async function getRequests() {
 		try {
@@ -34,7 +34,7 @@
 	async function deny(r: ArrRequestResponse) {
 		try {
 			await req.post(`/arr/request/deny/${r.id}`);
-			getRequests();
+			getRequestsPromise = getRequests();
 		} catch (err) {
 			console.error("Failed to deny request!", err);
 			notify({ type: "error", text: "Failed when denying request!" });
@@ -88,9 +88,27 @@
 			{/if}
 		</div>
 
-		{#await getRequests()}
-			<div class="spinner-wrap">
-				<Spinner />
+		{#await getRequestsPromise}
+			<div
+				class="request-container skeleton-requests"
+				aria-hidden="true"
+				role="status"
+			>
+				{#each Array.from({ length: 3 }, (__, idx) => idx) as i (i)}
+					<div class="request-card skeleton-card">
+						<div class="card-poster shimmer"></div>
+						<div class="card-content">
+							<div class="card-header">
+								<div class="skeleton-line shimmer title"></div>
+								<div class="skeleton-line shimmer sub"></div>
+							</div>
+							<div class="card-footer">
+								<div class="skeleton-line shimmer user"></div>
+								<div class="skeleton-btn shimmer"></div>
+							</div>
+						</div>
+					</div>
+				{/each}
 			</div>
 		{:then}
 			<div class="request-container">
@@ -197,7 +215,13 @@
 				{/if}
 			</div>
 		{:catch err}
-			<Error error={err} pretty="Failed to fetch media requests!" />
+			<Error
+				error={err}
+				pretty="Failed to fetch media requests!"
+				onRetry={() => {
+					getRequestsPromise = getRequests();
+				}}
+			/>
 		{/await}
 
 		{#if showBeingApproved}
@@ -207,7 +231,7 @@
 				originalRequest={beingApprovedOriginalRequest}
 				onClose={() => {
 					showBeingApproved = undefined;
-					getRequests();
+					getRequestsPromise = getRequests();
 				}}
 			/>
 		{:else if movieBeingApproved}
@@ -217,7 +241,7 @@
 				originalRequest={beingApprovedOriginalRequest}
 				onClose={() => {
 					movieBeingApproved = undefined;
-					getRequests();
+					getRequestsPromise = getRequests();
 				}}
 			/>
 		{/if}
@@ -269,7 +293,7 @@
 				font-size: 12px;
 				font-weight: 700;
 				padding: 4px 12px;
-				border-radius: 20px;
+				border-radius: 9999px;
 				background: rgba(245, 158, 11, 0.15);
 				color: #fbbf24;
 				border: 1px solid rgba(245, 158, 11, 0.3);
@@ -279,7 +303,7 @@
 				font-size: 12px;
 				font-weight: 600;
 				padding: 4px 12px;
-				border-radius: 20px;
+				border-radius: 9999px;
 				background: rgba(255, 255, 255, 0.06);
 				border: 1px solid rgba(255, 255, 255, 0.1);
 				color: $text-muted;
@@ -561,5 +585,58 @@
 			max-width: 380px;
 			margin: 0;
 		}
+	}
+
+	.skeleton-requests {
+		.skeleton-card {
+			pointer-events: none;
+			border-color: rgba(255, 255, 255, 0.05);
+
+			.skeleton-line {
+				border-radius: 4px;
+
+				&.title {
+					height: 18px;
+					width: 60%;
+				}
+
+				&.sub {
+					height: 12px;
+					width: 85%;
+					margin-top: 8px;
+				}
+
+				&.user {
+					height: 12px;
+					width: 120px;
+				}
+			}
+
+			.skeleton-btn {
+				height: 28px;
+				width: 80px;
+				border-radius: 6px;
+			}
+		}
+	}
+
+	@keyframes shimmer {
+		0% {
+			background-position: -200% 0;
+		}
+		100% {
+			background-position: 200% 0;
+		}
+	}
+
+	.shimmer {
+		background: linear-gradient(
+			90deg,
+			rgba(20, 24, 36, 0.75) 0%,
+			rgba(38, 46, 68, 0.9) 50%,
+			rgba(20, 24, 36, 0.75) 100%
+		);
+		background-size: 200% 100%;
+		animation: shimmer 1.8s infinite ease-in-out;
 	}
 </style>

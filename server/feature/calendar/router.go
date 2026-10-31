@@ -57,7 +57,12 @@ type WebhookTestReq struct {
 func (r *Router) TestCalendarWebhook(c *gin.Context) {
 	userId := c.MustGet("userId").(uint)
 	var body WebhookTestReq
-	_ = c.ShouldBindJSON(&body)
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid request body"})
+			return
+		}
+	}
 
 	msg, err := r.s.TestWebhook(userId, body.Url)
 	if err != nil {
@@ -90,4 +95,3 @@ func (r *Router) SendCalendarWebhook(c *gin.Context) {
 		"message": msg,
 	})
 }
-

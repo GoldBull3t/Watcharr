@@ -19,12 +19,16 @@
 		"#64748b", // Slate
 	];
 
-	let totalCount = $derived(genres.reduce((acc, g) => acc + (g.count ?? (g as any).Count ?? 0), 0));
+	let totalCount = $derived(
+		genres.reduce((acc, g) => acc + (g.count ?? (g as any).Count ?? 0), 0),
+	);
 
 	let topGenres = $derived.by(() => {
 		if (genres.length <= 6) return genres;
 		const head = genres.slice(0, 5);
-		const othersCount = genres.slice(5).reduce((acc, g) => acc + (g.count ?? (g as any).Count ?? 0), 0);
+		const othersCount = genres
+			.slice(5)
+			.reduce((acc, g) => acc + (g.count ?? (g as any).Count ?? 0), 0);
 		return [...head, { name: "Outros", count: othersCount }];
 	});
 
@@ -107,7 +111,9 @@
 		<div class="donut-center-info">
 			{#if activeSlice}
 				<span class="center-pct">{activeSlice.percent}%</span>
-				<span class="center-name" title={activeSlice.name}>{activeSlice.name}</span>
+				<span class="center-name" title={activeSlice.name}
+					>{activeSlice.name}</span
+				>
 				<span class="center-sub">{activeSlice.count} títulos</span>
 			{:else}
 				<span class="center-pct">0%</span>
@@ -127,7 +133,8 @@
 				role="button"
 				tabindex="0"
 			>
-				<span class="legend-dot" style={`background-color: ${slice.color};`}></span>
+				<span class="legend-dot" style={`background-color: ${slice.color};`}
+				></span>
 				<span class="legend-name">{slice.name}</span>
 				<span class="legend-val">{slice.percent}%</span>
 			</div>
@@ -160,7 +167,10 @@
 				transform: rotate(-90deg);
 
 				.donut-segment {
-					transition: stroke-width 160ms ease, opacity 160ms ease, filter 160ms ease;
+					transition:
+						stroke-width 160ms ease,
+						opacity 160ms ease,
+						filter 160ms ease;
 					cursor: pointer;
 
 					&:hover,

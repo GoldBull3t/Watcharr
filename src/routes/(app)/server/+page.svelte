@@ -60,10 +60,13 @@
 		}
 		overseerrTesting = true;
 		try {
-			const res = await req.post<{ version?: string; commitTag?: string }>("/seerr/test", {
-				host: serverConfig.OVERSEERR_HOST,
-				key: serverConfig.OVERSEERR_KEY,
-			});
+			const res = await req.post<{ version?: string; commitTag?: string }>(
+				"/seerr/test",
+				{
+					host: serverConfig.OVERSEERR_HOST,
+					key: serverConfig.OVERSEERR_KEY,
+				},
+			);
 			notify({
 				type: "success",
 				text: `Connected to Overseerr/Jellyseerr! Version: ${res.version || res.commitTag || "OK"}`,
@@ -560,7 +563,9 @@
 						title="Jellyseerr / Overseerr"
 						desc="Connect to Jellyseerr or Overseerr to handle media requests and check real-time availability."
 					>
-						<div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+						<div
+							style="display: flex; flex-direction: column; gap: 8px; width: 100%;"
+						>
 							<input
 								type="text"
 								placeholder="Host (e.g. http://jellyseerr:5055 or https://requests.example.com)"
@@ -595,17 +600,24 @@
 								}}
 								disabled={overseerrKeyDisabled}
 							/>
-							<div style="display: flex; gap: 10px; align-items: center; margin-top: 4px;">
+							<div
+								style="display: flex; gap: 10px; align-items: center; margin-top: 4px;"
+							>
 								<button
 									class="btn"
 									style="padding: 6px 14px; font-size: 13px; font-weight: 600;"
-									disabled={overseerrTesting || !serverConfig.OVERSEERR_HOST || !serverConfig.OVERSEERR_KEY}
+									disabled={overseerrTesting ||
+										!serverConfig.OVERSEERR_HOST ||
+										!serverConfig.OVERSEERR_KEY}
 									onclick={testOverseerrConnection}
 								>
 									{overseerrTesting ? "Testing..." : "Test Connection"}
 								</button>
 								{#if serverConfig.OVERSEERR_HOST && serverConfig.OVERSEERR_KEY}
-									<span style="font-size: 12px; color: #10b981; font-weight: 600;">Configured</span>
+									<span
+										style="font-size: 12px; color: #10b981; font-weight: 600;"
+										>Configured</span
+									>
 								{/if}
 							</div>
 						</div>

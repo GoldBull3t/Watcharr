@@ -1,11 +1,11 @@
 package episode
 
 import (
-	"time"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/sbondCo/Watcharr/activity"
 	"github.com/sbondCo/Watcharr/database/entity"
@@ -202,18 +202,29 @@ func (s *Service) SetWatchedEpisode(
 			SetReason(ar.AddActivityReason).
 			AddToMultiCreator(activityMC)
 	}
-		if err := s.db.Save(wEpisode).Error; err != nil {
-		slog.Debug("SetWatchedEpisode: Save query failed.", "error", err)
-		return domain.WatchedEpisodeSetResponse{}, errors.New("failed to save")
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(wEpisode).Error; err != nil {
+			slog.Debug("SetWatchedEpisode: Save query failed.", "error", err)
+			return errors.New("failed to save")
+		}
+
+		// Touch Watched entry UpdatedAt so Continue Watching and Up Next re-sort immediately
+		if err := tx.Model(&entity.Watched{}).Where("user_id = ? AND id = ?", userId, ar.WatchedID).Update("updated_at", time.Now()).Error; err != nil {
+			return err
+		}
+
+		addedActivities, err := activityMC.CreateAllTx(tx)
+		if err != nil {
+			return err
+		}
+
+		resp.WatchedEpisode = *wEpisode
+		resp.AddedActivities = addedActivities
+		return nil
+	})
+	if err != nil {
+		return domain.WatchedEpisodeSetResponse{}, err
 	}
-
-	// Touch Watched entry UpdatedAt so Continue Watching and Up Next re-sort immediately
-	s.db.Model(&entity.Watched{}).Where("user_id = ? AND id = ?", userId, ar.WatchedID).Update("updated_at", time.Now())
-
-	addedActivities := activityMC.CreateAll()
-
-	resp.WatchedEpisode = *wEpisode
-	resp.AddedActivities = addedActivities
 
 	if ar.Status != "" {
 		slog.Debug("SetWatchedEpisode: Episode status was changed, calling hook.")
@@ -234,13 +245,13 @@ func (s *Service) SetWatchedEpisode(
 					evt = "media.finished"
 				}
 				integration.DispatchActivityWebhook(s.db, userId, integration.ActivityWebhookPayload{
-					Event:       evt,
-					Status:      string(ar.Status),
-					MediaType:   "tv",
-					Title:       w.Content.Title,
-					Season:      ar.SeasonNumber,
-					Episode:     ar.EpisodeNumber,
-					Poster:      integration.BuildPosterURL(w.Content.PosterPath),
+					Event:     evt,
+					Status:    string(ar.Status),
+					MediaType: "tv",
+					Title:     w.Content.Title,
+					Season:    ar.SeasonNumber,
+					Episode:   ar.EpisodeNumber,
+					Poster:    integration.BuildPosterURL(w.Content.PosterPath),
 				})
 			}
 		}()
@@ -251,45 +262,63 @@ func (s *Service) SetWatchedEpisode(
 
 // Remove a watched episode
 func (s *Service) rmWatchedEpisode(userId uint, id uint) (entity.Activity, error) {
-	slog.Debug("rmWatchedSeason called", "user_id", userId, "id", id)
-	var watchedEpisode entity.WatchedEpisode
-	resp := s.db.
-		Clauses(clause.Returning{}).
-		Model(&entity.WatchedEpisode{}).
-		Unscoped().
-		Where("id = ? AND user_id = ?", id, userId).
-		Delete(&watchedEpisode)
-	if resp.Error != nil {
-		slog.Error("Failed when removing a watched episode", "error", resp.Error)
-		return entity.Activity{}, errors.New("failed when removing watched episode")
-	}
-	if resp.RowsAffected == 0 {
-		slog.Error("Failed when removing a watched episode", "error", "zero rows affected")
-		return entity.Activity{}, errors.New("wasn't removed from db.. may not exist")
-	}
-	slog.Debug("rmWatchedEpisode, deleted row", "row", watchedEpisode)
+	slog.Debug("rmWatchedEpisode called", "user_id", userId, "id", id)
+	var (
+		watchedEpisode entity.WatchedEpisode
+		addedActivity  entity.Activity
+	)
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		resp := tx.
+			Clauses(clause.Returning{}).
+			Model(&entity.WatchedEpisode{}).
+			Unscoped().
+			Where("id = ? AND user_id = ?", id, userId).
+			Delete(&watchedEpisode)
+		if resp.Error != nil {
+			slog.Error("Failed when removing a watched episode", "error", resp.Error)
+			return errors.New("failed when removing watched episode")
+		}
+		if resp.RowsAffected == 0 {
+			slog.Error("Failed when removing a watched episode", "error", "zero rows affected")
+			return errors.New("wasn't removed from db.. may not exist")
+		}
+		slog.Debug("rmWatchedEpisode, deleted row", "row", watchedEpisode)
 		if watchedEpisode.ID != 0 {
-		s.db.Model(&entity.Watched{}).Where("user_id = ? AND id = ?", userId, watchedEpisode.WatchedID).Update("updated_at", time.Now())
-		json, _ := json.Marshal(map[string]interface{}{
-			"season":  watchedEpisode.SeasonNumber,
-			"episode": watchedEpisode.EpisodeNumber,
-			"status":  watchedEpisode.Status,
-			"rating":  watchedEpisode.Rating,
-		})
-		addedActivity, _ := activity.
-			NewCreator(
-				s.db,
-				userId,
-				watchedEpisode.WatchedID,
-				entity.EPISODE_REMOVED,
-				false,
-				0,
-			).
-			SetData(string(json)).
-			Create()
-		return addedActivity, nil
+			if err := tx.Model(&entity.Watched{}).Where("user_id = ? AND id = ?", userId, watchedEpisode.WatchedID).Update("updated_at", time.Now()).Error; err != nil {
+				return err
+			}
+			jsonBytes, err := json.Marshal(map[string]interface{}{
+				"season":  watchedEpisode.SeasonNumber,
+				"episode": watchedEpisode.EpisodeNumber,
+				"status":  watchedEpisode.Status,
+				"rating":  watchedEpisode.Rating,
+			})
+			if err != nil {
+				slog.Error("rmWatchedEpisode: failed to marshal json", "error", err)
+			}
+			act, err := activity.
+				NewCreator(
+					tx,
+					userId,
+					watchedEpisode.WatchedID,
+					entity.EPISODE_REMOVED,
+					false,
+					0,
+				).
+				SetData(string(jsonBytes)).
+				Create()
+			if err != nil {
+				slog.Error("rmWatchedEpisode: failed to create activity in tx", "error", err)
+				return err
+			}
+			addedActivity = act
+		}
+		return nil
+	})
+	if err != nil {
+		return entity.Activity{}, err
 	}
-	return entity.Activity{}, errors.New("removed, but failed to add activity entry")
+	return addedActivity, nil
 }
 
 func (s *Service) getNumberOfWatchedEpisodesInSeason(

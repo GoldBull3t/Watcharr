@@ -23,7 +23,11 @@ export function isPushSupported(): boolean {
 	if (typeof window === "undefined" || typeof navigator === "undefined") {
 		return false;
 	}
-	return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+	return (
+		"serviceWorker" in navigator &&
+		"PushManager" in window &&
+		"Notification" in window
+	);
 }
 
 export async function getPushStatus(): Promise<PushStatus> {
@@ -52,7 +56,10 @@ export async function getPushStatus(): Promise<PushStatus> {
 
 export async function subscribeToPush(): Promise<boolean> {
 	if (!isPushSupported()) {
-		notify({ text: "Notificações Web Push não são suportadas neste navegador.", type: "error" });
+		notify({
+			text: "Notificações Web Push não são suportadas neste navegador.",
+			type: "error",
+		});
 		return false;
 	}
 
@@ -60,14 +67,20 @@ export async function subscribeToPush(): Promise<boolean> {
 		// 1. Request Notification permission
 		const permission = await Notification.requestPermission();
 		if (permission !== "granted") {
-			notify({ text: "Permissão de notificações recusada pelo utilizador.", type: "error" });
+			notify({
+				text: "Permissão de notificações recusada pelo utilizador.",
+				type: "error",
+			});
 			return false;
 		}
 
 		// 2. Fetch VAPID Public Key from backend
 		const keyRes = await req.get<{ publicKey: string }>("push/key");
 		if (!keyRes || !keyRes.publicKey) {
-			notify({ text: "Falha ao obter chave VAPID do servidor.", type: "error" });
+			notify({
+				text: "Falha ao obter chave VAPID do servidor.",
+				type: "error",
+			});
 			return false;
 		}
 
@@ -85,7 +98,10 @@ export async function subscribeToPush(): Promise<boolean> {
 
 		const subJSON = sub.toJSON();
 		if (!subJSON.endpoint || !subJSON.keys?.p256dh || !subJSON.keys?.auth) {
-			notify({ text: "Assinatura Push incompleta recebida do navegador.", type: "error" });
+			notify({
+				text: "Assinatura Push incompleta recebida do navegador.",
+				type: "error",
+			});
 			return false;
 		}
 
@@ -99,11 +115,17 @@ export async function subscribeToPush(): Promise<boolean> {
 			userAgent: navigator.userAgent,
 		});
 
-		notify({ text: "Notificações Web Push ativadas com sucesso!", type: "success" });
+		notify({
+			text: "Notificações Web Push ativadas com sucesso!",
+			type: "success",
+		});
 		return true;
 	} catch (err: any) {
 		console.error("subscribeToPush error:", err);
-		notify({ text: `Erro ao ativar notificações: ${err?.message || "falha desconhecida"}`, type: "error" });
+		notify({
+			text: `Erro ao ativar notificações: ${err?.message || "falha desconhecida"}`,
+			type: "error",
+		});
 		return false;
 	}
 }
@@ -125,7 +147,10 @@ export async function unsubscribeFromPush(): Promise<boolean> {
 		return true;
 	} catch (err: any) {
 		console.error("unsubscribeFromPush error:", err);
-		notify({ text: `Erro ao desativar notificações: ${err?.message || "falha"}`, type: "error" });
+		notify({
+			text: `Erro ao desativar notificações: ${err?.message || "falha"}`,
+			type: "error",
+		});
 		return false;
 	}
 }
@@ -134,14 +159,22 @@ export async function sendTestNotification(): Promise<boolean> {
 	try {
 		const res = await req.post<{ success: boolean; sent: number }>("push/test");
 		if (res && res.success) {
-			notify({ text: "Notificação de teste enviada! Verifica o teu dispositivo.", type: "success" });
+			notify({
+				text: "Notificação de teste enviada! Verifica o teu dispositivo.",
+				type: "success",
+			});
 			return true;
 		}
-		notify({ text: "Nenhum dispositivo subscrito recebeu a notificação de teste.", type: "error" });
+		notify({
+			text: "Nenhum dispositivo subscrito recebeu a notificação de teste.",
+			type: "error",
+		});
 		return false;
 	} catch (err: any) {
-		notify({ text: `Erro ao enviar teste: ${err?.message || "falha"}`, type: "error" });
+		notify({
+			text: `Erro ao enviar teste: ${err?.message || "falha"}`,
+			type: "error",
+		});
 		return false;
 	}
 }
-

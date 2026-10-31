@@ -37,7 +37,8 @@ export default function infScroll(opts: ToolTipOptions) {
 	};
 
 	const isNearBottom = () => {
-		if (typeof window === "undefined" || typeof document === "undefined") return false;
+		if (typeof window === "undefined" || typeof document === "undefined")
+			return false;
 		const scrollPos = window.innerHeight + Math.round(window.scrollY);
 		const scrollTarget = Math.max(
 			document.documentElement.scrollHeight,

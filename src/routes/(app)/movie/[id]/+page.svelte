@@ -38,6 +38,8 @@
 	import MediaLightbox from "@/lib/content/MediaLightbox.svelte";
 	import FranchiseBadgeLink from "@/lib/franchise/FranchiseBadgeLink.svelte";
 	import ExternalRatingsBar from "@/lib/content/ExternalRatingsBar.svelte";
+	import MediaDetailSkeleton from "@/lib/content/MediaDetailSkeleton.svelte";
+	import { untrack } from "svelte";
 
 	let { data } = $props();
 
@@ -48,44 +50,45 @@
 	let pageError: unknown | undefined = $state();
 	let galleryOpen = $state(false);
 
+	async function loadMovie(signal?: AbortSignal) {
+		try {
+			movie = undefined;
+			pageError = undefined;
+			if (!data.movieId) {
+				return;
+			}
+			const region = untrack(() => store.userSettings?.country);
+			const resp = await req.get<Media>(`/content/movie/${data.movieId}`, {
+				params: { region },
+				signal,
+			});
+			if (signal?.aborted) return;
+			if (resp) {
+				if (resp.name && resp.ids.tmdb) {
+					contentExistsOnJellyfin("movie", resp.name, resp.ids.tmdb).then(
+						(j) => {
+							if (!signal?.aborted && j?.hasContent && j?.url !== "") {
+								jellyfinUrl = j.url;
+							}
+						},
+					);
+				}
+				movie = resp;
+			} else {
+				movie = undefined;
+			}
+		} catch (err: unknown) {
+			if (signal?.aborted) return;
+			movie = undefined;
+			pageError = err;
+		}
+	}
+
 	$effect(() => {
 		const controller = new AbortController();
-		(async () => {
-			try {
-				movie = undefined;
-				pageError = undefined;
-				if (!data.movieId) {
-					return;
-				}
-				const resp = await req.get<Media>(`/content/movie/${data.movieId}`, {
-					params: { region: store.userSettings?.country },
-					signal: controller.signal,
-				});
-				if (controller.signal.aborted) return;
-				if (resp) {
-					if (resp.name && resp.ids.tmdb) {
-						contentExistsOnJellyfin("movie", resp.name, resp.ids.tmdb).then(
-							(j) => {
-								if (
-									!controller.signal.aborted &&
-									j?.hasContent &&
-									j?.url !== ""
-								) {
-									jellyfinUrl = j.url;
-								}
-							},
-						);
-					}
-					movie = resp;
-				} else {
-					movie = undefined;
-				}
-			} catch (err: unknown) {
-				if (controller.signal.aborted) return;
-				movie = undefined;
-				pageError = err;
-			}
-		})();
+		if (data.movieId) {
+			loadMovie(controller.signal);
+		}
 		return () => controller.abort();
 	});
 
@@ -134,9 +137,13 @@
 </svelte:head>
 
 {#if pageError}
-	<Error pretty="Failed to load movie!" error={pageError} />
+	<Error
+		pretty="Failed to load movie!"
+		error={pageError}
+		onRetry={() => loadMovie()}
+	/>
 {:else if !movie}
-	<Spinner />
+	<MediaDetailSkeleton type="movie" />
 {:else if Object.keys(movie).length > 0}
 	{#if movie?.extBackdropPath}
 		<PageBackdrop

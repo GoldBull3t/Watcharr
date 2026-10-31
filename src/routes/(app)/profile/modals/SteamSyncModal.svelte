@@ -47,7 +47,10 @@
 	async function handleConnect(e?: Event) {
 		if (e) e.preventDefault();
 		if (!steamIdInput.trim()) {
-			notify({ text: "Insere o teu SteamID ou link do perfil Steam.", type: "error" });
+			notify({
+				text: "Insere o teu SteamID ou link do perfil Steam.",
+				type: "error",
+			});
 			return;
 		}
 
@@ -128,7 +131,11 @@
 				<div class="profile-card">
 					<div class="avatar-area">
 						{#if status.avatar}
-							<img src={status.avatar} alt={status.personaName || "Steam User"} class="steam-avatar" />
+							<img
+								src={status.avatar}
+								alt={status.personaName || "Steam User"}
+								class="steam-avatar"
+							/>
 						{:else}
 							<div class="avatar-fallback">
 								<Icon i="gamepad" />
@@ -146,8 +153,11 @@
 
 				<div class="info-note">
 					<p>
-						O Watcharr compara os títulos dos jogos registados na tua biblioteca com a tua conta Steam,
-						atualizando automaticamente as <b>horas jogadas</b> e definindo a plataforma como <b>PC / Steam</b>.
+						O Watcharr compara os títulos dos jogos registados na tua biblioteca
+						com a tua conta Steam, atualizando automaticamente as <b
+							>horas jogadas</b
+						>
+						e definindo a plataforma como <b>PC / Steam</b>.
 					</p>
 				</div>
 
@@ -193,11 +203,14 @@
 			{:else}
 				<form onsubmit={handleConnect} class="connect-form">
 					<p class="desc">
-						Liga a tua conta Steam para sincronizar automaticamente as tuas horas jogadas e estatísticas no Watcharr.
+						Liga a tua conta Steam para sincronizar automaticamente as tuas
+						horas jogadas e estatísticas no Watcharr.
 					</p>
 
 					<div class="form-group">
-						<label for="steam-id-input">SteamID, URL do Perfil ou Nome Personalizado:</label>
+						<label for="steam-id-input"
+							>SteamID, URL do Perfil ou Nome Personalizado:</label
+						>
 						<input
 							id="steam-id-input"
 							type="text"
@@ -205,11 +218,16 @@
 							placeholder="Ex: 76561198000000000 ou https://steamcommunity.com/id/nome"
 							required
 						/>
-						<span class="hint">Aceita SteamID64 numérico de 17 dígitos, link direto ou Vanity URL.</span>
+						<span class="hint"
+							>Aceita SteamID64 numérico de 17 dígitos, link direto ou Vanity
+							URL.</span
+						>
 					</div>
 
 					<div class="form-group">
-						<label for="steam-api-key-input">Steam Web API Key (Opcional):</label>
+						<label for="steam-api-key-input"
+							>Steam Web API Key (Opcional):</label
+						>
 						<input
 							id="steam-api-key-input"
 							type="password"
@@ -218,7 +236,11 @@
 						/>
 						<span class="hint">
 							Podes obter uma chave gratuita instantaneamente em
-							<a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noreferrer">
+							<a
+								href="https://steamcommunity.com/dev/apikey"
+								target="_blank"
+								rel="noreferrer"
+							>
 								steamcommunity.com/dev/apikey
 							</a>.
 						</span>
@@ -484,4 +506,3 @@
 		}
 	}
 </style>
-

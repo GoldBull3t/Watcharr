@@ -112,7 +112,11 @@
 				<a href={resolve(`/tv/${item.showTmdbId}`)} class="up-next-card">
 					<div class="card-media">
 						{#if bgUrl}
-							<img src={bgUrl} alt={item.episodeName || item.showTitle} loading="lazy" />
+							<img
+								src={bgUrl}
+								alt={item.episodeName || item.showTitle}
+								loading="lazy"
+							/>
 						{:else}
 							<div class="media-fallback">
 								<Icon i="tv" wh={32} />
@@ -158,8 +162,13 @@
 
 						<!-- Bottom Meta Details -->
 						<div class="card-bottom">
-							<span class="show-title" title={item.showTitle}>{item.showTitle}</span>
-							<strong class="ep-title" title={item.episodeName || `Episódio ${item.episodeNumber}`}>
+							<span class="show-title" title={item.showTitle}
+								>{item.showTitle}</span
+							>
+							<strong
+								class="ep-title"
+								title={item.episodeName || `Episódio ${item.episodeNumber}`}
+							>
 								{item.episodeName || `Episódio ${item.episodeNumber}`}
 							</strong>
 						</div>
@@ -427,4 +436,3 @@
 		}
 	}
 </style>
-

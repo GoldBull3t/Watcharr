@@ -2,6 +2,7 @@ package extratings
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -100,12 +101,14 @@ func FetchEnrichments(opts FetchOptions) (*domain.ExternalRatings, string) {
 	}
 
 	var (
-		mu            sync.Mutex
-		wg            sync.WaitGroup
-		result        domain.ExternalRatings
-		hasData       bool
-		certification string
+		mu             sync.Mutex
+		wg             sync.WaitGroup
+		result         domain.ExternalRatings
+		hasData        bool
+		certification  string
+		reqCtx, cancel = context.WithTimeout(context.Background(), 4*time.Second)
 	)
+	defer cancel()
 
 	// 1. OMDb API (IMDb, Rotten Tomatoes, Metacritic, Awards, BoxOffice, Rated)
 	if opts.OMDBKey != "" && opts.ImdbID != "" {
@@ -113,7 +116,11 @@ func FetchEnrichments(opts FetchOptions) (*domain.ExternalRatings, string) {
 		go func() {
 			defer wg.Done()
 			u := fmt.Sprintf("https://www.omdbapi.com/?i=%s&apikey=%s", url.QueryEscape(opts.ImdbID), url.QueryEscape(opts.OMDBKey))
-			resp, err := httpClient.Get(u)
+			req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, u, nil)
+			if err != nil {
+				return
+			}
+			resp, err := httpClient.Do(req)
 			if err != nil {
 				return
 			}
@@ -177,7 +184,11 @@ func FetchEnrichments(opts FetchOptions) (*domain.ExternalRatings, string) {
 				}
 				u = fmt.Sprintf("https://mdblist.com/api/?apikey=%s&tm=%d&m=%s", url.QueryEscape(opts.MDBListKey), opts.TMDBID, mType)
 			}
-			resp, err := httpClient.Get(u)
+			req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, u, nil)
+			if err != nil {
+				return
+			}
+			resp, err := httpClient.Do(req)
 			if err != nil {
 				return
 			}
@@ -249,7 +260,11 @@ func FetchEnrichments(opts FetchOptions) (*domain.ExternalRatings, string) {
 			} else {
 				u = "https://api.tvmaze.com/lookup/shows?thetvdb=" + strconv.Itoa(opts.TvdbID)
 			}
-			resp, err := httpClient.Get(u)
+			req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, u, nil)
+			if err != nil {
+				return
+			}
+			resp, err := httpClient.Do(req)
 			if err != nil {
 				return
 			}
@@ -306,7 +321,7 @@ func FetchEnrichments(opts FetchOptions) (*domain.ExternalRatings, string) {
 					"search": searchTitle,
 				},
 			})
-			req, err := http.NewRequest("POST", "https://graphql.anilist.co", bytes.NewReader(payload))
+			req, err := http.NewRequestWithContext(reqCtx, "POST", "https://graphql.anilist.co", bytes.NewReader(payload))
 			if err != nil {
 				return
 			}
@@ -383,4 +398,3 @@ func formatRatingValue(v interface{}) string {
 		return fmt.Sprintf("%v", val)
 	}
 }
-

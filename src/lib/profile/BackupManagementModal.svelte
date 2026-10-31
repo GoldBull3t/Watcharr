@@ -79,7 +79,9 @@
 	}
 
 	async function deleteBackup(filename: string) {
-		if (!confirm(`Are you sure you want to permanently delete "${filename}"?`)) {
+		if (
+			!confirm(`Are you sure you want to permanently delete "${filename}"?`)
+		) {
 			return;
 		}
 		deletingFilename = filename;
@@ -104,11 +106,14 @@
 	async function downloadBackup(b: BackupInfo) {
 		try {
 			const token = localStorage.getItem("token") || "";
-			const res = await fetch(`${baseURL}/backup/download/${encodeURIComponent(b.filename)}`, {
-				headers: {
-					Authorization: `Bearer ${token}`,
+			const res = await fetch(
+				`${baseURL}/backup/download/${encodeURIComponent(b.filename)}`,
+				{
+					headers: {
+						Authorization: `Bearer ${token}`,
+					},
 				},
-			});
+			);
 			if (!res.ok) {
 				throw new Error(`Download failed with ${res.status}`);
 			}
@@ -172,7 +177,12 @@
 		const target = e.target as HTMLInputElement;
 		if (!target?.files || target.files.length === 0) return;
 		const file = target.files[0];
-		if (!file.name.endsWith(".db.gz") && !file.name.endsWith(".json.gz") && !file.name.endsWith(".db") && !file.name.endsWith(".json")) {
+		if (
+			!file.name.endsWith(".db.gz") &&
+			!file.name.endsWith(".json.gz") &&
+			!file.name.endsWith(".db") &&
+			!file.name.endsWith(".json")
+		) {
 			notify({
 				text: "Unsupported archive format. Use .db.gz or .json.gz",
 				type: "error",
@@ -277,7 +287,9 @@
 				<div class="summary-card">
 					<span class="summary-label">Database Engine</span>
 					<div class="summary-val">
-						<span class="engine-badge">{config.driver?.toUpperCase() || "SQLITE"}</span>
+						<span class="engine-badge"
+							>{config.driver?.toUpperCase() || "SQLITE"}</span
+						>
 						<span class="sub-text">Zero-downtime WAL</span>
 					</div>
 				</div>
@@ -288,7 +300,11 @@
 		<div class="action-bar">
 			<div class="create-cluster">
 				<select class="format-select" bind:value={selectedFormat}>
-					<option value="auto">Auto Format ({config?.driver === "sqlite" ? "SQLite WAL" : "JSON"})</option>
+					<option value="auto"
+						>Auto Format ({config?.driver === "sqlite"
+							? "SQLite WAL"
+							: "JSON"})</option
+					>
 					<option value="sqlite">SQLite Snapshot (.db.gz)</option>
 					<option value="json">Universal JSON (.json.gz)</option>
 				</select>
@@ -338,7 +354,10 @@
 				<div class="empty-backups">
 					<Icon i="database" wh={42} />
 					<p>No database snapshots available yet.</p>
-					<span>Click "Create Backup Now" to generate your first zero-downtime snapshot.</span>
+					<span
+						>Click "Create Backup Now" to generate your first zero-downtime
+						snapshot.</span
+					>
 				</div>
 			{:else}
 				<table class="backups-table">
@@ -365,7 +384,11 @@
 									<div class="file-name" title={b.filename}>
 										{b.filename}
 									</div>
-									<span class="file-sub">{b.type === "sqlite" ? "Binary SQLite Snapshot" : "Universal JSON Dump"}</span>
+									<span class="file-sub"
+										>{b.type === "sqlite"
+											? "Binary SQLite Snapshot"
+											: "Universal JSON Dump"}</span
+									>
 								</td>
 								<td class="date-cell">{formatDate(b.createdAt)}</td>
 								<td class="size-cell">{b.formattedSize}</td>
@@ -409,7 +432,11 @@
 
 <!-- Restore Confirmation Modal -->
 {#if confirmRestoreModalOpen && backupToRestore}
-	<Modal title="⚠️ Confirm Database Restoration" maxWidth="520px" onClose={() => (confirmRestoreModalOpen = false)}>
+	<Modal
+		title="⚠️ Confirm Database Restoration"
+		maxWidth="520px"
+		onClose={() => (confirmRestoreModalOpen = false)}
+	>
 		<div class="confirm-restore-body">
 			<div class="warning-callout">
 				<div>
@@ -419,8 +446,9 @@
 			</div>
 
 			<p>
-				Watcharr will replace the active database content with the snapshot data.
-				A mandatory safety snapshot will be created automatically before restoring to ensure zero data loss.
+				Watcharr will replace the active database content with the snapshot
+				data. A mandatory safety snapshot will be created automatically before
+				restoring to ensure zero data loss.
 			</p>
 
 			<div class="restore-actions">
@@ -700,7 +728,8 @@
 		}
 	}
 
-	.date-cell, .size-cell {
+	.date-cell,
+	.size-cell {
 		color: var(--text-color-accent, #94a3b8);
 		white-space: nowrap;
 	}

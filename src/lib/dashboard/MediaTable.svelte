@@ -96,7 +96,10 @@
 										<span class="row-progress">{w.watched.watchingSeason}</span>
 									{/if}
 									{#if w.type === MediaTypeE.igdbGame && typeof w.watched?.hoursPlayed === "number" && w.watched.hoursPlayed > 0}
-										<span class="row-progress row-game-progress">🎮 {w.watched.hoursPlayed}h{#if w.watched.platform} • {w.watched.platform}{/if}</span>
+										<span class="row-progress row-game-progress"
+											>🎮 {w.watched.hoursPlayed}h{#if w.watched.platform}
+												• {w.watched.platform}{/if}</span
+										>
 									{/if}
 								</td>
 								<td class="col-type">

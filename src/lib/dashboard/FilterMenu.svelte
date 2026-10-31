@@ -43,7 +43,7 @@
 		};
 	}
 
-		function setProductionStatusFilter(ps: string | undefined) {
+	function setProductionStatusFilter(ps: string | undefined) {
 		store.activeFilters = {
 			...store.activeFilters,
 			productionStatus: ps,
@@ -250,7 +250,7 @@
 				<option value="canceled">❌ Cancelada pelos Produtores</option>
 				<option value="returning">📺 Em Exibição (Novas Temporadas)</option>
 				<option value="ended">✅ Terminada (Com Final)</option>
-						</select>
+			</select>
 		</div>
 
 		<!-- Tags Filter -->
@@ -265,21 +265,30 @@
 							onclick={toggleTagMode}
 							title="Alternar entre AND (todas) e OR (qualquer)"
 						>
-							{store.activeFilters?.tagMode === "or" ? "Modo: OU (Qualquer)" : "Modo: E (Todas)"}
+							{store.activeFilters?.tagMode === "or"
+								? "Modo: OU (Qualquer)"
+								: "Modo: E (Todas)"}
 						</button>
 					{/if}
 				</div>
 				<div class="tags-pill-wrap small-scrollbar">
 					{#each store.tags as t}
-						{@const isSelected = (store.activeFilters?.tags || []).includes(t.id)}
+						{@const isSelected = (store.activeFilters?.tags || []).includes(
+							t.id,
+						)}
 						<button
 							type="button"
 							class="tag-chip"
 							class:active={isSelected}
 							onclick={() => toggleTagFilter(t.id)}
-							title={isSelected ? `Remover filtro da tag ${t.name}` : `Filtrar por tag ${t.name}`}
+							title={isSelected
+								? `Remover filtro da tag ${t.name}`
+								: `Filtrar por tag ${t.name}`}
 						>
-							<span class="tag-color-dot" style={t.color ? `background-color: ${t.color}` : ""}></span>
+							<span
+								class="tag-color-dot"
+								style={t.color ? `background-color: ${t.color}` : ""}
+							></span>
 							<span class="tag-name">{t.name}</span>
 							{#if isSelected}
 								<span class="tag-check">&#10004;</span>
@@ -418,83 +427,83 @@
 				}
 			}
 			.tag-header-row {
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			gap: 6px;
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 6px;
 
-			.tag-mode-btn {
-				font-size: 10px;
-				font-weight: 700;
-				color: #eab308;
-				background: rgba(234, 179, 8, 0.12);
-				border: 1px solid rgba(234, 179, 8, 0.25);
-				border-radius: 4px;
-				padding: 1px 6px;
-				cursor: pointer;
-				transition: all 120ms ease;
+				.tag-mode-btn {
+					font-size: 10px;
+					font-weight: 700;
+					color: #eab308;
+					background: rgba(234, 179, 8, 0.12);
+					border: 1px solid rgba(234, 179, 8, 0.25);
+					border-radius: 4px;
+					padding: 1px 6px;
+					cursor: pointer;
+					transition: all 120ms ease;
 
-				&:hover {
-					background: rgba(234, 179, 8, 0.22);
+					&:hover {
+						background: rgba(234, 179, 8, 0.22);
+					}
 				}
 			}
-		}
 
-		.tags-pill-wrap {
-			display: flex;
-			flex-wrap: wrap;
-			gap: 5px;
-			max-height: 120px;
-			overflow-y: auto;
-			padding-right: 2px;
-
-			.tag-chip {
-				display: inline-flex;
-				align-items: center;
+			.tags-pill-wrap {
+				display: flex;
+				flex-wrap: wrap;
 				gap: 5px;
-				padding: 3px 8px;
-				border-radius: 6px;
-				border: 1px solid rgba(255, 255, 255, 0.1);
-				background: rgba(255, 255, 255, 0.05);
-				color: #e2e8f0;
-				font-size: 11px;
-				font-weight: 500;
-				cursor: pointer;
-				transition: all 120ms ease;
+				max-height: 120px;
+				overflow-y: auto;
+				padding-right: 2px;
 
-				&:hover {
-					border-color: rgba(255, 255, 255, 0.25);
-					background: rgba(255, 255, 255, 0.1);
-				}
+				.tag-chip {
+					display: inline-flex;
+					align-items: center;
+					gap: 5px;
+					padding: 3px 8px;
+					border-radius: 6px;
+					border: 1px solid rgba(255, 255, 255, 0.1);
+					background: rgba(255, 255, 255, 0.05);
+					color: #e2e8f0;
+					font-size: 11px;
+					font-weight: 500;
+					cursor: pointer;
+					transition: all 120ms ease;
 
-				&.active {
-					border-color: #eab308;
-					background: rgba(234, 179, 8, 0.16);
-					color: #fef08a;
-					font-weight: 600;
-				}
+					&:hover {
+						border-color: rgba(255, 255, 255, 0.25);
+						background: rgba(255, 255, 255, 0.1);
+					}
 
-				.tag-color-dot {
-					width: 7px;
-					height: 7px;
-					border-radius: 50%;
-					background-color: #94a3b8;
-					flex-shrink: 0;
-				}
+					&.active {
+						border-color: #eab308;
+						background: rgba(234, 179, 8, 0.16);
+						color: #fef08a;
+						font-weight: 600;
+					}
 
-				.tag-name {
-					max-width: 130px;
-					white-space: nowrap;
-					overflow: hidden;
-					text-overflow: ellipsis;
-				}
+					.tag-color-dot {
+						width: 7px;
+						height: 7px;
+						border-radius: 50%;
+						background-color: #94a3b8;
+						flex-shrink: 0;
+					}
 
-				.tag-check {
-					font-size: 9px;
-					color: #eab308;
+					.tag-name {
+						max-width: 130px;
+						white-space: nowrap;
+						overflow: hidden;
+						text-overflow: ellipsis;
+					}
+
+					.tag-check {
+						font-size: 9px;
+						color: #eab308;
+					}
 				}
 			}
 		}
 	}
-}
 </style>

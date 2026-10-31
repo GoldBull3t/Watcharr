@@ -13,16 +13,12 @@
 	let { showName, warning, description, onConfirm, onCancel }: Props = $props();
 </script>
 
-<Modal
-	title="Aviso de Cancelamento"
-	maxWidth="500px"
-	onClose={onCancel}
->
+<Modal title="Aviso de Cancelamento" maxWidth="500px" onClose={onCancel}>
 	<div class="warning-container">
 		<div class="warning-icon-badge">
 			<Icon i="close-circle" wh={32} />
 		</div>
-		
+
 		<div class="warning-content">
 			<h4>{showName || "Esta série"} foi cancelada sem desfecho!</h4>
 			{#if warning}
@@ -32,15 +28,14 @@
 				<p class="warning-desc">{description}</p>
 			{/if}
 			<p class="warning-note">
-				A produção foi descontinuada e termina com perguntas importantes e mistérios sem resolução. Desejas adicionar à tua lista mesmo assim?
+				A produção foi descontinuada e termina com perguntas importantes e
+				mistérios sem resolução. Desejas adicionar à tua lista mesmo assim?
 			</p>
 		</div>
 	</div>
 
 	<div class="actions">
-		<button class="secondary" onclick={onCancel}>
-			Cancelar
-		</button>
+		<button class="secondary" onclick={onCancel}> Cancelar </button>
 		<button class="danger-btn" onclick={onConfirm}>
 			<Icon i="add" wh={14} />
 			Adicionar Mesmo Assim
@@ -158,4 +153,3 @@
 		}
 	}
 </style>
-

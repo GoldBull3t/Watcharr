@@ -13,7 +13,10 @@
 	let { items }: Props = $props();
 </script>
 
-<section class="continue-watching-section" aria-label={t("dashboard.continue_watching")}>
+<section
+	class="continue-watching-section"
+	aria-label={t("dashboard.continue_watching")}
+>
 	<div class="section-header">
 		<div class="title-cluster">
 			<span class="header-icon-wrap">
@@ -22,7 +25,9 @@
 			<h3 class="norm">{t("dashboard.continue_watching")}</h3>
 			<span class="count-badge">{items.length}</span>
 		</div>
-		<span class="section-subtitle"> {t("dashboard.continue_watching_subtitle")} </span>
+		<span class="section-subtitle">
+			{t("dashboard.continue_watching_subtitle")}
+		</span>
 	</div>
 	<div class="continue-rail small-scrollbar">
 		{#each items.slice(0, 16) as item (item.ids.tmdb || item.ids.igdb || item.name)}

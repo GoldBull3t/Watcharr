@@ -23,9 +23,10 @@
 		if (disabled) {
 			actualDisabled = true;
 		} else {
-			setTimeout(() => {
+			const tid = setTimeout(() => {
 				actualDisabled = disabled;
 			}, 150);
+			return () => clearTimeout(tid);
 		}
 	});
 

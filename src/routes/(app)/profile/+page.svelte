@@ -3,7 +3,6 @@
 	import { resolve } from "$app/paths";
 	import Checkbox from "@/lib/Checkbox.svelte";
 	import Error from "@/lib/Error.svelte";
-	import Spinner from "@/lib/Spinner.svelte";
 	import Setting from "@/lib/settings/Setting.svelte";
 	import { req, updateUserSetting, baseURL } from "@/lib/util/api";
 	import {
@@ -72,10 +71,17 @@
 
 	async function wipeAllLibrary() {
 		isWipingLibrary = true;
-		const nid = notify({ text: "A limpar biblioteca completa...", type: "loading" });
+		const nid = notify({
+			text: "A limpar biblioteca completa...",
+			type: "loading",
+		});
 		try {
 			await req.post("/watched/bulk-delete", { all: true, hard: true });
-			notify({ id: nid, text: "Biblioteca limpa com sucesso!", type: "success" });
+			notify({
+				id: nid,
+				text: "Biblioteca limpa com sucesso!",
+				type: "success",
+			});
 			clearLibraryModalOpen = false;
 			getProfilePromise = getProfile();
 		} catch (err) {
@@ -195,7 +201,9 @@
 			: profile.statusDistributionType?.[tab] || {};
 	}
 
-	function getTotalInTab(dist: Record<string, number> | undefined | null): number {
+	function getTotalInTab(
+		dist: Record<string, number> | undefined | null,
+	): number {
 		if (!dist) return 0;
 		return Object.values(dist).reduce((a, b) => a + b, 0);
 	}
@@ -282,9 +290,21 @@
 			</div>
 
 			{#await getProfilePromise}
-				<div class="stats-loading">
-					<Spinner />
-					<p>{t("action.loading")}</p>
+				<div
+					class="hero-stats-grid skeleton-stats"
+					aria-hidden="true"
+					role="status"
+				>
+					{#each Array.from({ length: 4 }, (__, idx) => idx) as i (i)}
+						<div class="stat-card skeleton-card">
+							<div class="card-icon shimmer"></div>
+							<div class="stat-body">
+								<div class="skeleton-line shimmer stat-val"></div>
+								<div class="skeleton-line shimmer stat-lbl"></div>
+								<div class="skeleton-line shimmer stat-sub"></div>
+							</div>
+						</div>
+					{/each}
 				</div>
 			{:then profile}
 				<!-- Watcharr Wrapped Showcase -->
@@ -326,7 +346,9 @@
 							<span class="stat-value">{profile.showsWatched}</span>
 							<span class="stat-label">{t("profile.shows_completed")}</span>
 							<span class="stat-sub"
-								>{t("profile.in_progress", { count: profile.showsWatching || 0 })}</span
+								>{t("profile.in_progress", {
+									count: profile.showsWatching || 0,
+								})}</span
 							>
 						</div>
 					</div>
@@ -341,7 +363,9 @@
 							>
 							<span class="stat-label">{t("profile.screen_time")}</span>
 							<span class="stat-sub"
-								>{t("profile.member_since", { date: formatDate(new Date(profile.joined)) })}</span
+								>{t("profile.member_since", {
+									date: formatDate(new Date(profile.joined)),
+								})}</span
 							>
 						</div>
 					</div>
@@ -365,9 +389,7 @@
 						<div class="panel-header">
 							<div class="panel-title-wrap">
 								<h4 class="panel-title">{t("profile.collection_status")}</h4>
-								<span class="panel-subtitle"
-									>{t("profile.watch_states")}</span
-								>
+								<span class="panel-subtitle">{t("profile.watch_states")}</span>
 							</div>
 
 							<!-- Filter Tabs -->
@@ -659,7 +681,9 @@
 								<div class="panel-header">
 									<div class="panel-title-wrap">
 										<h4 class="panel-title">Top Studios & Networks</h4>
-										<span class="panel-subtitle">Produtoras e canais mais assistidos</span>
+										<span class="panel-subtitle"
+											>Produtoras e canais mais assistidos</span
+										>
 									</div>
 								</div>
 								<div class="chips-cloud">
@@ -678,7 +702,9 @@
 								<div class="panel-header">
 									<div class="panel-title-wrap">
 										<h4 class="panel-title">Top Game Developers</h4>
-										<span class="panel-subtitle">Estúdios de videojogos favoritos</span>
+										<span class="panel-subtitle"
+											>Estúdios de videojogos favoritos</span
+										>
 									</div>
 								</div>
 								<div class="chips-cloud">
@@ -737,7 +763,13 @@
 					</div>
 				{/if}
 			{:catch err}
-				<Error error={err} pretty="Failed to load lifetime stats!" />
+				<Error
+					error={err}
+					pretty="Failed to load lifetime stats!"
+					onRetry={() => {
+						getProfilePromise = getProfile();
+					}}
+				/>
 			{/await}
 		</section>
 
@@ -796,7 +828,8 @@
 						class="input"
 						value={i18n.currentLocale}
 						onchange={(e) => {
-							const val = (e.currentTarget as HTMLSelectElement).value as "en" | "pt";
+							const val = (e.currentTarget as HTMLSelectElement).value as
+								"en" | "pt";
 							i18n.setLocale(val);
 						}}
 					>
@@ -968,7 +1001,8 @@
 					<div>
 						<h4 class="card-title">Real-Time Activity Webhooks</h4>
 						<p class="card-desc">
-							Transmite eventos em tempo real (Watched, Avaliações, Status) para automações no Home Assistant, Discord, Slack ou Ntfy.
+							Transmite eventos em tempo real (Watched, Avaliações, Status) para
+							automações no Home Assistant, Discord, Slack ou Ntfy.
 						</p>
 					</div>
 					<button
@@ -993,7 +1027,8 @@
 				</p>
 				<div class="actions-toolbar">
 					<button class="btn-action" onclick={() => goto(resolve("/import"))}>
-						<Icon i="document" wh={16} /> {t("profile.import_data")}
+						<Icon i="document" wh={16} />
+						{t("profile.import_data")}
 					</button>
 					<button class="btn-action" onclick={() => (exportModalOpen = true)}>
 						{t("profile.export_list")}
@@ -1014,7 +1049,8 @@
 								pwChangeModalOpen = true;
 							}}
 						>
-							<Icon i="lock-closed" wh={16} /> {t("profile.change_password")}
+							<Icon i="lock-closed" wh={16} />
+							{t("profile.change_password")}
 						</button>
 					{/if}
 					{#if user?.type === UserType?.Jellyfin}
@@ -1022,7 +1058,9 @@
 							class="btn-action"
 							onclick={() => (jellyfinSyncModalOpen = true)}
 						>
-							{t("profile.sync_with", { service: localStorage.getItem("useEmby") ? "Emby" : "Jellyfin" })}
+							{t("profile.sync_with", {
+								service: localStorage.getItem("useEmby") ? "Emby" : "Jellyfin",
+							})}
 						</button>
 					{/if}
 					{#if user?.type === UserType?.Plex}
@@ -1044,14 +1082,16 @@
 						class="btn-action primary-accent"
 						onclick={() => (dashboardModalOpen = true)}
 					>
-						<Icon i="compass" wh={16} /> {t("profile.dashboard_integrations")}
+						<Icon i="compass" wh={16} />
+						{t("profile.dashboard_integrations")}
 					</button>
 					<button
 						class="btn-action danger"
 						onclick={() => (clearLibraryModalOpen = true)}
 						title="Apagar todos os itens da biblioteca para testes"
 					>
-						<Icon i="trash" wh={16} /> {t("profile.clear_library")}
+						<Icon i="trash" wh={16} />
+						{t("profile.clear_library")}
 					</button>
 				</div>
 			</div>
@@ -1090,7 +1130,11 @@
 					maxWidth="520px"
 				>
 					<div class="wipe-modal-body">
-						<p>Tens a certeza absoluta de que desejas apagar todos os itens registados? Isto deixará a tua biblioteca completamente vazia para poderes testar uma importação nova do zero.</p>
+						<p>
+							Tens a certeza absoluta de que desejas apagar todos os itens
+							registados? Isto deixará a tua biblioteca completamente vazia para
+							poderes testar uma importação nova do zero.
+						</p>
 						<div class="wipe-modal-actions">
 							<button
 								class="btn-modal-cancel"
@@ -1116,10 +1160,16 @@
 			{/if}
 			<CalendarWebhookModal bind:open={calendarWebhookModalOpen} />
 			{#if activityWebhookModalOpen}
-				<ActivityWebhookModal bind:open={activityWebhookModalOpen} onClose={() => (activityWebhookModalOpen = false)} />
+				<ActivityWebhookModal
+					bind:open={activityWebhookModalOpen}
+					onClose={() => (activityWebhookModalOpen = false)}
+				/>
 			{/if}
 			{#if backupModalOpen}
-				<BackupManagementModal bind:open={backupModalOpen} onClose={() => (backupModalOpen = false)} />
+				<BackupManagementModal
+					bind:open={backupModalOpen}
+					onClose={() => (backupModalOpen = false)}
+				/>
 			{/if}
 			<DashboardIntegrationModal bind:open={dashboardModalOpen} />
 		</section>
@@ -1159,7 +1209,7 @@
 		padding: 28px;
 		background: rgba(22, 27, 38, 0.75);
 		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 20px;
+		border-radius: 12px;
 		backdrop-filter: blur(12px);
 
 		.avatar-wrap {
@@ -1191,7 +1241,7 @@
 					text-transform: uppercase;
 					letter-spacing: 0.06em;
 					padding: 3px 10px;
-					border-radius: 20px;
+					border-radius: 9999px;
 					background: rgba(99, 102, 241, 0.15);
 					color: #818cf8;
 					border: 1px solid rgba(99, 102, 241, 0.3);
@@ -1249,6 +1299,41 @@
 		display: grid;
 		grid-template-columns: repeat(4, 1fr);
 		gap: 16px;
+
+		&.skeleton-stats {
+			pointer-events: none;
+
+			.skeleton-card {
+				min-height: 100px;
+
+				.card-icon {
+					width: 44px;
+					height: 44px;
+					border-radius: 10px;
+				}
+
+				.skeleton-line {
+					border-radius: 4px;
+
+					&.stat-val {
+						height: 24px;
+						width: 50%;
+					}
+
+					&.stat-lbl {
+						height: 12px;
+						width: 80%;
+						margin-top: 6px;
+					}
+
+					&.stat-sub {
+						height: 10px;
+						width: 60%;
+						margin-top: 4px;
+					}
+				}
+			}
+		}
 
 		@media screen and (max-width: 800px) {
 			grid-template-columns: repeat(2, 1fr);
@@ -1382,7 +1467,7 @@
 				font-size: 12px;
 				font-weight: 600;
 				padding: 4px 10px;
-				border-radius: 20px;
+				border-radius: 9999px;
 				background: rgba(255, 255, 255, 0.08);
 				color: rgba(255, 255, 255, 0.8);
 			}
@@ -1641,7 +1726,7 @@
 
 					.col-fill {
 						width: 100%;
-						background: linear-gradient(180deg, #818cf8 0%, #6366f1 100%);
+						background: #6366f1;
 						border-radius: 4px 4px 0 0;
 						transition: height 300ms ease;
 					}
@@ -2020,5 +2105,25 @@
 			background: rgba(245, 158, 11, 0.2);
 			color: #fbbf24;
 		}
+	}
+
+	@keyframes shimmer {
+		0% {
+			background-position: -200% 0;
+		}
+		100% {
+			background-position: 200% 0;
+		}
+	}
+
+	.shimmer {
+		background: linear-gradient(
+			90deg,
+			rgba(20, 24, 36, 0.75) 0%,
+			rgba(38, 46, 68, 0.9) 50%,
+			rgba(20, 24, 36, 0.75) 100%
+		);
+		background-size: 200% 100%;
+		animation: shimmer 1.8s infinite ease-in-out;
 	}
 </style>

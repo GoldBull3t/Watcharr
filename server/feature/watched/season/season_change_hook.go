@@ -148,7 +148,7 @@ func (s *Service) hookStatusChangedSetShowStatus(
 
 	// If newSeasonStatus is WATCHING or FINISHED & the show is PLANNED, then
 	// show status should be set to WATCHING (unless checks below change that).
-		if (newSeasonStatus == entity.WATCHING || newSeasonStatus == entity.FINISHED) &&
+	if (newSeasonStatus == entity.WATCHING || newSeasonStatus == entity.FINISHED) &&
 		(showWatchedStatus == "" || showWatchedStatus == entity.PLANNED) {
 		newShowStatus = entity.WATCHING
 		reason = fmt.Sprintf(
@@ -225,7 +225,7 @@ func (s *Service) hookStatusChangedSetShowStatus(
 		return "", entity.Activity{}, errors.New("watched entry does not exist")
 	}
 
-	addedActivity, _ := activity.
+	addedActivity, err := activity.
 		NewCreator(
 			s.db,
 			userID,
@@ -239,6 +239,9 @@ func (s *Service) hookStatusChangedSetShowStatus(
 		}).
 		SetReason(reason).
 		Create()
+	if err != nil {
+		slog.Error("hookStatusChangedSetShowStatus: Failed to create activity", "error", err)
+	}
 
 	return newShowStatus, addedActivity, nil
 }

@@ -24,7 +24,10 @@
 					The server encountered an unexpected error. Please try refreshing.
 				</p>
 				{#if page?.error?.message}
-					<small style="opacity: 0.7; font-family: monospace; display: block; margin-top: 8px;">{page.error.message}</small>
+					<small
+						style="opacity: 0.7; font-family: monospace; display: block; margin-top: 8px;"
+						>{page.error.message}</small
+					>
 				{/if}
 			{:else if page?.error?.message}
 				<h2>Something Went Wrong</h2>
@@ -55,11 +58,7 @@
 		justify-content: center;
 		min-height: 100vh;
 		padding: 20px;
-		background: radial-gradient(
-			circle at 50% 30%,
-			var(--brand-glow, rgba(245, 158, 11, 0.08)) 0%,
-			transparent 60%
-		);
+		background: $bg-color;
 	}
 
 	.error-card {
@@ -70,22 +69,19 @@
 		max-width: 480px;
 		width: 100%;
 		padding: 48px 36px;
-		border-radius: 24px;
-		background: rgba(255, 255, 255, 0.03);
+		border-radius: 12px;
+		background: rgba(20, 25, 36, 0.85);
 		border: 1px solid rgba(255, 255, 255, 0.08);
-		box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.6);
+		box-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.6);
 		backdrop-filter: blur(20px);
 		-webkit-backdrop-filter: blur(20px);
 
 		.status-code {
-			font-size: 80px;
-			font-weight: 900;
+			font-size: 72px;
+			font-weight: 800;
 			letter-spacing: -0.04em;
 			line-height: 1;
-			background: linear-gradient(135deg, $accent-color 0%, #ff8c00 100%);
-			background-clip: text;
-			-webkit-background-clip: text;
-			-webkit-text-fill-color: transparent;
+			color: $brand-color;
 			margin-bottom: 12px;
 		}
 

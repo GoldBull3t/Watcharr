@@ -18,9 +18,12 @@
 			return;
 		}
 		try {
-			const res = await req.get<PaginationResponse<Media, undefined>>("/discover", {
-				params: { page: 1, type: "all", filter: "trending" }
-			});
+			const res = await req.get<PaginationResponse<Media, undefined>>(
+				"/discover",
+				{
+					params: { page: 1, type: "all", filter: "trending" },
+				},
+			);
 			if (res?.results) {
 				trendingItems = res.results.slice(0, 6);
 			}
@@ -141,18 +144,13 @@
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			width: 76px;
-			height: 76px;
+			width: 68px;
+			height: 68px;
 			border-radius: 50%;
-			background: radial-gradient(
-				circle,
-				rgba(245, 158, 11, 0.16) 0%,
-				rgba(245, 158, 11, 0.03) 70%
-			);
-			border: 1px solid rgba(245, 158, 11, 0.25);
-			color: #f59e0b;
+			background: rgba(255, 255, 255, 0.04);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			color: $brand-color;
 			margin-bottom: 18px;
-			box-shadow: 0 0 24px rgba(245, 158, 11, 0.12);
 		}
 
 		h2 {

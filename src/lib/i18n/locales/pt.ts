@@ -49,7 +49,8 @@ export const pt: Record<TranslationKey, string> = {
 	"dashboard.type_show": "Série",
 	"dashboard.type_game": "Jogo",
 	"dashboard.empty_title": "Nenhum conteúdo encontrado",
-	"dashboard.empty_subtitle": "Tenta ajustar os teus filtros ou termo de pesquisa.",
+	"dashboard.empty_subtitle":
+		"Tenta ajustar os teus filtros ou termo de pesquisa.",
 	"dashboard.view_grid": "Grelha",
 	"dashboard.view_list": "Lista",
 	"dashboard.density": "Densidade",
@@ -69,17 +70,21 @@ export const pt: Record<TranslationKey, string> = {
 	"dashboard.discover": "Descobrir",
 	"dashboard.discover_subtitle": "Ferramentas inteligentes e exploração",
 	"dashboard.discover_roulette": "O Que Ver? (Roleta)",
-	"dashboard.discover_roulette_desc": "Sorteia da tua watchlist por duração e humor",
+	"dashboard.discover_roulette_desc":
+		"Sorteia da tua watchlist por duração e humor",
 	"dashboard.discover_together": "Ver em Conjunto",
-	"dashboard.discover_together_desc": "Cruza bibliotecas com amigos e parceiros",
+	"dashboard.discover_together_desc":
+		"Cruza bibliotecas com amigos e parceiros",
 	"dashboard.discover_sagas": "Sagas & Coleções",
 	"dashboard.discover_sagas_desc": "Explora franquias TMDB e cronologias",
 	"dashboard.more": "Mais",
 
 	"empty.library_title": "A tua Biblioteca está Vazia",
-	"empty.library_desc": "Começa a criar a tua coleção pessoal explorando filmes, séries e jogos.",
+	"empty.library_desc":
+		"Começa a criar a tua coleção pessoal explorando filmes, séries e jogos.",
 	"empty.no_match_title": "Nenhum Conteúdo Encontrado",
-	"empty.no_match_desc": "Nenhum título corresponde aos teus filtros ou termos de pesquisa. Experimenta limpá-los para ver todos os teus conteúdos.",
+	"empty.no_match_desc":
+		"Nenhum título corresponde aos teus filtros ou termos de pesquisa. Experimenta limpá-los para ver todos os teus conteúdos.",
 	"empty.discover_media": "Explorar Conteúdos",
 	"empty.import_list": "Importar Lista",
 	"empty.clear_filters": "Limpar Todos os Filtros",
@@ -96,7 +101,8 @@ export const pt: Record<TranslationKey, string> = {
 	"dashboard.bulk_rate": "Avaliar",
 	"dashboard.bulk_rate_items": "Avaliar {count} itens",
 	"dashboard.bulk_delete_confirm": "Eliminar ({count})?",
-	"dashboard.bulk_delete_confirm_title": "Clique novamente para confirmar a eliminação",
+	"dashboard.bulk_delete_confirm_title":
+		"Clique novamente para confirmar a eliminação",
 	"dashboard.bulk_updating": "A atualizar {count} itens...",
 	"dashboard.bulk_updated_status": "{count} itens atualizados para {status}",
 	"dashboard.bulk_rating": "A avaliar {count} itens...",
@@ -136,38 +142,48 @@ export const pt: Record<TranslationKey, string> = {
 	"profile.empty_category": "Nenhum título nesta categoria",
 	"profile.preferences_title": "Preferências e Definições",
 	"profile.appearance": "Aparência",
-	"profile.appearance_desc": "Escolhe como o Watcharr é apresentado neste dispositivo.",
+	"profile.appearance_desc":
+		"Escolhe como o Watcharr é apresentado neste dispositivo.",
 	"profile.theme_system": "Sistema",
 	"profile.theme_light": "Claro",
 	"profile.theme_dark": "Escuro",
 	"profile.regional_title": "Região e Localização",
 	"profile.ui_language": "Idioma da Interface",
-	"profile.ui_language_desc": "Altera o idioma de apresentação da interface do Watcharr.",
+	"profile.ui_language_desc":
+		"Altera o idioma de apresentação da interface do Watcharr.",
 	"profile.country_title": "País e Região",
-	"profile.country_desc": "Seleciona a tua região para apresentar a disponibilidade e fornecedores de streaming locais.",
+	"profile.country_desc":
+		"Seleciona a tua região para apresentar a disponibilidade e fornecedores de streaming locais.",
 	"profile.meta_language_title": "Idioma dos Metadados",
-	"profile.meta_language_desc": "Idioma preferido para títulos, sinopses e detalhes do TMDB.",
+	"profile.meta_language_desc":
+		"Idioma preferido para títulos, sinopses e detalhes do TMDB.",
 	"profile.privacy_title": "Privacidade e Social",
 	"profile.private_account": "Conta Privada",
-	"profile.private_account_desc": "Ocultar o teu perfil e biblioteca de pesquisas públicas.",
+	"profile.private_account_desc":
+		"Ocultar o teu perfil e biblioteca de pesquisas públicas.",
 	"profile.private_thoughts": "Pensamentos Privados",
-	"profile.private_thoughts_desc": "Ocultar as tuas notas e pensamentos pessoais de seguidores.",
+	"profile.private_thoughts_desc":
+		"Ocultar as tuas notas e pensamentos pessoais de seguidores.",
 	"profile.behavior_title": "Comportamento da Biblioteca e Reprodução",
 	"profile.hide_spoilers": "Ocultar Spoilers",
-	"profile.hide_spoilers_desc": "Desfocar títulos, descrições e miniaturas de episódios até serem marcados como vistos.",
+	"profile.hide_spoilers_desc":
+		"Desfocar títulos, descrições e miniaturas de episódios até serem marcados como vistos.",
 	"profile.automate_statuses": "Automatizar Estados de Séries",
-	"profile.automate_statuses_desc": "Atualizar automaticamente o estado da série/temporada quando marcas episódios.",
+	"profile.automate_statuses_desc":
+		"Atualizar automaticamente o estado da série/temporada quando marcas episódios.",
 	"profile.include_previously_watched": "Incluir Revistos Anteriormente",
-	"profile.include_previously_watched_desc": "Incluir itens já concluídos no filtro 'Concluído' da biblioteca.",
+	"profile.include_previously_watched_desc":
+		"Incluir itens já concluídos no filtro 'Concluído' da biblioteca.",
 	"profile.rating_scale": "Escala de Avaliação",
 	"profile.data_integrations": "Dados e Integrações",
-	"profile.data_integrations_desc": "Gere importações, exportações e sincronização com servidores multimédia.",
+	"profile.data_integrations_desc":
+		"Gere importações, exportações e sincronização com servidores multimédia.",
 	"profile.import_data": "Importar Dados",
 	"profile.export_list": "Exportar Lista",
 	"profile.change_password": "Alterar Palavra-passe",
 	"profile.sync_with": "Sincronizar com {service}",
 	"profile.dashboard_integrations": "Homelab e Dashboards",
 	"profile.clear_library": "Limpar Biblioteca Inteira",
-	"profile.clear_library_desc": "Apaga todos os filmes, séries e jogos da tua biblioteca pessoal (ideal para reiniciar os teus testes ou nova configuração).",
+	"profile.clear_library_desc":
+		"Apaga todos os filmes, séries e jogos da tua biblioteca pessoal (ideal para reiniciar os teus testes ou nova configuração).",
 };
-

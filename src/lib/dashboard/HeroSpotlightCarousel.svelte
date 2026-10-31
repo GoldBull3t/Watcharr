@@ -207,10 +207,7 @@
 						{/if}
 
 						{#if rating}
-							<span
-								class="rating-pill"
-								title={`${rating} / 10 (${voteCount})`}
-							>
+							<span class="rating-pill" title={`${rating} / 10 (${voteCount})`}>
 								<Icon i="star" wh={12} />
 								{rating}
 							</span>
@@ -613,28 +610,21 @@
 				display: inline-flex;
 				align-items: center;
 				gap: 8px;
-				padding: 10px 20px;
-				border-radius: 9px;
-				background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-				color: #ffffff;
-				font-size: 13.5px;
-				font-weight: 700;
+				padding: 9px 18px;
+				border-radius: 8px;
+				background: $brand-color;
+				color: #0b0e14;
+				font-size: 13px;
+				font-weight: 600;
 				letter-spacing: 0.01em;
 				text-decoration: none;
-				box-shadow:
-					0 4px 16px rgba(99, 102, 241, 0.45),
-					0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 				transition:
-					transform 140ms ease,
-					box-shadow 140ms ease,
-					filter 140ms ease;
+					filter 140ms ease,
+					opacity 140ms ease;
 
 				&:hover {
-					transform: translateY(-2px);
-					filter: brightness(1.1);
-					box-shadow:
-						0 8px 24px rgba(99, 102, 241, 0.6),
-						0 0 0 1px rgba(255, 255, 255, 0.3) inset;
+					filter: brightness(1.06);
 				}
 			}
 

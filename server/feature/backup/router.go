@@ -86,7 +86,12 @@ func (r *Router) UpdateConfig(c *gin.Context) {
 
 func (r *Router) CreateBackup(c *gin.Context) {
 	var req CreateBackupRequest
-	_ = c.ShouldBindJSON(&req)
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid request body"})
+			return
+		}
+	}
 
 	info, err := r.s.CreateBackup(false, req.Format)
 	if err != nil {
@@ -148,4 +153,3 @@ func (r *Router) UploadBackup(c *gin.Context) {
 
 	c.JSON(http.StatusOK, info)
 }
-

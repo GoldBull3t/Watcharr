@@ -50,6 +50,8 @@
 	import CliffhangerWarningModal from "@/lib/content/CliffhangerWarningModal.svelte";
 	import FranchiseBadgeLink from "@/lib/franchise/FranchiseBadgeLink.svelte";
 	import ExternalRatingsBar from "@/lib/content/ExternalRatingsBar.svelte";
+	import MediaDetailSkeleton from "@/lib/content/MediaDetailSkeleton.svelte";
+	import { untrack } from "svelte";
 
 	let { data } = $props();
 
@@ -70,44 +72,43 @@
 		| undefined = $state();
 	let cliffhangerWarningShown = $state(false);
 
+	async function loadShow(signal?: AbortSignal) {
+		try {
+			show = undefined;
+			pageError = undefined;
+			if (!data.tvId) {
+				return;
+			}
+			const region = untrack(() => store.userSettings?.country);
+			const resp = await req.get<Media>(`/content/tv/${data.tvId}`, {
+				params: { region },
+				signal,
+			});
+			if (signal?.aborted) return;
+			if (resp) {
+				if (resp.name && resp.ids.tmdb) {
+					contentExistsOnJellyfin("tv", resp.name, resp.ids.tmdb).then((j) => {
+						if (!signal?.aborted && j?.hasContent && j?.url !== "") {
+							jellyfinUrl = j.url;
+						}
+					});
+				}
+				show = resp;
+			} else {
+				show = undefined;
+			}
+		} catch (err: unknown) {
+			if (signal?.aborted) return;
+			show = undefined;
+			pageError = err;
+		}
+	}
+
 	$effect(() => {
 		const controller = new AbortController();
-		(async () => {
-			try {
-				show = undefined;
-				pageError = undefined;
-				if (!data.tvId) {
-					return;
-				}
-				const resp = await req.get<Media>(`/content/tv/${data.tvId}`, {
-					params: { region: store.userSettings?.country },
-					signal: controller.signal,
-				});
-				if (controller.signal.aborted) return;
-				if (resp) {
-					if (resp.name && resp.ids.tmdb) {
-						contentExistsOnJellyfin("tv", resp.name, resp.ids.tmdb).then(
-							(j) => {
-								if (
-									!controller.signal.aborted &&
-									j?.hasContent &&
-									j?.url !== ""
-								) {
-									jellyfinUrl = j.url;
-								}
-							},
-						);
-					}
-					show = resp;
-				} else {
-					show = undefined;
-				}
-			} catch (err: unknown) {
-				if (controller.signal.aborted) return;
-				show = undefined;
-				pageError = err;
-			}
-		})();
+		if (data.tvId) {
+			loadShow(controller.signal);
+		}
 		return () => controller.abort();
 	});
 
@@ -223,9 +224,13 @@
 </svelte:head>
 
 {#if pageError}
-	<Error pretty="Failed to load tv show!" error={pageError} />
+	<Error
+		pretty="Failed to load tv show!"
+		error={pageError}
+		onRetry={() => loadShow()}
+	/>
 {:else if !show}
-	<Spinner />
+	<MediaDetailSkeleton type="tv" />
 {:else if Object.keys(show).length > 0}
 	{#if show?.extBackdropPath}
 		<PageBackdrop

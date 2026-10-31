@@ -49,7 +49,12 @@ func (r *Router) AddRoutes() {
 
 func (r *Router) TestConnection(c *gin.Context) {
 	var tr seerr.TestRequest
-	_ = c.ShouldBindJSON(&tr)
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&tr); err != nil {
+			c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid request body"})
+			return
+		}
+	}
 
 	host := tr.Host
 	key := tr.Key
@@ -147,4 +152,3 @@ func (r *Router) CreateRequest(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, resp)
 }
-

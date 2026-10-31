@@ -26,12 +26,16 @@
 		type="button"
 		class="trailer-btn"
 		onclick={() => (lightboxOpen = true)}
-		title={isPt ? "Reproduzir trailer oficial e ver galeria de mídia" : "Watch official trailer and media gallery"}
+		title={isPt
+			? "Reproduzir trailer oficial e ver galeria de mídia"
+			: "Watch official trailer and media gallery"}
 	>
 		<Icon i="play" wh={14} />
 		<span>
 			{#if trailersCount > 1}
-				{isPt ? `Ver Trailers (${trailersCount})` : `Watch Trailers (${trailersCount})`}
+				{isPt
+					? `Ver Trailers (${trailersCount})`
+					: `Watch Trailers (${trailersCount})`}
 			{:else}
 				{isPt ? "Ver Trailer" : "Watch Trailer"}
 			{/if}

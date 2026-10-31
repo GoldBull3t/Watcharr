@@ -14,7 +14,8 @@
 	import PosterList from "@/lib/poster/PosterList.svelte";
 	import Poster from "@/lib/poster/Poster.svelte";
 	import Error from "@/lib/Error.svelte";
-import WatchTogetherModal from "@/lib/dashboard/WatchTogetherModal.svelte";
+	import PosterGridSkeleton from "@/lib/dashboard/PosterGridSkeleton.svelte";
+	import WatchTogetherModal from "@/lib/dashboard/WatchTogetherModal.svelte";
 	import { afterNavigate } from "$app/navigation";
 
 	let meta = $derived.by(() => {
@@ -25,7 +26,7 @@ import WatchTogetherModal from "@/lib/dashboard/WatchTogetherModal.svelte";
 	});
 
 	let followBtnDisabled = $state(false);
-let watchTogetherOpen = $state(false);
+	let watchTogetherOpen = $state(false);
 	let user: PublicUser | undefined = $state();
 
 	let isFollowing = $derived(
@@ -188,41 +189,45 @@ let watchTogetherOpen = $state(false);
 	</div>
 </div>
 
-<PosterList>
-	{#if dataLoader.state.data?.length > 0}
-		{#each dataLoader.state.data as w, i (`${i}-${w.type}`)}
-			{#if w}
-				<Poster
-					watched={dataLoader.state.data[i].watched}
-					media={w}
-					fluidSize={true}
-					disableInteraction={true}
-				/>
-			{/if}
-		{/each}
-	{:else if !dataLoader.state.reqLoading && !dataLoader.state.reqLoadError}
-		<div class="empty-list">
-			<div class="empty-icon-wrap">
-				<Icon i={store.hasActiveFilters ? "filter-circle" : "reel"} wh={48} />
-			</div>
-			<h2 class="norm">This list is quiet</h2>
-			<p class="empty-desc">
-				{#if store.hasActiveFilters}
-					No items match your active filters.
-				{:else}
-					This user hasn't added any media to their list yet.
+{#if dataLoader.state.reqLoading && (!dataLoader.state.data || dataLoader.state.data.length === 0)}
+	<PosterGridSkeleton count={12} />
+{:else}
+	<PosterList>
+		{#if dataLoader.state.data?.length > 0}
+			{#each dataLoader.state.data as w, i (`${i}-${w.type}`)}
+				{#if w}
+					<Poster
+						watched={dataLoader.state.data[i].watched}
+						media={w}
+						fluidSize={true}
+						disableInteraction={true}
+					/>
 				{/if}
-			</p>
-			{#if store.hasActiveFilters}
-				<button class="btn" onclick={() => clearActiveFilters()}
-					>Clear Filters</button
-				>
-			{/if}
-		</div>
-	{/if}
-</PosterList>
+			{/each}
+		{:else if !dataLoader.state.reqLoading && !dataLoader.state.reqLoadError}
+			<div class="empty-list">
+				<div class="empty-icon-wrap">
+					<Icon i={store.hasActiveFilters ? "filter-circle" : "reel"} wh={48} />
+				</div>
+				<h2 class="norm">This list is quiet</h2>
+				<p class="empty-desc">
+					{#if store.hasActiveFilters}
+						No items match your active filters.
+					{:else}
+						This user hasn't added any media to their list yet.
+					{/if}
+				</p>
+				{#if store.hasActiveFilters}
+					<button class="btn" onclick={() => clearActiveFilters()}
+						>Clear Filters</button
+					>
+				{/if}
+			</div>
+		{/if}
+	</PosterList>
+{/if}
 
-{#if dataLoader.state.reqLoading}
+{#if dataLoader.state.reqLoading && dataLoader.state.data?.length > 0}
 	<div class="loader-wrap">
 		<Spinner />
 	</div>

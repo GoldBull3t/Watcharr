@@ -38,7 +38,8 @@
 	}
 
 	function navigateToItem(item: FranchiseItem) {
-		const path = item.type === "tv" ? `/tv/${item.tmdbId}` : `/movie/${item.tmdbId}`;
+		const path =
+			item.type === "tv" ? `/tv/${item.tmdbId}` : `/movie/${item.tmdbId}`;
 		goto(path);
 	}
 
@@ -57,14 +58,22 @@
 			<div class="sticky-left">
 				<span class="roadmap-title">{roadmap.name}</span>
 				<div class="progress-pill">
-					<span class="progress-nums">{roadmap.watchedCount} / {roadmap.totalItems} vistos</span>
+					<span class="progress-nums"
+						>{roadmap.watchedCount} / {roadmap.totalItems} vistos</span
+					>
 					<span class="progress-pct">({roadmap.percentWatched}%)</span>
 				</div>
 			</div>
 
 			<!-- Visual progress bar -->
-			<div class="progress-track" title={`${roadmap.percentWatched}% concluído`}>
-				<div class="progress-fill" style={`width: ${roadmap.percentWatched}%`}></div>
+			<div
+				class="progress-track"
+				title={`${roadmap.percentWatched}% concluído`}
+			>
+				<div
+					class="progress-fill"
+					style={`width: ${roadmap.percentWatched}%`}
+				></div>
 			</div>
 
 			<div class="sticky-right">
@@ -150,7 +159,11 @@
 			>
 				<!-- Center Node Milestone -->
 				<div class="timeline-node-wrapper">
-					<div class="timeline-node" class:watched-node={item.isWatched} class:next-node={item.isNextUp}>
+					<div
+						class="timeline-node"
+						class:watched-node={item.isWatched}
+						class:next-node={item.isNextUp}
+					>
 						{#if item.isWatched}
 							<Icon i="check" wh={16} />
 						{:else if item.isNextUp}
@@ -158,7 +171,9 @@
 							<Icon i="play" wh={14} />
 						{:else}
 							<span class="order-num">
-								{roadmap.activeOrder === "release" ? item.releaseOrder : item.timelineOrder}
+								{roadmap.activeOrder === "release"
+									? item.releaseOrder
+									: item.timelineOrder}
 							</span>
 						{/if}
 					</div>
@@ -220,13 +235,9 @@
 									<span class="pulse-dot"></span>
 									<span>Seguinte a Ver</span>
 								</span>
-								<span class="jump-cta">
-									Ver Página →
-								</span>
+								<span class="jump-cta"> Ver Página → </span>
 							{:else}
-								<span class="status-badge badge-unwatched">
-									Pendente
-								</span>
+								<span class="status-badge badge-unwatched"> Pendente </span>
 							{/if}
 						</div>
 
@@ -317,10 +328,9 @@
 
 	.progress-fill {
 		height: 100%;
-		background: linear-gradient(90deg, #1f6feb, #2ea043);
+		background: #2ea043;
 		border-radius: 999px;
 		transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-		box-shadow: 0 0 10px rgba(46, 160, 67, 0.5);
 	}
 
 	.sticky-right {
@@ -482,7 +492,7 @@
 		top: 12px;
 		bottom: 12px;
 		width: 3px;
-		background: linear-gradient(180deg, rgba(56, 139, 253, 0.4) 0%, rgba(46, 160, 67, 0.5) 50%, rgba(255, 255, 255, 0.1) 100%);
+		background: rgba(255, 255, 255, 0.15);
 		transform: translateX(-50%);
 		border-radius: 3px;
 	}
@@ -613,12 +623,11 @@
 
 		&.highlight-next {
 			border: 2px solid #388bfd;
-			background: linear-gradient(135deg, rgba(31, 111, 235, 0.12) 0%, rgba(22, 27, 34, 0.95) 100%);
-			box-shadow: 0 0 24px rgba(56, 139, 253, 0.35);
+			background: rgba(22, 27, 34, 0.95);
+			box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 
 			&:hover {
 				border-color: #58a6ff;
-				box-shadow: 0 0 32px rgba(56, 139, 253, 0.55);
 			}
 		}
 	}
@@ -755,8 +764,15 @@
 	}
 
 	@keyframes pulse-dot {
-		0%, 100% { opacity: 1; transform: scale(1); }
-		50% { opacity: 0.4; transform: scale(0.8); }
+		0%,
+		100% {
+			opacity: 1;
+			transform: scale(1);
+		}
+		50% {
+			opacity: 0.4;
+			transform: scale(0.8);
+		}
 	}
 
 	.rating-badge {

@@ -9,8 +9,12 @@
 	let { profile }: Props = $props();
 
 	// Convert total minutes into Days, Hours, Minutes
-	let runtimeDays = $derived(Math.floor((profile.totalRuntime || 0) / (24 * 60)));
-	let runtimeHours = $derived(Math.floor(((profile.totalRuntime || 0) % (24 * 60)) / 60));
+	let runtimeDays = $derived(
+		Math.floor((profile.totalRuntime || 0) / (24 * 60)),
+	);
+	let runtimeHours = $derived(
+		Math.floor(((profile.totalRuntime || 0) % (24 * 60)) / 60),
+	);
 
 	let topGenre = $derived.by(() => {
 		if (profile.genreDistribution && profile.genreDistribution.length > 0) {
@@ -30,7 +34,13 @@
 
 	// Dynamic Gamification Badges
 	let badges = $derived.by(() => {
-		const list: { id: string; icon: string; title: string; desc: string; unlocked: boolean }[] = [];
+		const list: {
+			id: string;
+			icon: string;
+			title: string;
+			desc: string;
+			unlocked: boolean;
+		}[] = [];
 
 		list.push({
 			id: "cinephile",
@@ -69,7 +79,9 @@
 			icon: "🏆",
 			title: "Grande Colecionador",
 			desc: "Biblioteca com +50 títulos",
-			unlocked: (profile.moviesWatched + profile.showsWatched + profile.gamesPlayed) >= 50,
+			unlocked:
+				profile.moviesWatched + profile.showsWatched + profile.gamesPlayed >=
+				50,
 		});
 
 		return list;
@@ -82,14 +94,21 @@
 			<span class="sparkle-badge">✨</span>
 			<div>
 				<h3 class="wrapped-title">Watcharr Wrapped & Milestones</h3>
-				<span class="wrapped-subtitle">A tua jornada cinéfila e gamer em números e conquistas</span>
+				<span class="wrapped-subtitle"
+					>A tua jornada cinéfila e gamer em números e conquistas</span
+				>
 			</div>
 		</div>
 
 		{#if topGenre}
-			<div class="favorite-genre-chip" title="O teu género cinematográfico predileto">
+			<div
+				class="favorite-genre-chip"
+				title="O teu género cinematográfico predileto"
+			>
 				<span class="chip-label">Género Favorito:</span>
-				<strong class="chip-val">👑 {topGenre.name || (topGenre as any).Name}</strong>
+				<strong class="chip-val"
+					>👑 {topGenre.name || (topGenre as any).Name}</strong
+				>
 			</div>
 		{/if}
 	</div>
@@ -129,9 +148,12 @@
 			</div>
 			<div class="matrix-data">
 				<span class="matrix-val">
-					<strong>{profile.moviesWatched}</strong> filmes • <strong>{profile.episodesWatched}</strong> eps
+					<strong>{profile.moviesWatched}</strong> filmes •
+					<strong>{profile.episodesWatched}</strong> eps
 				</span>
-				<span class="matrix-label">{profile.showsWatched} séries concluídas</span>
+				<span class="matrix-label"
+					>{profile.showsWatched} séries concluídas</span
+				>
 			</div>
 		</div>
 
@@ -142,9 +164,15 @@
 			</div>
 			<div class="matrix-data">
 				<span class="matrix-val">
-					<strong>{profile.ratingStats?.average ? profile.ratingStats.average.toFixed(1) : "-"}</strong> ★
+					<strong
+						>{profile.ratingStats?.average
+							? profile.ratingStats.average.toFixed(1)
+							: "-"}</strong
+					> ★
 				</span>
-				<span class="matrix-label">Nota Média ({profile.ratingStats?.count || 0} avaliações)</span>
+				<span class="matrix-label"
+					>Nota Média ({profile.ratingStats?.count || 0} avaliações)</span
+				>
 			</div>
 		</div>
 	</div>
@@ -154,7 +182,11 @@
 		<h5 class="shelf-title">Conquistas Desbloqueadas:</h5>
 		<div class="badges-row">
 			{#each badges as badge (badge.id)}
-				<div class="achievement-pill" class:unlocked={badge.unlocked} title={badge.desc}>
+				<div
+					class="achievement-pill"
+					class:unlocked={badge.unlocked}
+					title={badge.desc}
+				>
 					<span class="badge-emoji">{badge.icon}</span>
 					<div class="badge-text">
 						<strong class="badge-name">{badge.title}</strong>
@@ -172,10 +204,10 @@
 <style lang="scss">
 	.wrapped-showcase-card {
 		width: 100%;
-		border-radius: 20px;
-		background: linear-gradient(135deg, rgba(24, 30, 44, 0.92) 0%, rgba(15, 20, 30, 0.88) 100%);
-		border: 1px solid rgba(245, 158, 11, 0.25);
-		box-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
+		border-radius: 12px;
+		background: rgba(22, 27, 38, 0.75);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.5);
 		backdrop-filter: blur(20px);
 		-webkit-backdrop-filter: blur(20px);
 		padding: 24px;
@@ -184,7 +216,7 @@
 
 		@media screen and (max-width: 768px) {
 			padding: 18px 16px;
-			border-radius: 16px;
+			border-radius: 12px;
 		}
 
 		.wrapped-header {
@@ -206,12 +238,11 @@
 					display: flex;
 					align-items: center;
 					justify-content: center;
-					width: 42px;
-					height: 42px;
-					border-radius: 12px;
-					background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(99, 102, 241, 0.25));
-					border: 1px solid rgba(245, 158, 11, 0.4);
-					box-shadow: 0 0 16px rgba(245, 158, 11, 0.2);
+					width: 40px;
+					height: 40px;
+					border-radius: 8px;
+					background: rgba(245, 158, 11, 0.12);
+					border: 1px solid rgba(245, 158, 11, 0.25);
 				}
 
 				.wrapped-title {
@@ -265,7 +296,9 @@
 				border-radius: 14px;
 				background: rgba(0, 0, 0, 0.28);
 				border: 1px solid rgba(255, 255, 255, 0.06);
-				transition: transform 140ms ease, border-color 140ms ease;
+				transition:
+					transform 140ms ease,
+					border-color 140ms ease;
 
 				&:hover {
 					border-color: rgba(255, 255, 255, 0.15);
@@ -406,4 +439,3 @@
 		}
 	}
 </style>
-

@@ -7,11 +7,7 @@
 	import { req, baseURL } from "@/lib/util/api";
 	import { notify } from "@/lib/util/notify";
 	import { toRelativeTime } from "@/lib/util/helpers";
-	import type {
-		BackupInfo,
-		BackupConfig,
-		GetBackupsResponse,
-	} from "@/types";
+	import type { BackupInfo, BackupConfig, GetBackupsResponse } from "@/types";
 	import { onMount } from "svelte";
 
 	interface Props {
@@ -52,7 +48,9 @@
 		}
 	}
 
-	async function triggerManualBackup(format: "auto" | "sqlite" | "json" = "auto") {
+	async function triggerManualBackup(
+		format: "auto" | "sqlite" | "json" = "auto",
+	) {
 		creating = true;
 		const nid = notify({
 			type: "loading",
@@ -235,9 +233,13 @@
 						<Icon i="archive" wh={22} />
 					</div>
 					<div class="metric-info">
-						<span class="metric-val">{config?.totalBackups ?? backups.length}</span>
+						<span class="metric-val"
+							>{config?.totalBackups ?? backups.length}</span
+						>
 						<span class="metric-label">Backups Guardados</span>
-						<span class="metric-sub">{config?.formattedTotalSize ?? "0 B"} total</span>
+						<span class="metric-sub"
+							>{config?.formattedTotalSize ?? "0 B"} total</span
+						>
 					</div>
 				</div>
 
@@ -246,7 +248,9 @@
 						<Icon i="database" wh={22} />
 					</div>
 					<div class="metric-info">
-						<span class="metric-val">{config?.driver?.toUpperCase() || "SQLITE"}</span>
+						<span class="metric-val"
+							>{config?.driver?.toUpperCase() || "SQLITE"}</span
+						>
 						<span class="metric-label">Motor de Dados</span>
 						<span class="metric-sub">
 							{config?.enabled ? "Auto-Backup Ativo" : "Backups Desativados"}
@@ -260,11 +264,17 @@
 					</div>
 					<div class="metric-info">
 						<span class="metric-val">
-							{config?.lastBackup ? toRelativeTime((new Date(config.lastBackup).getTime() - Date.now()) / 1000) : "Nunca"}
+							{config?.lastBackup
+								? toRelativeTime(
+										(new Date(config.lastBackup).getTime() - Date.now()) / 1000,
+									)
+								: "Nunca"}
 						</span>
 						<span class="metric-label">Último Snapshot</span>
 						<span class="metric-sub">
-							{config?.lastBackup ? formatDate(config.lastBackup) : "Nenhum registo"}
+							{config?.lastBackup
+								? formatDate(config.lastBackup)
+								: "Nenhum registo"}
 						</span>
 					</div>
 				</div>
@@ -288,7 +298,8 @@
 					<select
 						id="retention-select"
 						value={config?.retention ?? 7}
-						onchange={(e) => updateSettings({ retention: parseInt(e.currentTarget.value) })}
+						onchange={(e) =>
+							updateSettings({ retention: parseInt(e.currentTarget.value) })}
 					>
 						<option value="3">Últimos 3 backups</option>
 						<option value="7">Últimos 7 backups (Recomendado)</option>
@@ -302,7 +313,10 @@
 					<select
 						id="schedule-select"
 						value={config?.scheduleSeconds ?? 86400}
-						onchange={(e) => updateSettings({ scheduleSeconds: parseInt(e.currentTarget.value) })}
+						onchange={(e) =>
+							updateSettings({
+								scheduleSeconds: parseInt(e.currentTarget.value),
+							})}
 					>
 						<option value="43200">A cada 12 horas</option>
 						<option value="86400">Diário (a cada 24 horas)</option>
@@ -356,7 +370,10 @@
 					<div class="empty-state">
 						<Icon i="archive" wh={36} />
 						<p>Nenhum backup disponível de momento.</p>
-						<span>Clica em "Criar Backup Agora" para criar o teu primeiro ponto de restauro.</span>
+						<span
+							>Clica em "Criar Backup Agora" para criar o teu primeiro ponto de
+							restauro.</span
+						>
 					</div>
 				{:else}
 					<table class="backups-table">
@@ -375,9 +392,14 @@
 								<tr>
 									<td class="filename-cell">
 										<div class="file-icon-wrap" class:prerestore={isPreRestore}>
-											<Icon i={b.type === "sqlite" ? "database" : "document"} wh={18} />
+											<Icon
+												i={b.type === "sqlite" ? "database" : "document"}
+												wh={18}
+											/>
 										</div>
-										<span class="file-name" title={b.filename}>{b.filename}</span>
+										<span class="file-name" title={b.filename}
+											>{b.filename}</span
+										>
 									</td>
 									<td>
 										{#if isPreRestore}
@@ -443,14 +465,16 @@
 					<h4>Restaurar Base de Dados?</h4>
 				</div>
 				<p class="restore-desc">
-					Tens a certeza que queres restaurar o Watcharr para o estado do ficheiro:
+					Tens a certeza que queres restaurar o Watcharr para o estado do
+					ficheiro:
 					<strong class="highlight-file">{restoreTarget.filename}</strong>?
 				</p>
 
 				<div class="safety-banner">
 					<Icon i="check" wh={18} />
 					<span>
-						<strong>Zero Perda de Dados:</strong> Um snapshot de segurança automático do estado atual será criado antes do restauro.
+						<strong>Zero Perda de Dados:</strong> Um snapshot de segurança automático
+						do estado atual será criado antes do restauro.
 					</span>
 				</div>
 
@@ -945,4 +969,3 @@
 		}
 	}
 </style>
-

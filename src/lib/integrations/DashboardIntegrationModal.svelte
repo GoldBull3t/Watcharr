@@ -15,11 +15,16 @@
 	let apiKey: string = $state("");
 	let loading: boolean = $state(true);
 	let regenerating: boolean = $state(false);
-	let activeTab: "homepage" | "ha_sensor" | "ha_svg" | "ical" | "webhook" = $state("homepage");
+	let activeTab: "homepage" | "ha_sensor" | "ha_svg" | "ical" | "webhook" =
+		$state("homepage");
 
 	let webhookUrl = $state(store.userSettings?.activityWebhookUrl ?? "");
-	let webhookEnabled = $state(store.userSettings?.activityWebhookEnabled ?? false);
-	let webhookFilter = $state(store.userSettings?.activityWebhookFilter ?? "all");
+	let webhookEnabled = $state(
+		store.userSettings?.activityWebhookEnabled ?? false,
+	);
+	let webhookFilter = $state(
+		store.userSettings?.activityWebhookFilter ?? "all",
+	);
 	let isTestingWebhook = $state(false);
 
 	$effect(() => {
@@ -51,9 +56,15 @@
 		try {
 			saveWebhookSettings();
 			await req.post("/integrations/webhook/activity/test", { url: target });
-			notify({ text: "Webhook de teste enviado com sucesso!", type: "success" });
+			notify({
+				text: "Webhook de teste enviado com sucesso!",
+				type: "success",
+			});
 		} catch (e: any) {
-			notify({ text: e?.message || "Erro ao disparar webhook de teste", type: "error" });
+			notify({
+				text: e?.message || "Erro ao disparar webhook de teste",
+				type: "error",
+			});
 		} finally {
 			isTestingWebhook = false;
 		}
@@ -91,10 +102,15 @@
 		}
 		regenerating = true;
 		try {
-			const res = await req.post<{ apiKey: string }>("/user/api-key/regenerate");
+			const res = await req.post<{ apiKey: string }>(
+				"/user/api-key/regenerate",
+			);
 			if (res?.apiKey) {
 				apiKey = res.apiKey;
-				notify({ text: "Nova chave de API gerada com sucesso!", type: "success" });
+				notify({
+					text: "Nova chave de API gerada com sucesso!",
+					type: "success",
+				});
 			}
 		} catch (e) {
 			notify({ text: "Erro ao regenerar chave de API", type: "error" });
@@ -116,7 +132,9 @@
 	}
 
 	const origin = $derived(
-		typeof window !== "undefined" ? window.location.origin : "http://localhost:3080",
+		typeof window !== "undefined"
+			? window.location.origin
+			: "http://localhost:3080",
 	);
 
 	const homepageSnippet = $derived(`- Watcharr:
@@ -239,7 +257,9 @@ tap_action:
 					</button>
 				</div>
 				<p class="key-hint">
-					Esta chave autentica pedidos de leitura das tuas estatísticas e eventos de calendário em segundo plano com cache de memória de alta performance (&lt;1ms).
+					Esta chave autentica pedidos de leitura das tuas estatísticas e
+					eventos de calendário em segundo plano com cache de memória de alta
+					performance (&lt;1ms).
 				</p>
 			</div>
 
@@ -293,13 +313,17 @@ tap_action:
 						</div>
 						<pre><code>{homepageSnippet}</code></pre>
 						<p class="guide-note">
-							Endpoint REST: <code>{origin}/api/v1/integrations/homepage?apiKey=...</code>
+							Endpoint REST: <code
+								>{origin}/api/v1/integrations/homepage?apiKey=...</code
+							>
 						</p>
 					</div>
 				{:else if activeTab === "ha_sensor"}
 					<div class="integration-guide">
 						<div class="guide-header">
-							<h5>Configuração no <code>configuration.yaml</code> do Home Assistant</h5>
+							<h5>
+								Configuração no <code>configuration.yaml</code> do Home Assistant
+							</h5>
 							<button
 								class="btn-copy-code"
 								onclick={() => copyToClipboard(haSensorSnippet, true)}
@@ -310,7 +334,8 @@ tap_action:
 						</div>
 						<pre><code>{haSensorSnippet}</code></pre>
 						<p class="guide-note">
-							Gera a entidade <code>sensor.watcharr</code> com atributos detalhados para automações e cartões.
+							Gera a entidade <code>sensor.watcharr</code> com atributos detalhados
+							para automações e cartões.
 						</p>
 					</div>
 				{:else if activeTab === "ha_svg"}
@@ -327,7 +352,8 @@ tap_action:
 						</div>
 						<pre><code>{haSvgSnippet}</code></pre>
 						<p class="guide-note">
-							Devolve uma imagem vetorial dinâmica SVG com o próximo episódio, poster e métricas em modo escuro.
+							Devolve uma imagem vetorial dinâmica SVG com o próximo episódio,
+							poster e métricas em modo escuro.
 						</p>
 					</div>
 				{:else if activeTab === "ical"}
@@ -344,14 +370,18 @@ tap_action:
 						</div>
 						<pre><code>{icalUrl}</code></pre>
 						<p class="guide-note">
-							Compatível com a integração oficial <b>iCalendar</b> do Home Assistant, Google Calendar, Apple Calendar e Thunderbird. Lista os lançamentos da tua biblioteca para os próximos 30 dias.
+							Compatível com a integração oficial <b>iCalendar</b> do Home Assistant,
+							Google Calendar, Apple Calendar e Thunderbird. Lista os lançamentos
+							da tua biblioteca para os próximos 30 dias.
 						</p>
 					</div>
 				{:else if activeTab === "webhook"}
 					<div class="integration-guide">
 						<div class="webhook-settings-box">
 							<div class="webhook-input-group">
-								<label for="webhook-url">URL de Destino (Home Assistant, Discord, Ntfy)</label>
+								<label for="webhook-url"
+									>URL de Destino (Home Assistant, Discord, Ntfy)</label
+								>
 								<div class="webhook-input-row">
 									<input
 										id="webhook-url"
@@ -376,17 +406,29 @@ tap_action:
 									<input
 										type="checkbox"
 										checked={webhookEnabled}
-										onchange={(e) => toggleWebhookEnabled((e.target as HTMLInputElement).checked)}
+										onchange={(e) =>
+											toggleWebhookEnabled(
+												(e.target as HTMLInputElement).checked,
+											)}
 									/>
 									<span>Ativar Disparos em Tempo Real</span>
 								</label>
 
 								<div class="wh-filter-wrap">
 									<span>Eventos:</span>
-									<select bind:value={webhookFilter} onchange={saveWebhookSettings}>
-										<option value="all">Todos os Eventos (Finished, Watching, Rating)</option>
-										<option value="finished">Apenas Concluídos (Finished)</option>
-										<option value="watching">Apenas Em Andamento (Watching)</option>
+									<select
+										bind:value={webhookFilter}
+										onchange={saveWebhookSettings}
+									>
+										<option value="all"
+											>Todos os Eventos (Finished, Watching, Rating)</option
+										>
+										<option value="finished"
+											>Apenas Concluídos (Finished)</option
+										>
+										<option value="watching"
+											>Apenas Em Andamento (Watching)</option
+										>
 										<option value="rating">Apenas Avaliações (Rating)</option>
 									</select>
 								</div>
@@ -394,7 +436,9 @@ tap_action:
 						</div>
 
 						<div class="guide-header" style="margin-top: 14px;">
-							<h5>Automação Instantânea no <code>automations.yaml</code> do Home Assistant</h5>
+							<h5>
+								Automação Instantânea no <code>automations.yaml</code> do Home Assistant
+							</h5>
 							<button
 								class="btn-copy-code"
 								onclick={() => copyToClipboard(haAutomationSnippet, true)}
@@ -405,7 +449,9 @@ tap_action:
 						</div>
 						<pre><code>{haAutomationSnippet}</code></pre>
 						<p class="guide-note">
-							Dispara no exato segundo em que marcas um filme ou episódio, permitindo ligar/desligar luzes e enviar notificações sem esperar pelo scan REST.
+							Dispara no exato segundo em que marcas um filme ou episódio,
+							permitindo ligar/desligar luzes e enviar notificações sem esperar
+							pelo scan REST.
 						</p>
 					</div>
 				{/if}
@@ -458,7 +504,8 @@ tap_action:
 				overflow: hidden;
 
 				code {
-					font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+					font-family:
+						ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 					font-size: 13px;
 					color: #a5b4fc;
 					text-overflow: ellipsis;
@@ -711,7 +758,8 @@ tap_action:
 				border: 1px solid rgba(255, 255, 255, 0.08);
 				border-radius: 10px;
 				overflow-x: auto;
-				font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+				font-family:
+					ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 				font-size: 12px;
 				line-height: 1.5;
 				color: #e2e8f0;
@@ -735,4 +783,3 @@ tap_action:
 		}
 	}
 </style>
-

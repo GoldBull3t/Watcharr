@@ -9,7 +9,9 @@
 
 	let ext = $derived(media.externalRatings);
 	let imdbUrl = $derived(
-		media.ids?.imdb ? `https://www.imdb.com/title/${media.ids.imdb}/` : undefined,
+		media.ids?.imdb
+			? `https://www.imdb.com/title/${media.ids.imdb}/`
+			: undefined,
 	);
 	let malUrl = $derived(
 		ext?.malId ? `https://myanimelist.net/anime/${ext.malId}` : undefined,
@@ -38,32 +40,32 @@
 	let hasAnyScore = $derived(
 		Boolean(
 			ext?.imdbRating ||
-				ext?.rottenTomatoes ||
-				ext?.rottenTomatoesAudience ||
-				ext?.metacritic ||
-				ext?.letterboxd ||
-				ext?.trakt ||
-				ext?.tvmaze ||
-				ext?.anilist ||
-				media.criticRating ||
-				media.ids?.imdb,
+			ext?.rottenTomatoes ||
+			ext?.rottenTomatoesAudience ||
+			ext?.metacritic ||
+			ext?.letterboxd ||
+			ext?.trakt ||
+			ext?.tvmaze ||
+			ext?.anilist ||
+			media.criticRating ||
+			media.ids?.imdb,
 		),
 	);
 
 	let hasMetadataChips = $derived(
 		Boolean(
 			(media.networks && media.networks.length > 0) ||
-				(media.developers && media.developers.length > 0) ||
-				(media.publishers && media.publishers.length > 0) ||
-				(media.platforms && media.platforms.length > 0) ||
-				media.timeToBeat?.normally ||
-				media.timeToBeat?.completely ||
-				ext?.awards ||
-				ext?.boxOffice ||
-				media.budget ||
-				media.revenue ||
-				ext?.animationStudio ||
-				ext?.networkSchedule,
+			(media.developers && media.developers.length > 0) ||
+			(media.publishers && media.publishers.length > 0) ||
+			(media.platforms && media.platforms.length > 0) ||
+			media.timeToBeat?.normally ||
+			media.timeToBeat?.completely ||
+			ext?.awards ||
+			ext?.boxOffice ||
+			media.budget ||
+			media.revenue ||
+			ext?.animationStudio ||
+			ext?.networkSchedule,
 		),
 	);
 </script>
@@ -92,7 +94,9 @@
 						href={imdbUrl}
 						target="_blank"
 						rel="noreferrer noopener external"
-						title={ext.imdbVotes ? `IMDb: ${ext.imdbRating}/10 (${ext.imdbVotes} votos)` : `IMDb: ${ext.imdbRating}/10`}
+						title={ext.imdbVotes
+							? `IMDb: ${ext.imdbRating}/10 (${ext.imdbVotes} votos)`
+							: `IMDb: ${ext.imdbRating}/10`}
 					>
 						<span class="brand">IMDb</span>
 						<span class="val">★ {ext.imdbRating}</span>
@@ -111,14 +115,20 @@
 				{/if}
 
 				{#if ext?.rottenTomatoes}
-					<span class="score-badge rt" title="Rotten Tomatoes (Tomatometer / Crítica)">
+					<span
+						class="score-badge rt"
+						title="Rotten Tomatoes (Tomatometer / Crítica)"
+					>
 						<span class="brand">🍅 RT</span>
 						<span class="val">{ext.rottenTomatoes}</span>
 					</span>
 				{/if}
 
 				{#if ext?.rottenTomatoesAudience}
-					<span class="score-badge rt-aud" title="Rotten Tomatoes (Popcornmeter / Audiência)">
+					<span
+						class="score-badge rt-aud"
+						title="Rotten Tomatoes (Popcornmeter / Audiência)"
+					>
 						<span class="brand">🍿 Aud</span>
 						<span class="val">{ext.rottenTomatoesAudience}</span>
 					</span>
@@ -168,7 +178,9 @@
 						href={malUrl}
 						target={malUrl ? "_blank" : undefined}
 						rel="noreferrer noopener external"
-						title={malUrl ? "Ver no MyAnimeList / AniList" : "AniList Mean Score"}
+						title={malUrl
+							? "Ver no MyAnimeList / AniList"
+							: "AniList Mean Score"}
 					>
 						<span class="brand">AniList</span>
 						<span class="val">{ext.anilist}</span>
@@ -226,20 +238,39 @@
 
 				{#if media.timeToBeat && (media.timeToBeat.normally || media.timeToBeat.completely)}
 					{#if media.timeToBeat.normally}
-						<span class="meta-chip ttb" title="Tempo médio para terminar a história principal">
-							<span>⏱️ História: {formatMinutesToHours(media.timeToBeat.normally)}</span>
+						<span
+							class="meta-chip ttb"
+							title="Tempo médio para terminar a história principal"
+						>
+							<span
+								>⏱️ História: {formatMinutesToHours(
+									media.timeToBeat.normally,
+								)}</span
+							>
 						</span>
 					{/if}
 					{#if media.timeToBeat.completely}
-						<span class="meta-chip ttb-100" title="Tempo médio para 100% (Completionist)">
-							<span>🏆 100%: {formatMinutesToHours(media.timeToBeat.completely)}</span>
+						<span
+							class="meta-chip ttb-100"
+							title="Tempo médio para 100% (Completionist)"
+						>
+							<span
+								>🏆 100%: {formatMinutesToHours(
+									media.timeToBeat.completely,
+								)}</span
+							>
 						</span>
 					{/if}
 				{/if}
 
 				{#if media.platforms && media.platforms.length > 0}
 					<span class="meta-chip platforms" title={media.platforms.join(", ")}>
-						<span>🎮 {media.platforms.slice(0, 5).join(" • ")}{media.platforms.length > 5 ? ` +${media.platforms.length - 5}` : ""}</span>
+						<span
+							>🎮 {media.platforms.slice(0, 5).join(" • ")}{media.platforms
+								.length > 5
+								? ` +${media.platforms.length - 5}`
+								: ""}</span
+						>
 					</span>
 				{/if}
 
@@ -332,7 +363,10 @@
 			border: 1px solid rgba(255, 255, 255, 0.14);
 			color: #f8fafc;
 			backdrop-filter: blur(10px);
-			transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+			transition:
+				transform 140ms ease,
+				border-color 140ms ease,
+				background 140ms ease;
 
 			&:hover {
 				transform: translateY(-1px);
@@ -455,4 +489,3 @@
 		}
 	}
 </style>
-

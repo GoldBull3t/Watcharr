@@ -53,7 +53,8 @@ class I18nManager {
 }
 
 export const i18n = new I18nManager();
-export const t = (key: TranslationKey, params?: Record<string, string | number>) =>
-	i18n.t(key, params);
+export const t = (
+	key: TranslationKey,
+	params?: Record<string, string | number>,
+) => i18n.t(key, params);
 export type { TranslationKey };
-

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Spinner from "@/lib/Spinner.svelte";
 	import {
 		type Media,
 		type WatchedStatus,
@@ -28,6 +27,7 @@
 	import Genres from "@/lib/content/Genres.svelte";
 	import SimilarContent from "@/lib/content/SimilarContent.svelte";
 	import ExternalRatingsBar from "@/lib/content/ExternalRatingsBar.svelte";
+	import MediaDetailSkeleton from "@/lib/content/MediaDetailSkeleton.svelte";
 	import HorizontalList from "@/lib/HorizontalList.svelte";
 
 	let { data } = $props();
@@ -44,24 +44,28 @@
 		}
 	});
 
+	async function loadGame(signal?: AbortSignal) {
+		try {
+			game = undefined;
+			pageError = undefined;
+			if (!data.gameId) {
+				return;
+			}
+			game = await req.get<Media>(`/game/${data.gameId}`, {
+				signal,
+			});
+		} catch (err: unknown) {
+			if (signal?.aborted) return;
+			game = undefined;
+			pageError = err;
+		}
+	}
+
 	$effect(() => {
 		const controller = new AbortController();
-		(async () => {
-			try {
-				game = undefined;
-				pageError = undefined;
-				if (!data.gameId) {
-					return;
-				}
-				game = await req.get<Media>(`/game/${data.gameId}`, {
-					signal: controller.signal,
-				});
-			} catch (err: unknown) {
-				if (controller.signal.aborted) return;
-				game = undefined;
-				pageError = err;
-			}
-		})();
+		if (data.gameId) {
+			loadGame(controller.signal);
+		}
 		return () => controller.abort();
 	});
 
@@ -138,9 +142,13 @@
 </svelte:head>
 
 {#if pageError}
-	<Error pretty="Failed to load game!" error={pageError} />
+	<Error
+		pretty="Failed to load game!"
+		error={pageError}
+		onRetry={() => loadGame()}
+	/>
 {:else if !game}
-	<Spinner />
+	<MediaDetailSkeleton type="game" />
 {:else if Object.keys(game).length > 0}
 	{#if backdropSrc}
 		<PageBackdrop src={backdropSrc} />
@@ -181,7 +189,10 @@
 						<ExpandableText text={game.summary} style="margin-bottom: 12px;" />
 
 						{#if game.storyline && game.storyline !== game.summary}
-							<ExpandableText text={game.storyline} style="margin-bottom: 18px;" />
+							<ExpandableText
+								text={game.storyline}
+								style="margin-bottom: 18px;"
+							/>
 						{/if}
 
 						<div class="btns">
@@ -418,7 +429,9 @@
 			overflow: hidden;
 			border: 1px solid rgba(255, 255, 255, 0.12);
 			background: rgba(15, 23, 42, 0.6);
-			transition: transform 160ms ease, border-color 160ms ease;
+			transition:
+				transform 160ms ease,
+				border-color 160ms ease;
 
 			&:hover {
 				transform: translateY(-2px) scale(1.02);

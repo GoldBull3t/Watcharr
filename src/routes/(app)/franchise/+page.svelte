@@ -1,9 +1,7 @@
 <script lang="ts">
-	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { req } from "@/lib/util/api";
 	import type { FranchiseSummary } from "@/types";
-	import Spinner from "@/lib/Spinner.svelte";
 	import Icon from "@/lib/Icon.svelte";
 	import { onMount } from "svelte";
 
@@ -11,7 +9,9 @@
 	let loading = $state(true);
 	let error = $state<string | undefined>();
 	let searchQuery = $state("");
-	let activeFilter = $state<"all" | "in_progress" | "completed" | "unwatched">("all");
+	let activeFilter = $state<"all" | "in_progress" | "completed" | "unwatched">(
+		"all",
+	);
 
 	async function loadFranchises() {
 		loading = true;
@@ -34,10 +34,14 @@
 	// Global statistics derived
 	let totalFranchises = $derived(franchises.length);
 	let completedFranchises = $derived(
-		franchises.filter((f) => f.totalItems > 0 && f.watchedCount === f.totalItems).length,
+		franchises.filter(
+			(f) => f.totalItems > 0 && f.watchedCount === f.totalItems,
+		).length,
 	);
 	let inProgressFranchises = $derived(
-		franchises.filter((f) => f.watchedCount > 0 && f.watchedCount < f.totalItems).length,
+		franchises.filter(
+			(f) => f.watchedCount > 0 && f.watchedCount < f.totalItems,
+		).length,
 	);
 	let totalWatchedItems = $derived(
 		franchises.reduce((acc, f) => acc + f.watchedCount, 0),
@@ -46,7 +50,9 @@
 		franchises.reduce((acc, f) => acc + f.totalItems, 0),
 	);
 	let globalPct = $derived(
-		totalPossibleItems > 0 ? Math.round((totalWatchedItems / totalPossibleItems) * 100) : 0,
+		totalPossibleItems > 0
+			? Math.round((totalWatchedItems / totalPossibleItems) * 100)
+			: 0,
 	);
 
 	// Filtered list
@@ -55,9 +61,13 @@
 
 		// Tab filter
 		if (activeFilter === "in_progress") {
-			list = list.filter((f) => f.watchedCount > 0 && f.watchedCount < f.totalItems);
+			list = list.filter(
+				(f) => f.watchedCount > 0 && f.watchedCount < f.totalItems,
+			);
 		} else if (activeFilter === "completed") {
-			list = list.filter((f) => f.totalItems > 0 && f.watchedCount === f.totalItems);
+			list = list.filter(
+				(f) => f.totalItems > 0 && f.watchedCount === f.totalItems,
+			);
 		} else if (activeFilter === "unwatched") {
 			list = list.filter((f) => f.watchedCount === 0);
 		}
@@ -90,7 +100,8 @@
 			</div>
 			<h1 class="hero-title">Sagas & Linhas Cronológicas</h1>
 			<p class="hero-subtitle">
-				Acompanha as maiores sagas do cinema e televisão, descobre a ordem cronológica correta e vê o teu progresso em tempo real.
+				Acompanha as maiores sagas do cinema e televisão, descobre a ordem
+				cronológica correta e vê o teu progresso em tempo real.
 			</p>
 
 			{#if !loading && franchises.length > 0}
@@ -129,7 +140,11 @@
 				bind:value={searchQuery}
 			/>
 			{#if searchQuery}
-				<button type="button" class="clear-btn" onclick={() => (searchQuery = "")}>
+				<button
+					type="button"
+					class="clear-btn"
+					onclick={() => (searchQuery = "")}
+				>
 					<Icon i="close" wh={14} />
 				</button>
 			{/if}
@@ -169,15 +184,30 @@
 
 	<!-- Content Area -->
 	{#if loading}
-		<div class="loading-wrap">
-			<Spinner />
-			<p>A carregar sagas e coleções...</p>
+		<div class="franchise-grid skeleton-grid" aria-hidden="true" role="status">
+			{#each Array.from({ length: 6 }, (__, idx) => idx) as i (i)}
+				<div class="franchise-card skeleton-card">
+					<div class="card-bg shimmer"></div>
+					<div class="card-body">
+						<div class="card-top">
+							<span class="skeleton-pill shimmer"></span>
+						</div>
+						<div class="card-bottom">
+							<div class="skeleton-line title shimmer"></div>
+							<div class="skeleton-line desc shimmer"></div>
+							<div class="skeleton-line progress shimmer"></div>
+						</div>
+					</div>
+				</div>
+			{/each}
 		</div>
 	{:else if error}
 		<div class="error-wrap">
 			<Icon i="close-circle" wh={32} />
 			<p>{error}</p>
-			<button type="button" class="retry-btn" onclick={loadFranchises}>Tentar Novamente</button>
+			<button type="button" class="retry-btn" onclick={loadFranchises}
+				>Tentar Novamente</button
+			>
 		</div>
 	{:else if filteredFranchises.length === 0}
 		<div class="empty-wrap">
@@ -241,7 +271,9 @@
 							<div class="progress-container">
 								<div class="progress-bar">
 									<div
-										class="progress-fill {f.percentWatched === 100 ? 'done' : ''}"
+										class="progress-fill {f.percentWatched === 100
+											? 'done'
+											: ''}"
 										style={`width: ${f.percentWatched}%;`}
 									></div>
 								</div>
@@ -268,10 +300,9 @@
 
 	.hero-section {
 		position: relative;
-		padding: 40px 32px;
-		border-radius: 20px;
-		background: radial-gradient(120% 120% at 50% 0%, rgba(99, 102, 241, 0.15) 0%, rgba(20, 20, 22, 0.6) 100%),
-			rgba(255, 255, 255, 0.02);
+		padding: 32px 28px;
+		border-radius: 12px;
+		background: rgba(22, 27, 38, 0.75);
 		border: 1px solid rgba(255, 255, 255, 0.08);
 		overflow: hidden;
 	}
@@ -451,7 +482,10 @@
 		text-decoration: none;
 		border: 1px solid rgba(255, 255, 255, 0.09);
 		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
-		transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s, box-shadow 0.22s;
+		transition:
+			transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+			border-color 0.22s,
+			box-shadow 0.22s;
 		display: flex;
 		flex-direction: column;
 
@@ -479,7 +513,11 @@
 	.card-overlay {
 		position: absolute;
 		inset: 0;
-		background: linear-gradient(180deg, rgba(14, 14, 17, 0.35) 0%, rgba(14, 14, 17, 0.94) 85%);
+		background: linear-gradient(
+			180deg,
+			rgba(14, 14, 17, 0.35) 0%,
+			rgba(14, 14, 17, 0.94) 85%
+		);
 		z-index: 2;
 	}
 
@@ -566,6 +604,7 @@
 		line-height: 1.4;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}
@@ -587,12 +626,12 @@
 
 	.progress-fill {
 		height: 100%;
-		background: linear-gradient(90deg, #6366f1 0%, #818cf8 100%);
+		background: #6366f1;
 		border-radius: 6px;
 		transition: width 0.3s ease;
 
 		&.done {
-			background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);
+			background: #22c55e;
 		}
 	}
 
@@ -604,7 +643,6 @@
 		text-align: right;
 	}
 
-	.loading-wrap,
 	.empty-wrap,
 	.error-wrap {
 		display: flex;
@@ -633,5 +671,64 @@
 		&:hover {
 			background: rgba(99, 102, 241, 0.35);
 		}
+	}
+
+	.skeleton-card {
+		pointer-events: none;
+		border-color: rgba(255, 255, 255, 0.05);
+
+		.skeleton-pill {
+			width: 60px;
+			height: 20px;
+			border-radius: 9999px;
+			display: inline-block;
+		}
+
+		.card-bottom {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+			width: 100%;
+		}
+
+		.skeleton-line {
+			border-radius: 4px;
+
+			&.title {
+				height: 20px;
+				width: 70%;
+			}
+
+			&.desc {
+				height: 12px;
+				width: 90%;
+			}
+
+			&.progress {
+				height: 6px;
+				width: 100%;
+				margin-top: 4px;
+			}
+		}
+	}
+
+	@keyframes shimmer {
+		0% {
+			background-position: -200% 0;
+		}
+		100% {
+			background-position: 200% 0;
+		}
+	}
+
+	.shimmer {
+		background: linear-gradient(
+			90deg,
+			rgba(20, 24, 36, 0.75) 0%,
+			rgba(38, 46, 68, 0.9) 50%,
+			rgba(20, 24, 36, 0.75) 100%
+		);
+		background-size: 200% 100%;
+		animation: shimmer 1.8s infinite ease-in-out;
 	}
 </style>

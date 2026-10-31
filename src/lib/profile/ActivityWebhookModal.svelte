@@ -6,7 +6,7 @@
 	import { store } from "@/store.svelte";
 	import { req } from "@/lib/util/api";
 	import { notify } from "@/lib/util/notify";
-	import type { PrivateUser } from "@/types";
+	import type { PrivateUser, UserSettings } from "@/types";
 
 	interface Props {
 		open?: boolean;
@@ -34,10 +34,12 @@
 	let detectedPlatform = $derived.by(() => {
 		const u = webhookUrl.toLowerCase().trim();
 		if (!u) return null;
-		if (u.includes("discord.com") || u.includes("discordapp.com")) return "discord";
+		if (u.includes("discord.com") || u.includes("discordapp.com"))
+			return "discord";
 		if (u.includes("hooks.slack.com")) return "slack";
 		if (u.includes("ntfy.sh") || u.includes("/ntfy")) return "ntfy";
-		if (u.includes(":8123") || u.includes("/api/webhook/")) return "homeassistant";
+		if (u.includes(":8123") || u.includes("/api/webhook/"))
+			return "homeassistant";
 		return "generic";
 	});
 
@@ -72,19 +74,20 @@
 <Modal title="Real-Time Outbound Activity Webhooks" maxWidth="620px" {onClose}>
 	<div class="webhook-modal-body">
 		<p class="modal-desc">
-			Broadcast events (Watched, Status Changes, Ratings) in real time to your Homelab, Home Assistant automation, Discord channel, Slack, or Ntfy topic.
+			Broadcast events (Watched, Status Changes, Ratings) in real time to your
+			Homelab, Home Assistant automation, Discord channel, Slack, or Ntfy topic.
 		</p>
 
 		<!-- Enable Toggle -->
 		<div class="setting-row">
 			<label class="checkbox-label" for="activity_webhook_enabled">
-				<Checkbox
-					name="activity_webhook_enabled"
-					bind:value={isEnabled}
-				/>
+				<Checkbox name="activity_webhook_enabled" bind:value={isEnabled} />
 				<div class="label-text">
 					<strong>Enable Activity Webhook</strong>
-					<span class="desc">Automatically send an outbound JSON payload whenever you update your media list.</span>
+					<span class="desc"
+						>Automatically send an outbound JSON payload whenever you update
+						your media list.</span
+					>
 				</div>
 			</label>
 		</div>
@@ -95,7 +98,9 @@
 				<label for="act_webhook_url">Webhook URL</label>
 				<div class="platform-indicators">
 					{#if detectedPlatform === "discord"}
-						<span class="badge discord"><Icon i="discord" wh={12} /> Discord</span>
+						<span class="badge discord"
+							><Icon i="discord" wh={12} /> Discord</span
+						>
 					{:else if detectedPlatform === "homeassistant"}
 						<span class="badge ha">Home Assistant</span>
 					{:else if detectedPlatform === "slack"}
@@ -114,7 +119,8 @@
 				bind:value={webhookUrl}
 			/>
 			<span class="input-hint">
-				Works with Discord webhook URLs, Home Assistant webhooks, Slack, or any HTTP endpoint.
+				Works with Discord webhook URLs, Home Assistant webhooks, Slack, or any
+				HTTP endpoint.
 			</span>
 		</div>
 
@@ -122,8 +128,12 @@
 		<div class="input-block">
 			<label for="act_filter">Event Filter</label>
 			<select id="act_filter" bind:value={filterType}>
-				<option value="all">All Events (Status changes, Ratings, Watched)</option>
-				<option value="finished">Only Finished (When an item or episode is marked completed)</option>
+				<option value="all"
+					>All Events (Status changes, Ratings, Watched)</option
+				>
+				<option value="finished"
+					>Only Finished (When an item or episode is marked completed)</option
+				>
 				<option value="watching">Only Watching (When actively watching)</option>
 				<option value="rating">Only Ratings (When rating is updated)</option>
 			</select>
@@ -131,9 +141,7 @@
 
 		<!-- Action Footer -->
 		<div class="modal-footer">
-			<button class="btn-action secondary" onclick={onClose}>
-				Cancel
-			</button>
+			<button class="btn-action secondary" onclick={onClose}> Cancel </button>
 			<button
 				class="btn-action primary"
 				disabled={isSaving}
@@ -181,7 +189,8 @@
 			color: var(--text-color, #fff);
 		}
 
-		input, select {
+		input,
+		select {
 			background: rgba(0, 0, 0, 0.35);
 			border: 1px solid rgba(255, 255, 255, 0.15);
 			border-radius: 8px;

@@ -42,13 +42,13 @@
 	const hasItemsToShow = $derived(
 		Boolean(
 			store.wlDetailedView &&
-				store.wlDetailedView.length > 0 &&
-				((dateAdded && store.wlDetailedView.includes("dateAdded")) ||
-					(dateModified && store.wlDetailedView.includes("dateModified")) ||
-					(seasonProgress && store.wlDetailedView.includes("lastWatched")) ||
-					(lastWatched && store.wlDetailedView.includes("lastWatched")) ||
-					(typeof hoursPlayed === "number" && hoursPlayed > 0) ||
-					(store.wlDetailedView.includes("statusRating") && (status || rating))),
+			store.wlDetailedView.length > 0 &&
+			((dateAdded && store.wlDetailedView.includes("dateAdded")) ||
+				(dateModified && store.wlDetailedView.includes("dateModified")) ||
+				(seasonProgress && store.wlDetailedView.includes("lastWatched")) ||
+				(lastWatched && store.wlDetailedView.includes("lastWatched")) ||
+				(typeof hoursPlayed === "number" && hoursPlayed > 0) ||
+				(store.wlDetailedView.includes("statusRating") && (status || rating))),
 		),
 	);
 </script>
@@ -101,8 +101,16 @@
 							></div>
 						</div>
 					{/if}
-					<span class="season-label" class:caught-up={seasonProgress.isCaughtUp}>
-						<i><Icon i={seasonProgress.isCaughtUp ? "check" : "play"} wh={11} /></i>
+					<span
+						class="season-label"
+						class:caught-up={seasonProgress.isCaughtUp}
+					>
+						<i
+							><Icon
+								i={seasonProgress.isCaughtUp ? "check" : "play"}
+								wh={11}
+							/></i
+						>
 						<span>{seasonProgress.displayText}</span>
 					</span>
 				</div>
@@ -114,7 +122,10 @@
 			{/if}{#if typeof hoursPlayed === "number" && hoursPlayed > 0}
 				<span title={t("gaming.hours_played") || "Horas jogadas"}>
 					<i>🎮</i>
-					<span>{hoursPlayed}h{#if platform} • {platform}{/if}</span>
+					<span
+						>{hoursPlayed}h{#if platform}
+							• {platform}{/if}</span
+					>
 				</span>
 			{/if}{#if store.wlDetailedView.includes("statusRating")}
 				<span

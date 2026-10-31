@@ -31,9 +31,9 @@ import (
 	"github.com/sbondCo/Watcharr/database/entity"
 	"github.com/sbondCo/Watcharr/domain"
 	"github.com/sbondCo/Watcharr/feature/activity"
-	"github.com/sbondCo/Watcharr/feature/backup"
 	"github.com/sbondCo/Watcharr/feature/arr"
 	"github.com/sbondCo/Watcharr/feature/auth"
+	"github.com/sbondCo/Watcharr/feature/backup"
 	"github.com/sbondCo/Watcharr/feature/calendar"
 	"github.com/sbondCo/Watcharr/feature/content"
 	"github.com/sbondCo/Watcharr/feature/discover"
@@ -47,8 +47,8 @@ import (
 	"github.com/sbondCo/Watcharr/feature/jellyfin"
 	"github.com/sbondCo/Watcharr/feature/job"
 	"github.com/sbondCo/Watcharr/feature/plex"
-	"github.com/sbondCo/Watcharr/feature/push"
 	"github.com/sbondCo/Watcharr/feature/profile"
+	"github.com/sbondCo/Watcharr/feature/push"
 	"github.com/sbondCo/Watcharr/feature/search"
 	"github.com/sbondCo/Watcharr/feature/seerr"
 	"github.com/sbondCo/Watcharr/feature/server"
@@ -59,6 +59,7 @@ import (
 	"github.com/sbondCo/Watcharr/feature/watched"
 	"github.com/sbondCo/Watcharr/feature/watched/episode"
 	"github.com/sbondCo/Watcharr/feature/watched/season"
+	jobcore "github.com/sbondCo/Watcharr/job"
 	"github.com/sbondCo/Watcharr/logging"
 	"github.com/sbondCo/Watcharr/media/tmdb"
 	"github.com/sbondCo/Watcharr/router"
@@ -397,8 +398,11 @@ func main() {
 			"error", uresp.Error)
 	}
 
+	appCtx, appCancel := context.WithCancel(context.Background())
+	defer appCancel()
+
 	go taskl.SetupTasks(cfg, db, calendarService, backupService)
-	go contentService.BackfillMissingMetadata()
+	go contentService.BackfillMissingMetadata(appCtx)
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf("0.0.0.0:%s", getListenPort()),
@@ -422,9 +426,11 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	slog.Info("Shutting down Watcharr gracefully...")
+	appCancel()
 
 	// Stop recurring background tasks before closing HTTP/DB
 	taskl.ShutdownTasks()
+	jobcore.ShutdownJobs()
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()

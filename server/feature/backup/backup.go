@@ -33,7 +33,9 @@ func NewService(db *gorm.DB, cfg *config.ServerConfig) *Service {
 		cfg:       cfg,
 		backupDir: bDir,
 	}
-	_ = s.EnsureBackupDir()
+	if err := s.EnsureBackupDir(); err != nil {
+		slog.Error("NewService: failed to ensure backup directory", "error", err)
+	}
 	return s
 }
 
@@ -175,7 +177,9 @@ func (s *Service) CreateBackup(isAuto bool, format string) (*BackupInfo, error) 
 	slog.Info("CreateBackup: Backup created successfully", "filename", filename, "size", FormatBytes(fi.Size()))
 
 	if isAuto {
-		_ = s.pruneBackupsLocked(s.cfg.GetBackupRetention())
+		if err := s.pruneBackupsLocked(s.cfg.GetBackupRetention()); err != nil {
+			slog.Warn("CreateBackup: failed to prune old backups", "error", err)
+		}
 	}
 
 	bType := "sqlite"
@@ -201,7 +205,9 @@ func (s *Service) RunAutomatedBackup() error {
 
 func (s *Service) createSQLiteBackup(finalGzFilename string) error {
 	// 1. Truncate WAL to write all active transactions to disk
-	_ = s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
+	if res := s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); res.Error != nil {
+		slog.Warn("createSQLiteBackup: PRAGMA wal_checkpoint failed", "error", res.Error)
+	}
 
 	tempRaw := filepath.Join(s.backupDir, "raw_"+finalGzFilename+".tmp")
 	defer os.Remove(tempRaw)
@@ -233,18 +239,42 @@ func (s *Service) createJSONBackup(finalGzFilename string) error {
 		Driver:     s.db.Dialector.Name(),
 	}
 
-	_ = s.db.Find(&dump.Users).Error
-	_ = s.db.Find(&dump.UserServices).Error
-	_ = s.db.Find(&dump.Content).Error
-	_ = s.db.Find(&dump.Watched).Error
-	_ = s.db.Find(&dump.Seasons).Error
-	_ = s.db.Find(&dump.Episodes).Error
-	_ = s.db.Find(&dump.Activity).Error
-	_ = s.db.Find(&dump.Follow).Error
-	_ = s.db.Find(&dump.Images).Error
-	_ = s.db.Find(&dump.Games).Error
-	_ = s.db.Find(&dump.ArrRequests).Error
-	_ = s.db.Find(&dump.Tags).Error
+	if err := s.db.Find(&dump.Users).Error; err != nil {
+		return fmt.Errorf("createJSONBackup: failed to dump users: %w", err)
+	}
+	if err := s.db.Find(&dump.UserServices).Error; err != nil {
+		return fmt.Errorf("createJSONBackup: failed to dump user services: %w", err)
+	}
+	if err := s.db.Find(&dump.Content).Error; err != nil {
+		return fmt.Errorf("createJSONBackup: failed to dump content: %w", err)
+	}
+	if err := s.db.Find(&dump.Watched).Error; err != nil {
+		return fmt.Errorf("createJSONBackup: failed to dump watched: %w", err)
+	}
+	if err := s.db.Find(&dump.Seasons).Error; err != nil {
+		return fmt.Errorf("createJSONBackup: failed to dump seasons: %w", err)
+	}
+	if err := s.db.Find(&dump.Episodes).Error; err != nil {
+		return fmt.Errorf("createJSONBackup: failed to dump episodes: %w", err)
+	}
+	if err := s.db.Find(&dump.Activity).Error; err != nil {
+		return fmt.Errorf("createJSONBackup: failed to dump activity: %w", err)
+	}
+	if err := s.db.Find(&dump.Follow).Error; err != nil {
+		return fmt.Errorf("createJSONBackup: failed to dump follow: %w", err)
+	}
+	if err := s.db.Find(&dump.Images).Error; err != nil {
+		return fmt.Errorf("createJSONBackup: failed to dump images: %w", err)
+	}
+	if err := s.db.Find(&dump.Games).Error; err != nil {
+		return fmt.Errorf("createJSONBackup: failed to dump games: %w", err)
+	}
+	if err := s.db.Find(&dump.ArrRequests).Error; err != nil {
+		return fmt.Errorf("createJSONBackup: failed to dump arr requests: %w", err)
+	}
+	if err := s.db.Find(&dump.Tags).Error; err != nil {
+		return fmt.Errorf("createJSONBackup: failed to dump tags: %w", err)
+	}
 
 	jsonData, err := json.Marshal(dump)
 	if err != nil {
@@ -411,10 +441,16 @@ func (s *Service) RestoreBackup(filename string) error {
 	// 1. Mandatory Pre-Restore Safety Snapshot to guarantee ZERO data loss
 	safetyName := fmt.Sprintf("watcharr_backup_pre_restore_%s.db.gz", time.Now().Format("20060102_150405"))
 	if s.db.Dialector.Name() == "sqlite" {
-		_ = s.createSQLiteBackup(safetyName)
+		if err := s.createSQLiteBackup(safetyName); err != nil {
+			slog.Error("RestoreBackup: Failed to create safety backup prior to restore", "error", err)
+			return fmt.Errorf("pre-restore safety backup failed: %w", err)
+		}
 	} else {
 		safetyName = fmt.Sprintf("watcharr_backup_pre_restore_%s.json.gz", time.Now().Format("20060102_150405"))
-		_ = s.createJSONBackup(safetyName)
+		if err := s.createJSONBackup(safetyName); err != nil {
+			slog.Error("RestoreBackup: Failed to create safety backup prior to restore", "error", err)
+			return fmt.Errorf("pre-restore safety backup failed: %w", err)
+		}
 	}
 	slog.Info("RestoreBackup: Created pre-restore safety snapshot", "safetyFile", safetyName)
 
@@ -448,7 +484,9 @@ func (s *Service) restoreSQLite(archivePath string) error {
 	}
 
 	// Checkpoint WAL
-	_ = s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
+	if res := s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); res.Error != nil {
+		slog.Warn("createSQLiteBackup: PRAGMA wal_checkpoint failed", "error", res.Error)
+	}
 
 	// Target sqlite path
 	destDB := database.GetSQLiteDBPath()
@@ -463,7 +501,9 @@ func (s *Service) restoreSQLite(archivePath string) error {
 	_ = os.Remove(destDB + "-shm")
 
 	// Verify restored db integrity
-	_ = s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
+	if res := s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); res.Error != nil {
+		slog.Warn("createSQLiteBackup: PRAGMA wal_checkpoint failed", "error", res.Error)
+	}
 	var schemaVer int
 	if err := s.db.Raw("PRAGMA user_version").Scan(&schemaVer).Error; err != nil {
 		slog.Warn("restoreSQLite: Post-restore schema verification warning", "error", err)

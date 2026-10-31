@@ -60,7 +60,8 @@
 			<span class="film-icon">🎬</span>
 			<div class="banner-texts">
 				<span class="banner-kicker">Coleção & Franquia TMDB</span>
-				<strong class="universe-name">{collectionName || "Ver Franquia"}</strong>
+				<strong class="universe-name">{collectionName || "Ver Franquia"}</strong
+				>
 			</div>
 		</div>
 
@@ -82,8 +83,8 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 16px;
-		background: linear-gradient(135deg, rgba(88, 166, 255, 0.12) 0%, rgba(137, 87, 229, 0.18) 100%);
-		border: 1px solid rgba(88, 166, 255, 0.35);
+		background: rgba(22, 27, 38, 0.75);
+		border: 1px solid rgba(88, 166, 255, 0.3);
 		border-radius: 12px;
 		padding: 12px 18px;
 		margin: 16px 0;
@@ -96,7 +97,7 @@
 		}
 
 		&.tmdb-col-banner {
-			background: linear-gradient(135deg, rgba(240, 136, 62, 0.1) 0%, rgba(22, 27, 34, 0.8) 100%);
+			background: rgba(22, 27, 38, 0.75);
 			border-color: rgba(240, 136, 62, 0.3);
 
 			&:hover {
@@ -208,4 +209,3 @@
 		display: inline-block;
 	}
 </style>
-

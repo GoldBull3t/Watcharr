@@ -5,7 +5,12 @@
 	import Poster from "@/lib/poster/Poster.svelte";
 	import { req, updateWatched } from "@/lib/util/api";
 	import { notify } from "@/lib/util/notify";
-	import type { Media, RoulettePickRequest, RoulettePickResponse } from "@/types";
+	import {
+		MediaTypeE,
+		type Media,
+		type RoulettePickRequest,
+		type RoulettePickResponse,
+	} from "@/types";
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
@@ -73,7 +78,10 @@
 				genre: selectedGenre.trim() ? selectedGenre.trim() : undefined,
 				count: 10,
 			};
-			const res = await req.post<RoulettePickResponse>("/watched/pick", reqBody);
+			const res = await req.post<RoulettePickResponse>(
+				"/watched/pick",
+				reqBody,
+			);
 			if (res) {
 				totalPool = res.totalPool;
 				candidatePool = res.items || [];
@@ -89,7 +97,10 @@
 			}
 		} catch (err) {
 			console.error("fetchPool error:", err);
-			notify({ type: "error", text: "Erro ao consultar catálogo para a roleta." });
+			notify({
+				type: "error",
+				text: "Erro ao consultar catálogo para a roleta.",
+			});
 		} finally {
 			loadingPool = false;
 		}
@@ -148,8 +159,17 @@
 	}
 
 	function getMediaUrl(item: Media): string {
-		const type = (item.type as any) === "movie" || item.type === MediaTypeE.tmdbMovie ? "movie" : (item.type as any) === "tv" || item.type === MediaTypeE.tmdbShow ? "tv" : "game";
-		const id = item.ids?.tmdb || item.ids?.igdb || (item.ids as any)?.id || (item as any).id;
+		const type =
+			(item.type as any) === "movie" || item.type === MediaTypeE.tmdbMovie
+				? "movie"
+				: (item.type as any) === "tv" || item.type === MediaTypeE.tmdbShow
+					? "tv"
+					: "game";
+		const id =
+			item.ids?.tmdb ||
+			item.ids?.igdb ||
+			(item.ids as any)?.id ||
+			(item as any).id;
 		return resolve(`/${type}/${id}` as any);
 	}
 
@@ -157,7 +177,11 @@
 		if (!winner || isMarkingWatching) return;
 		isMarkingWatching = true;
 		try {
-			const targetId = winner.ids?.tmdb || winner.ids?.igdb || (winner.ids as any)?.id || (winner as any).id;
+			const targetId =
+				winner.ids?.tmdb ||
+				winner.ids?.igdb ||
+				(winner.ids as any)?.id ||
+				(winner as any).id;
 			if (winner.watched?.id) {
 				await updateWatched(winner.watched, {
 					contentId: targetId,
@@ -165,7 +189,10 @@
 					status: "WATCHING",
 				});
 				hasMarkedWatching = true;
-				notify({ type: "success", text: `"${winner.name}" marcado como a ver!` });
+				notify({
+					type: "success",
+					text: `"${winner.name}" marcado como a ver!`,
+				});
 			} else {
 				// No existing watched entry, add new
 				await req.post("/watched", {
@@ -174,7 +201,10 @@
 					status: "WATCHING",
 				});
 				hasMarkedWatching = true;
-				notify({ type: "success", text: `"${winner.name}" adicionado e a ver!` });
+				notify({
+					type: "success",
+					text: `"${winner.name}" adicionado e a ver!`,
+				});
 			}
 		} catch (err) {
 			console.error("markAsWatching error:", err);
@@ -360,7 +390,9 @@
 					<span>A calcular títulos elegíveis...</span>
 				{:else if totalPool > 0}
 					<span class="pool-badge">🎯 {totalPool} títulos elegíveis</span>
-					<span class="pool-subtitle">Prontos a serem sorteados da tua biblioteca</span>
+					<span class="pool-subtitle"
+						>Prontos a serem sorteados da tua biblioteca</span
+					>
 				{:else}
 					<span class="pool-empty">⚠️ Nenhum título com estes filtros</span>
 				{/if}
@@ -375,14 +407,16 @@
 						onclick={startSpin}
 					>
 						<span class="dice-icon" class:shake={spinning}>🎲</span>
-						<span>{spinning ? "A Sortear..." : winner ? "Girar Novamente" : "Girar Roleta!"}</span>
+						<span
+							>{spinning
+								? "A Sortear..."
+								: winner
+									? "Girar Novamente"
+									: "Girar Roleta!"}</span
+						>
 					</button>
 				{:else}
-					<button
-						type="button"
-						class="btn-reset"
-						onclick={resetFilters}
-					>
+					<button type="button" class="btn-reset" onclick={resetFilters}>
 						<Icon i="close" wh={14} />
 						<span>Limpar Filtros</span>
 					</button>
@@ -416,7 +450,7 @@
 				<!-- Winner Presentation Card -->
 				<div class="winner-card">
 					<div class="winner-glow"></div>
-					
+
 					<div class="winner-poster-wrap">
 						<Poster
 							media={winner}
@@ -430,7 +464,13 @@
 						<div class="winner-header">
 							<div class="winner-meta-pills">
 								<span class="pill type-pill">
-									{(winner.type as any) === "movie" || winner.type === MediaTypeE.tmdbMovie ? "🎬 FILME" : (winner.type as any) === "tv" || winner.type === MediaTypeE.tmdbShow ? "📺 SÉRIE" : "🎮 JOGO"}
+									{(winner.type as any) === "movie" ||
+									winner.type === MediaTypeE.tmdbMovie
+										? "🎬 FILME"
+										: (winner.type as any) === "tv" ||
+											  winner.type === MediaTypeE.tmdbShow
+											? "📺 SÉRIE"
+											: "🎮 JOGO"}
 								</span>
 								{#if winner.releaseDate}
 									<span class="pill year-pill">
@@ -448,7 +488,7 @@
 									</span>
 								{/if}
 							</div>
-							
+
 							<h2 class="winner-title">{winner.name}</h2>
 						</div>
 
@@ -506,12 +546,12 @@
 				<div class="ready-hero">
 					<div class="dice-preview">🎲</div>
 					<h3>Tudo pronto para sortear!</h3>
-					<p>Temos <strong>{totalPool}</strong> títulos à tua espera com estes critérios. Clica em <strong>Girar Roleta</strong> para escolher a tua sessão de hoje.</p>
-					<button
-						type="button"
-						class="btn-spin-large"
-						onclick={startSpin}
-					>
+					<p>
+						Temos <strong>{totalPool}</strong> títulos à tua espera com estes
+						critérios. Clica em <strong>Girar Roleta</strong> para escolher a tua
+						sessão de hoje.
+					</p>
+					<button type="button" class="btn-spin-large" onclick={startSpin}>
 						<span>Girar Roleta 🎲</span>
 					</button>
 				</div>
@@ -520,12 +560,11 @@
 				<div class="empty-pool-hero">
 					<span class="empty-icon">📭</span>
 					<h3>Nenhum título corresponde aos teus filtros</h3>
-					<p>Experimenta aumentar a duração máxima, remover o filtro de género ou incluir títulos de toda a biblioteca.</p>
-					<button
-						type="button"
-						class="btn-reset-hero"
-						onclick={resetFilters}
-					>
+					<p>
+						Experimenta aumentar a duração máxima, remover o filtro de género ou
+						incluir títulos de toda a biblioteca.
+					</p>
+					<button type="button" class="btn-reset-hero" onclick={resetFilters}>
 						Limpar Filtros e Tentar Novamente
 					</button>
 				</div>
@@ -648,21 +687,22 @@
 		.btn-spin {
 			display: flex;
 			align-items: center;
-			gap: 10px;
-			background: linear-gradient(135deg, #ffb703 0%, #fb8500 100%);
-			color: #000;
-			font-size: 15px;
-			font-weight: 800;
-			padding: 10px 24px;
-			border-radius: 30px;
+			gap: 8px;
+			background: $brand-color;
+			color: #0b0e14;
+			font-size: 14px;
+			font-weight: 600;
+			padding: 8px 18px;
+			border-radius: 8px;
 			border: none;
 			cursor: pointer;
-			box-shadow: 0 4px 15px rgba(251, 133, 0, 0.35);
-			transition: all 0.25s ease;
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+			transition:
+				background-color 150ms ease,
+				opacity 150ms ease;
 
 			&:hover:not(:disabled) {
-				transform: translateY(-2px) scale(1.02);
-				box-shadow: 0 6px 20px rgba(251, 133, 0, 0.5);
+				filter: brightness(1.05);
 			}
 
 			&:active:not(:disabled) {
@@ -777,14 +817,7 @@
 		align-items: flex-start;
 
 		.winner-glow {
-			position: absolute;
-			top: -40px;
-			left: -40px;
-			right: -40px;
-			bottom: -40px;
-			background: radial-gradient(circle at 30% 40%, rgba(255, 183, 3, 0.15) 0%, transparent 70%);
-			pointer-events: none;
-			z-index: 0;
+			display: none;
 		}
 
 		.winner-poster-wrap {
@@ -862,6 +895,7 @@
 				margin: 0;
 				display: -webkit-box;
 				-webkit-line-clamp: 4;
+				line-clamp: 4;
 				-webkit-box-orient: vertical;
 				overflow: hidden;
 			}
@@ -961,20 +995,21 @@
 
 		.btn-spin-large {
 			margin-top: 10px;
-			background: linear-gradient(135deg, #ffb703 0%, #fb8500 100%);
-			color: #000;
-			font-size: 16px;
-			font-weight: 800;
-			padding: 12px 36px;
-			border-radius: 30px;
+			background: $brand-color;
+			color: #0b0e14;
+			font-size: 15px;
+			font-weight: 700;
+			padding: 10px 28px;
+			border-radius: 8px;
 			border: none;
 			cursor: pointer;
-			box-shadow: 0 4px 20px rgba(251, 133, 0, 0.4);
-			transition: all 0.25s ease;
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+			transition:
+				background-color 150ms ease,
+				opacity 150ms ease;
 
 			&:hover {
-				transform: translateY(-2px) scale(1.03);
-				box-shadow: 0 8px 25px rgba(251, 133, 0, 0.6);
+				filter: brightness(1.05);
 			}
 		}
 	}
@@ -1008,31 +1043,42 @@
 
 		.btn-reset-hero {
 			margin-top: 10px;
-			background: rgba(255, 255, 255, 0.1);
+			background: rgba(255, 255, 255, 0.08);
 			color: #fff;
-			border: 1px solid rgba(255, 255, 255, 0.2);
+			border: 1px solid rgba(255, 255, 255, 0.15);
 			font-size: 13px;
 			font-weight: 600;
-			padding: 8px 20px;
-			border-radius: 20px;
+			padding: 8px 18px;
+			border-radius: 8px;
 			cursor: pointer;
 			transition: all 0.2s ease;
 
 			&:hover {
-				background: rgba(255, 255, 255, 0.18);
+				background: rgba(255, 255, 255, 0.15);
 			}
 		}
 	}
 
 	@keyframes diceShake {
-		0%, 100% { transform: rotate(0deg) scale(1); }
-		25% { transform: rotate(-15deg) scale(1.15); }
-		75% { transform: rotate(15deg) scale(1.15); }
+		0%,
+		100% {
+			transform: rotate(0deg) scale(1);
+		}
+		25% {
+			transform: rotate(-15deg) scale(1.15);
+		}
+		75% {
+			transform: rotate(15deg) scale(1.15);
+		}
 	}
 
 	@keyframes pulseGlow {
-		0% { box-shadow: 0 0 15px rgba(255, 183, 3, 0.2); }
-		100% { box-shadow: 0 0 35px rgba(255, 183, 3, 0.6); }
+		0% {
+			box-shadow: 0 0 15px rgba(255, 183, 3, 0.2);
+		}
+		100% {
+			box-shadow: 0 0 35px rgba(255, 183, 3, 0.6);
+		}
 	}
 
 	@media (max-width: 650px) {

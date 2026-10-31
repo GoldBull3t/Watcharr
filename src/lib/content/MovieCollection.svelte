@@ -249,7 +249,7 @@
 
 				.progress-fill {
 					height: 100%;
-					background: linear-gradient(90deg, $brand-color, #10b981);
+					background: $brand-color;
 					border-radius: 9999px;
 					transition: width 300ms ease;
 				}

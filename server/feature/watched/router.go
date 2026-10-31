@@ -305,9 +305,17 @@ func (r *Router) PickRoulette(c *gin.Context) {
 	userId := c.MustGet("userId").(uint)
 	var req domain.RoulettePickRequest
 	if c.Request.Method == "POST" {
-		_ = c.ShouldBindJSON(&req)
+		if c.Request.ContentLength > 0 {
+			if err := c.ShouldBindJSON(&req); err != nil {
+				c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid request body"})
+				return
+			}
+		}
 	} else {
-		_ = c.ShouldBindQuery(&req)
+		if err := c.ShouldBindQuery(&req); err != nil {
+			c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid query parameters"})
+			return
+		}
 	}
 	resp, err := r.s.PickRoulette(userId, req)
 	if err != nil {

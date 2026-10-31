@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"log/slog"
+	"math/rand"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -18,8 +18,8 @@ import (
 	"github.com/sbondCo/Watcharr/domain"
 	"github.com/sbondCo/Watcharr/feature/integration"
 	"github.com/sbondCo/Watcharr/feature/watched/addedtocontent"
-	"github.com/sbondCo/Watcharr/util"
 	"github.com/sbondCo/Watcharr/media/tmdb"
+	"github.com/sbondCo/Watcharr/util"
 	"gorm.io/gorm"
 )
 
@@ -515,56 +515,67 @@ func (s *Service) AddWatched(
 		watched.UpdatedAt = ar.WatchedDate
 	}
 
-	// Create the entry in db.
-	res := s.db.Create(&watched)
-	if res.Error != nil {
-		if errors.Is(res.Error, gorm.ErrDuplicatedKey) {
-			// The record already exists.
-			// It could be soft deleted or not.
-			slog.Info("AddWatched: Creating row failed because of a unique key constraint violation.")
-			if err := s.restoreWatchedAfterDuplicatedKeyErr(
-				userId,
-				ar,
-				extraProps.DontRestore,
-				&watched,
-			); err != nil {
-				// Try to restore the entry if unique contraint hit.
-				slog.Error("AddWatched: Failed to restore existing watched entry.",
-					"error", err)
-				// Returns watched too because handlers of certain errors
-				// may need it (and it's ID since we could have fetched it here)
-				return watched, err
+	// Create the entry and its activity atomically in a transaction.
+	txErr := s.db.Transaction(func(tx *gorm.DB) error {
+		res := tx.Create(&watched)
+		if res.Error != nil {
+			if errors.Is(res.Error, gorm.ErrDuplicatedKey) {
+				// The record already exists.
+				// It could be soft deleted or not.
+				slog.Info("AddWatched: Creating row failed because of a unique key constraint violation.")
+				if err := s.restoreWatchedAfterDuplicatedKeyErr(
+					userId,
+					ar,
+					extraProps.DontRestore,
+					&watched,
+					tx,
+				); err != nil {
+					// Try to restore the entry if unique contraint hit.
+					slog.Error("AddWatched: Failed to restore existing watched entry.",
+						"error", err)
+					// Returns watched too because handlers of certain errors
+					// may need it (and it's ID since we could have fetched it here)
+					return err
+				}
+			} else {
+				slog.Error("AddWatched: Error adding watched to database", "error", res.Error.Error())
+				return errors.New("failed adding watched entry to database")
 			}
-		} else {
-			slog.Error("AddWatched: Error adding watched to database", "error", res.Error.Error())
-			return entity.Watched{}, errors.New("failed adding watched entry to database")
 		}
-	}
-	slog.Debug("AddWatched: Added watched list item", "item", watched)
+		slog.Debug("AddWatched: Added watched list item", "item", watched)
 
-	// Finally add activity
-	activityAddReq := activity.NewCreator(
-		s.db,
-		userId,
-		watched.ID,
-		entity.ADDED_WATCHED,
-		false,
-		extraProps.ActivityCreatedBy,
-	)
-	if activityJson, err := json.Marshal(map[string]any{
-		"status": ar.Status,
-		"rating": ar.Rating,
-	}); err != nil {
-		slog.Error("AddWatched: Failed to marshal json for add activity request, adding without data",
-			"error", err)
-	} else {
-		activityAddReq.SetData(string(activityJson))
+		// Finally add activity
+		activityAddReq := activity.NewCreator(
+			tx,
+			userId,
+			watched.ID,
+			entity.ADDED_WATCHED,
+			false,
+			extraProps.ActivityCreatedBy,
+		)
+		if activityJson, err := json.Marshal(map[string]any{
+			"status": ar.Status,
+			"rating": ar.Rating,
+		}); err != nil {
+			slog.Error("AddWatched: Failed to marshal json for add activity request, adding without data",
+				"error", err)
+		} else {
+			activityAddReq.SetData(string(activityJson))
+		}
+		if ar.Status == entity.FINISHED {
+			activityAddReq.SetCountAsPlay(true)
+		}
+		act, err := activityAddReq.Create()
+		if err != nil {
+			slog.Error("AddWatched: Failed to create activity in transaction", "error", err)
+			return err
+		}
+		watched.Activity = append(watched.Activity, act)
+		return nil
+	})
+	if txErr != nil {
+		return watched, txErr
 	}
-	if ar.Status == entity.FINISHED {
-		activityAddReq.SetCountAsPlay(true)
-	}
-	act, _ := activityAddReq.Create()
-	watched.Activity = append(watched.Activity, act)
 
 	return watched, nil
 }
@@ -580,7 +591,12 @@ func (s *Service) restoreWatchedAfterDuplicatedKeyErr(
 	ar domain.WatchedAddRequest,
 	dontRestore bool,
 	watchedOut *entity.Watched,
+	optDB ...*gorm.DB,
 ) error {
+	activeDB := s.db
+	if len(optDB) > 0 && optDB[0] != nil {
+		activeDB = optDB[0]
+	}
 	slog.Info("restoreWatchedAfterDuplicatedKeyErr: Attempting to restore.",
 		"user_id", userId)
 
@@ -605,7 +621,7 @@ func (s *Service) restoreWatchedAfterDuplicatedKeyErr(
 	}
 
 	// First we will try to get the record.
-	res := s.db.
+	res := activeDB.
 		Model(&entity.Watched{}).
 		Unscoped().
 		// Just loading activity now too so if we restore record,
@@ -630,7 +646,7 @@ func (s *Service) restoreWatchedAfterDuplicatedKeyErr(
 	}
 
 	// If we are here, we have a soft deleted record to restore:
-	res = s.db.
+	res = activeDB.
 		// Passing `&watchedOut` makes gorm do another query for inserting
 		// all existing rows into db, im not sure why... but just going to
 		// manually pass primary key in.
@@ -725,14 +741,6 @@ func (s *Service) UpdateWatched(
 			NewCreator(s.db, userId, id, entity.STATUS_CHANGED, countAsPlay, ar.ActivityCreatedBy).
 			SetData(string(ar.Status)).
 			AddToMultiCreator(activityMC)
-
-		if ar.Status == entity.FINISHED && upwat.ContentID != nil {
-			var cnt entity.Content
-			if err := s.db.Where("id = ?", *upwat.ContentID).First(&cnt).Error; err == nil && cnt.Type == entity.SHOW {
-				s.db.Model(&entity.WatchedSeason{}).Where("watched_id = ? AND user_id = ?", id, userId).Update("status", entity.FINISHED)
-				s.db.Model(&entity.WatchedEpisode{}).Where("watched_id = ? AND user_id = ?", id, userId).Update("status", entity.FINISHED)
-			}
-		}
 	}
 	if ar.Thoughts != "" && ar.Thoughts != upwat.Thoughts {
 		anythingChanged = true
@@ -780,16 +788,41 @@ func (s *Service) UpdateWatched(
 		return domain.WatchedUpdateResponse{}, nil
 	}
 
-	res := s.db.Save(upwat)
-	if res.Error != nil {
-		slog.Error("UpdateWatched: Update query failed!", "error", err)
-		return domain.WatchedUpdateResponse{}, errors.New("update failed")
-	} else if res.RowsAffected <= 0 {
-		slog.Error("UpdateWatched: Update query failed! No rows affected.")
-		return domain.WatchedUpdateResponse{}, errors.New("no watched entry found")
+	var newActivities []entity.Activity
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		if ar.Status == entity.FINISHED && upwat.ContentID != nil {
+			var cnt entity.Content
+			if err := tx.Where("id = ?", *upwat.ContentID).First(&cnt).Error; err == nil && cnt.Type == entity.SHOW {
+				if err := tx.Model(&entity.WatchedSeason{}).Where("watched_id = ? AND user_id = ?", id, userId).Update("status", entity.FINISHED).Error; err != nil {
+					return err
+				}
+				if err := tx.Model(&entity.WatchedEpisode{}).Where("watched_id = ? AND user_id = ?", id, userId).Update("status", entity.FINISHED).Error; err != nil {
+					return err
+				}
+			}
+		}
+
+		res := tx.Save(upwat)
+		if res.Error != nil {
+			slog.Error("UpdateWatched: Update query failed!", "error", res.Error)
+			return errors.New("update failed")
+		} else if res.RowsAffected <= 0 {
+			slog.Error("UpdateWatched: Update query failed! No rows affected.")
+			return errors.New("no watched entry found")
+		}
+
+		acts, err := activityMC.CreateAllTx(tx)
+		if err != nil {
+			return err
+		}
+		newActivities = acts
+		return nil
+	})
+	if err != nil {
+		return domain.WatchedUpdateResponse{}, err
 	}
 
-	// Trigger real-time activity webhook
+	// Trigger real-time activity webhook only after transaction commits successfully
 	go func() {
 		title := "Conteúdo"
 		poster := ""
@@ -820,8 +853,6 @@ func (s *Service) UpdateWatched(
 			Reason:    strconv.Itoa(int(ar.ActivityCreatedBy)),
 		})
 	}()
-
-	newActivities := activityMC.CreateAll()
 
 	return domain.WatchedUpdateResponse{NewActivities: newActivities}, nil
 }
@@ -857,26 +888,34 @@ func (s *Service) removeWatched(
 	id uint,
 ) (domain.WatchedRemoveResponse, error) {
 	slog.Debug("Removing watched item:", "id", id, "user_id", userId)
-	// Our model has a deleted_at field, which will make gorm do a soft delete.
-	// Since other tables (eg activities) will link their rows to a watched_id, it's best to soft
-	// delete, so if user restores watched item they still have activity for example (also so
-	// someone else wont get other users activity if auto increment gives them the same watched id).
-	res := s.db.
-		Model(&entity.Watched{}).
-		Where("id = ? AND user_id = ?", id, userId).
-		Delete(&entity.Watched{})
-	if res.Error != nil {
-		slog.Error("Removing watched entry failed",
-			"id", id,
-			"error", res.Error.Error())
-		return domain.WatchedRemoveResponse{}, errors.New("failed to remove watched entry")
+	var addedActivity entity.Activity
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		res := tx.
+			Model(&entity.Watched{}).
+			Where("id = ? AND user_id = ?", id, userId).
+			Delete(&entity.Watched{})
+		if res.Error != nil {
+			slog.Error("Removing watched entry failed",
+				"id", id,
+				"error", res.Error.Error())
+			return errors.New("failed to remove watched entry")
+		}
+		if res.RowsAffected <= 0 {
+			return errors.New("no watched entry found")
+		}
+		act, err := activity.
+			NewCreator(tx, userId, id, entity.REMOVED_WATCHED, false, 0).
+			Create()
+		if err != nil {
+			slog.Error("removeWatched: failed to create activity in tx", "error", err)
+			return err
+		}
+		addedActivity = act
+		return nil
+	})
+	if err != nil {
+		return domain.WatchedRemoveResponse{}, err
 	}
-	if res.RowsAffected <= 0 {
-		return domain.WatchedRemoveResponse{}, errors.New("no watched entry found")
-	}
-	addedActivity, _ := activity.
-		NewCreator(s.db, userId, id, entity.REMOVED_WATCHED, false, 0).
-		Create()
 	return domain.WatchedRemoveResponse{NewActivity: addedActivity}, nil
 }
 

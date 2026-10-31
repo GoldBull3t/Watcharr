@@ -15,6 +15,7 @@
 	import PageBackdrop from "@/lib/generic/PageBackdrop.svelte";
 	import PosterImage from "@/lib/content/PosterImage.svelte";
 	import ExpandableText from "@/lib/content/ExpandableText.svelte";
+	import MediaDetailSkeleton from "@/lib/content/MediaDetailSkeleton.svelte";
 
 	let { data } = $props();
 
@@ -24,43 +25,53 @@
 	let credits: PersonCreditsResponse | undefined = $state();
 	let onMyListFilter = $state(false);
 
+	async function loadPerson(signal?: AbortSignal) {
+		try {
+			person = undefined;
+			pageError = undefined;
+			if (!data.personId) return;
+			const p = await req.get<PersonDetailsResponse>(
+				`/content/person/${data.personId}`,
+				{ signal },
+			);
+			if (signal?.aborted) return;
+			person = p;
+			const c = await req.get<PersonCreditsResponse>(
+				`/content/person/${data.personId}/credits`,
+				{ signal },
+			);
+			if (signal?.aborted) return;
+			c.credits = c.credits?.filter(
+				(v, i, a) => a.findIndex((t) => t.ids.tmdb === v.ids.tmdb) === i,
+			);
+			credits = c;
+		} catch (err: unknown) {
+			if (signal?.aborted) return;
+			person = undefined;
+			pageError = err;
+		}
+	}
+
 	$effect(() => {
 		const controller = new AbortController();
 		if (data.personId) {
-			(async () => {
-				try {
-					person = undefined;
-					pageError = undefined;
-					if (!data.personId) return;
-					const p = await req.get<PersonDetailsResponse>(
-						`/content/person/${data.personId}`,
-						{ signal: controller.signal },
-					);
-					if (controller.signal.aborted) return;
-					person = p;
-					const c = await req.get<PersonCreditsResponse>(
-						`/content/person/${data.personId}/credits`,
-						{ signal: controller.signal },
-					);
-					if (controller.signal.aborted) return;
-					c.credits = c.credits?.filter(
-						(v, i, a) => a.findIndex((t) => t.ids.tmdb === v.ids.tmdb) === i,
-					);
-					credits = c;
-					sortCredits(sortOption);
-				} catch (err: unknown) {
-					if (controller.signal.aborted) return;
-					person = undefined;
-					pageError = err;
-				}
-			})();
+			loadPerson(controller.signal);
 		}
 		return () => controller.abort();
 	});
 
-	$effect(() => {
-		if (sortOption && credits) {
-			sortCredits(sortOption);
+	let sortedCredits = $derived.by(() => {
+		if (!credits?.credits || credits.credits.length === 0) return [];
+		const list = [...credits.credits];
+		switch (sortOption) {
+			case "Vote count":
+				return list.sort((a, b) => (b.ratingCount ?? 0) - (a.ratingCount ?? 0));
+			case "Newest":
+				return list.sort((a, b) => newestOldestSort(a, b, 0));
+			case "Oldest":
+				return list.sort((a, b) => newestOldestSort(a, b, 1));
+			default:
+				return list;
 		}
 	});
 
@@ -91,24 +102,6 @@
 			return dateA - dateB;
 		}
 	}
-
-	function sortCredits(sortOption: string) {
-		if (!credits || !credits.credits) return;
-		switch (sortOption) {
-			case "Vote count":
-				credits.credits.sort(
-					(a, b) => (b.ratingCount ?? 0) - (a.ratingCount ?? 0),
-				);
-				break;
-			case "Newest":
-				credits.credits.sort((a, b) => newestOldestSort(a, b, 0));
-				break;
-			case "Oldest":
-				credits.credits.sort((a, b) => newestOldestSort(a, b, 1));
-				break;
-		}
-		credits.credits = credits.credits;
-	}
 </script>
 
 <svelte:head>
@@ -117,123 +110,121 @@
 
 <div>
 	{#if pageError}
-		<Error pretty="Failed to load person!" error={pageError} />
+		<Error
+			pretty="Failed to load person!"
+			error={pageError}
+			onRetry={() => loadPerson()}
+		/>
 	{:else if !person}
-		<Spinner />
+		<MediaDetailSkeleton type="person" />
 	{:else if Object.keys(person).length > 0}
-		{#if Object.keys(person).length > 0}
-			{#if credits?.credits && credits.credits.length > 0 && credits.credits[0].extBackdropPath}
-				<PageBackdrop
-					src={"https://www.themoviedb.org/t/p/w1920_and_h800_multi_faces" +
-						credits.credits[0].extBackdropPath}
-				/>
-			{/if}
-			<div class="content">
-				<div class="details-wrap">
-					<div class="details-container">
-						{#if person.extPosterPath}
-							<PosterImage
-								src={"https://image.tmdb.org/t/p/w500" + person.extPosterPath}
-							/>
-						{/if}
+		{#if credits?.credits && credits.credits.length > 0 && credits.credits[0].extBackdropPath}
+			<PageBackdrop
+				src={"https://www.themoviedb.org/t/p/w1920_and_h800_multi_faces" +
+					credits.credits[0].extBackdropPath}
+			/>
+		{/if}
+		<div class="content">
+			<div class="details-wrap">
+				<div class="details-container">
+					{#if person.extPosterPath}
+						<PosterImage
+							src={"https://image.tmdb.org/t/p/w500" + person.extPosterPath}
+						/>
+					{/if}
 
-						<div class="details">
-							<span class="title-container">
-								<a
-									href={person.homepage}
-									rel="noreferrer noopener external"
-									target="_blank"
-								>
-									{person.name}
-								</a>
-								<span></span>
-							</span>
+					<div class="details">
+						<span class="title-container">
+							<a
+								href={person.homepage}
+								rel="noreferrer noopener external"
+								target="_blank"
+							>
+								{person.name}
+							</a>
+							<span></span>
+						</span>
 
-							<ExpandableText title="Biography" text={person.biography} />
+						<ExpandableText title="Biography" text={person.biography} />
 
-							<div class="detail-info">
-								{#if person.knownForDepartment}
-									<div>
-										<span>Department</span>
-										<span>{person.knownForDepartment}</span>
-									</div>
-								{/if}
-								{#if person.placeOfBirth}
-									<div>
-										<span>Born In</span>
-										<span>{person.placeOfBirth}</span>
-									</div>
-								{/if}
-								{#if person.birthday}
-									<div>
-										<span>Born On</span>
-										<span
-											>{new Date(
-												Date.parse(person.birthday),
-											).toLocaleDateString()}</span
-										>
-									</div>
-								{/if}
-								{#if person.deathday}
-									<div>
-										<span>Died On</span>
-										<span>
-											{new Date(
-												Date.parse(person.deathday),
-											).toLocaleDateString()}
-										</span>
-									</div>
-								{/if}
-								{#if person.age}
-									<div>
-										<span>Age</span>
-										<span>{person.age} Years</span>
-									</div>
-								{/if}
-							</div>
+						<div class="detail-info">
+							{#if person.knownForDepartment}
+								<div>
+									<span>Department</span>
+									<span>{person.knownForDepartment}</span>
+								</div>
+							{/if}
+							{#if person.placeOfBirth}
+								<div>
+									<span>Born In</span>
+									<span>{person.placeOfBirth}</span>
+								</div>
+							{/if}
+							{#if person.birthday}
+								<div>
+									<span>Born On</span>
+									<span
+										>{new Date(
+											Date.parse(person.birthday),
+										).toLocaleDateString()}</span
+									>
+								</div>
+							{/if}
+							{#if person.deathday}
+								<div>
+									<span>Died On</span>
+									<span>
+										{new Date(Date.parse(person.deathday)).toLocaleDateString()}
+									</span>
+								</div>
+							{/if}
+							{#if person.age}
+								<div>
+									<span>Age</span>
+									<span>{person.age} Years</span>
+								</div>
+							{/if}
 						</div>
 					</div>
 				</div>
 			</div>
-			{#if credits}
-				{#if credits?.credits && credits?.credits?.length > 0}
-					<div class="filters">
-						<div class="listFilter">
-							<span>On my list</span>
-							<Checkbox name="On my list" bind:value={onMyListFilter} />
-						</div>
-						<DropDown
-							bind:active={sortOption}
-							placeholder="Vote count"
-							options={["Vote count", "Newest", "Oldest"]}
-							isDropDownItem={false}
-							showActiveElementsInOptions={true}
-						/>
+		</div>
+		{#if credits}
+			{#if credits?.credits && credits?.credits?.length > 0}
+				<div class="filters">
+					<div class="listFilter">
+						<span>On my list</span>
+						<Checkbox name="On my list" bind:value={onMyListFilter} />
 					</div>
-					<div class="page">
-						<PosterList>
-							{#each credits.credits as c, i (`${i}-${c.ids.tmdb}`)}
-								<Poster
-									media={c}
-									bind:watched={credits.credits[i].watched}
-									fluidSize
-									hideIfNotOnList={onMyListFilter}
-								/>
-							{/each}
-						</PosterList>
-					</div>
-				{:else}
-					<div class="no-credits-message">
-						<Icon i="star" wh={80} />
-						<h2 class="norm">We found no credits!</h2>
-						<h4 class="norm">It seems that this person has no credits.</h4>
-					</div>
-				{/if}
+					<DropDown
+						bind:active={sortOption}
+						placeholder="Vote count"
+						options={["Vote count", "Newest", "Oldest"]}
+						isDropDownItem={false}
+						showActiveElementsInOptions={true}
+					/>
+				</div>
+				<div class="page">
+					<PosterList>
+						{#each sortedCredits as c (c.ids.tmdb)}
+							<Poster
+								media={c}
+								bind:watched={c.watched}
+								fluidSize
+								hideIfNotOnList={onMyListFilter}
+							/>
+						{/each}
+					</PosterList>
+				</div>
 			{:else}
-				<Spinner />
+				<div class="no-credits-message">
+					<Icon i="star" wh={80} />
+					<h2 class="norm">We found no credits!</h2>
+					<h4 class="norm">It seems that this person has no credits.</h4>
+				</div>
 			{/if}
 		{:else}
-			person not found
+			<Spinner />
 		{/if}
 	{:else}
 		<Error error="Person not found" pretty="Person not found" />

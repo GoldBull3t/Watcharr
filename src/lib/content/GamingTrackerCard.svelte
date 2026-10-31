@@ -1,14 +1,15 @@
 <script lang="ts">
 	import type { GameCompletionStatus, Media, Watched } from "@/types";
 	import Icon from "@/lib/Icon.svelte";
-	import { t } from "@/lib/i18n";
 
 	interface Props {
 		game: Media;
 		watched?: Watched;
 		onHoursChanged: (hours: number) => Promise<boolean>;
 		onPlatformChanged: (platform: string) => Promise<boolean>;
-		onCompletionStatusChanged: (status: GameCompletionStatus) => Promise<boolean>;
+		onCompletionStatusChanged: (
+			status: GameCompletionStatus,
+		) => Promise<boolean>;
 		onStartTracking: () => Promise<boolean>;
 	}
 
@@ -22,11 +23,15 @@
 	}: Props = $props();
 
 	// Hours state
+	// eslint-disable-next-line svelte/prefer-writable-derived
 	let hoursInput = $state("");
 	let isSavingHours = $state(false);
 
 	$effect(() => {
-		hoursInput = typeof watched?.hoursPlayed === "number" ? watched.hoursPlayed.toString() : "";
+		hoursInput =
+			typeof watched?.hoursPlayed === "number"
+				? watched.hoursPlayed.toString()
+				: "";
 	});
 
 	// Time-to-Beat targets (converted from minutes to hours)
@@ -50,7 +55,10 @@
 	let currentHours = $derived(watched?.hoursPlayed || 0);
 
 	let activeTargetHours = $derived.by(() => {
-		if (watched?.gameCompletionStatus === "COMPLETIONIST" && completionistHours) {
+		if (
+			watched?.gameCompletionStatus === "COMPLETIONIST" &&
+			completionistHours
+		) {
 			return completionistHours;
 		}
 		return mainStoryHours;
@@ -76,7 +84,8 @@
 			return Array.from(
 				new Set(
 					game.platforms.map((p) => {
-						if (p.includes("Microsoft Windows") || p.toLowerCase() === "pc") return "PC / Steam";
+						if (p.includes("Microsoft Windows") || p.toLowerCase() === "pc")
+							return "PC / Steam";
 						if (p.includes("PlayStation 5")) return "PlayStation 5";
 						if (p.includes("PlayStation 4")) return "PlayStation 4";
 						if (p.includes("Xbox Series")) return "Xbox Series X|S";
@@ -90,7 +99,12 @@
 		return defaultPlatforms;
 	});
 
-	const completionOptions: { id: GameCompletionStatus; label: string; icon: string; desc: string }[] = [
+	const completionOptions: {
+		id: GameCompletionStatus;
+		label: string;
+		icon: string;
+		desc: string;
+	}[] = [
 		{
 			id: "MAIN_STORY",
 			label: "História Principal",
@@ -118,7 +132,8 @@
 	];
 
 	async function adjustHours(delta: number) {
-		const base = typeof watched?.hoursPlayed === "number" ? watched.hoursPlayed : 0;
+		const base =
+			typeof watched?.hoursPlayed === "number" ? watched.hoursPlayed : 0;
 		const next = Math.max(0, parseFloat((base + delta).toFixed(1)));
 		hoursInput = next.toString();
 		isSavingHours = true;
@@ -159,7 +174,9 @@
 			<span class="game-badge-icon">🎮</span>
 			<div>
 				<h3 class="card-title">Acompanhamento Gamer</h3>
-				<span class="card-subtitle">Horas jogadas, plataforma e tempo médio de conclusão</span>
+				<span class="card-subtitle"
+					>Horas jogadas, plataforma e tempo médio de conclusão</span
+				>
 			</div>
 		</div>
 
@@ -250,19 +267,33 @@
 
 					<div class="ttb-targets-row">
 						{#if mainStoryHours}
-							<span class="target-pill" class:active-target={watched?.gameCompletionStatus !== "COMPLETIONIST"}>
+							<span
+								class="target-pill"
+								class:active-target={watched?.gameCompletionStatus !==
+									"COMPLETIONIST"}
+							>
 								🎯 História: <strong>{mainStoryHours}h</strong>
 							</span>
 						{/if}
 						{#if completionistHours}
-							<span class="target-pill" class:active-target={watched?.gameCompletionStatus === "COMPLETIONIST"}>
+							<span
+								class="target-pill"
+								class:active-target={watched?.gameCompletionStatus ===
+									"COMPLETIONIST"}
+							>
 								🏆 100%: <strong>{completionistHours}h</strong>
 							</span>
 						{/if}
 					</div>
 				</div>
 
-				<div class="progress-track" role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100}>
+				<div
+					class="progress-track"
+					role="progressbar"
+					aria-valuenow={progressPercent}
+					aria-valuemin={0}
+					aria-valuemax={100}
+				>
 					<div
 						class="progress-fill"
 						style={`width: ${progressPercent}%`}
@@ -328,7 +359,10 @@
 						class="completion-option-card"
 						class:selected={isSelected}
 						disabled={!watched}
-						onclick={() => onCompletionStatusChanged(isSelected ? ("" as GameCompletionStatus) : opt.id)}
+						onclick={() =>
+							onCompletionStatusChanged(
+								isSelected ? ("" as GameCompletionStatus) : opt.id,
+							)}
 					>
 						<span class="completion-icon">{opt.icon}</span>
 						<div class="completion-text">
@@ -352,10 +386,10 @@
 		width: 100%;
 		max-width: 1200px;
 		margin: 20px auto;
-		border-radius: 20px;
+		border-radius: 12px;
 		background: rgba(15, 20, 30, 0.82);
 		border: 1px solid rgba(255, 255, 255, 0.12);
-		box-shadow: 0 16px 48px -12px rgba(0, 0, 0, 0.7);
+		box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.5);
 		backdrop-filter: blur(24px) saturate(160%);
 		-webkit-backdrop-filter: blur(24px) saturate(160%);
 		padding: 24px 28px;
@@ -382,16 +416,15 @@
 				gap: 12px;
 
 				.game-badge-icon {
-					font-size: 26px;
+					font-size: 24px;
 					display: flex;
 					align-items: center;
 					justify-content: center;
-					width: 44px;
-					height: 44px;
-					border-radius: 12px;
-					background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(168, 85, 247, 0.18));
-					border: 1px solid rgba(245, 158, 11, 0.35);
-					box-shadow: 0 0 16px rgba(245, 158, 11, 0.15);
+					width: 40px;
+					height: 40px;
+					border-radius: 8px;
+					background: rgba(245, 158, 11, 0.12);
+					border: 1px solid rgba(245, 158, 11, 0.25);
 				}
 
 				.card-title {
@@ -413,19 +446,20 @@
 				align-items: center;
 				gap: 6px;
 				padding: 8px 16px;
-				border-radius: 10px;
-				border: 1px solid #f59e0b;
-				background: linear-gradient(135deg, #f59e0b, #d97706);
+				border-radius: 8px;
+				border: none;
+				background: $brand-color;
 				color: #0b0e14;
 				font-size: 13px;
-				font-weight: 700;
+				font-weight: 600;
 				cursor: pointer;
-				box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
-				transition: all 140ms ease;
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+				transition:
+					background-color 140ms ease,
+					opacity 140ms ease;
 
 				&:hover {
-					transform: translateY(-1px);
-					box-shadow: 0 6px 18px rgba(245, 158, 11, 0.5);
+					filter: brightness(1.05);
 				}
 			}
 		}
@@ -574,13 +608,11 @@
 					.progress-fill {
 						height: 100%;
 						border-radius: 9999px;
-						background: linear-gradient(90deg, #f59e0b, #fbbf24);
-						box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+						background: $brand-color;
 						transition: width 300ms cubic-bezier(0.16, 1, 0.3, 1);
 
 						&.completed {
-							background: linear-gradient(90deg, #10b981, #34d399);
-							box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+							background: $success;
 						}
 					}
 				}

@@ -66,7 +66,8 @@
 				{/if}
 			</div>
 			<p class="card-desc">
-				Recebe notificações push no ecrã de bloqueio e ambiente de trabalho sobre estreias de episódios, filmes e atualizações de pedidos.
+				Recebe notificações push no ecrã de bloqueio e ambiente de trabalho
+				sobre estreias de episódios, filmes e atualizações de pedidos.
 			</p>
 		</div>
 
@@ -81,12 +82,18 @@
 						<SpinnerTiny />
 					{:else}
 						<Icon i={status.isSubscribed ? "close" : "notifications"} wh={16} />
-						<span>{status.isSubscribed ? "Desativar" : "Ativar Notificações"}</span>
+						<span
+							>{status.isSubscribed ? "Desativar" : "Ativar Notificações"}</span
+						>
 					{/if}
 				</button>
 
 				{#if status.isSubscribed}
-					<button class="btn btn-outline" disabled={testing} onclick={handleTest}>
+					<button
+						class="btn btn-outline"
+						disabled={testing}
+						onclick={handleTest}
+					>
 						{#if testing}
 							<SpinnerTiny />
 						{:else}
@@ -223,4 +230,3 @@
 		}
 	}
 </style>
-

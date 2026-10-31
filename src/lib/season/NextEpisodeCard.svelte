@@ -88,6 +88,7 @@
 
 	// Fetch episode details whenever targetNext changes
 	$effect(() => {
+		const controller = new AbortController();
 		if (
 			targetNext &&
 			targetNext.seasonNumber !== undefined &&
@@ -104,25 +105,31 @@
 			} else {
 				loadingEpisode = true;
 				req
-					.get<TMDBSeasonDetails>(`/content/tv/${tvId}/season/${sNum}`)
+					.get<TMDBSeasonDetails>(`/content/tv/${tvId}/season/${sNum}`, {
+						signal: controller.signal,
+					})
 					.then((res) => {
-						if (res) {
+						if (!controller.signal.aborted && res) {
 							seasonCache[sNum] = res;
 							const ep = res.episodes?.find((e) => e.episode_number === epNum);
 							currentEpisodeDetails = ep;
 						}
 					})
 					.catch((err) => {
+						if (controller.signal.aborted) return;
 						console.warn("NextEpisodeCard: Failed to load season:", err);
 						currentEpisodeDetails = undefined;
 					})
 					.finally(() => {
-						loadingEpisode = false;
+						if (!controller.signal.aborted) {
+							loadingEpisode = false;
+						}
 					});
 			}
 		} else {
 			currentEpisodeDetails = undefined;
 		}
+		return () => controller.abort();
 	});
 
 	const airDate = $derived.by(() => {
@@ -478,24 +485,21 @@
 				display: inline-flex;
 				align-items: center;
 				gap: 8px;
-				padding: 10px 20px;
-				border-radius: 10px;
-				background: linear-gradient(135deg, #f59e0b, #d97706);
+				padding: 8px 16px;
+				border-radius: 8px;
+				background: $brand-color;
 				color: #0b0e14;
-				font-size: 14px;
-				font-weight: 700;
+				font-size: 13px;
+				font-weight: 600;
 				border: none;
 				cursor: pointer;
-				box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4);
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 				transition:
-					background 150ms ease,
-					transform 150ms ease,
-					box-shadow 150ms ease;
+					background-color 150ms ease,
+					opacity 150ms ease;
 
 				&:hover:not(:disabled) {
-					background: linear-gradient(135deg, #fbbf24, #f59e0b);
-					transform: translateY(-2px);
-					box-shadow: 0 8px 24px rgba(245, 158, 11, 0.55);
+					filter: brightness(1.05);
 				}
 
 				&:active:not(:disabled) {

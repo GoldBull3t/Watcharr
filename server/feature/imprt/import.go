@@ -165,12 +165,13 @@ func (s *Service) SuccessfulImport(
 	// watchlist on whichever platform they are coming from.
 	if ar.RatingCustomDate != nil {
 		var addedActivity entity.Activity
+		var actErr error
 		if len(w.Activity) > 0 {
 			activityJson, _ := json.Marshal(map[string]any{
 				"rating":         ar.Rating,
 				"linkedActivity": w.Activity[0].ID,
 			})
-			addedActivity, _ = activity.
+			addedActivity, actErr = activity.
 				NewCreator(
 					s.db,
 					userId,
@@ -186,7 +187,7 @@ func (s *Service) SuccessfulImport(
 			activityJson, _ := json.Marshal(map[string]any{
 				"rating": ar.Rating,
 			})
-			addedActivity, _ = activity.
+			addedActivity, actErr = activity.
 				NewCreator(
 					s.db,
 					userId,
@@ -199,7 +200,11 @@ func (s *Service) SuccessfulImport(
 				SetCustomDate(ar.RatingCustomDate).
 				Create()
 		}
-		w.Activity = append(w.Activity, addedActivity)
+		if actErr != nil {
+			slog.Error("successfulImport: Failed to create imported rating activity", "error", actErr)
+		} else {
+			w.Activity = append(w.Activity, addedActivity)
+		}
 	}
 	// Add all dates watched as activity, if any
 	if len(ar.DatesWatched) > 0 {

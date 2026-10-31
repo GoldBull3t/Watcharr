@@ -165,6 +165,7 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 						DontRunDBCache: true, // Avoid SQLite locking from concurrent writes
 					})
 					if err != nil {
+						slog.Debug("Calendar: Failed to fetch show details from TMDB", "tmdbId", w.Content.TmdbID, "error", err)
 						return
 					}
 

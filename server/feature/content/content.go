@@ -1,6 +1,7 @@
 package content
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -362,13 +363,19 @@ func (s *Service) GetOrCacheContent(
 }
 
 // BackfillMissingMetadata gently enriches existing Content rows that are missing backdrop_path or imdb_id.
-func (s *Service) BackfillMissingMetadata() {
+func (s *Service) BackfillMissingMetadata(ctx context.Context) {
 	var missing []entity.Content
 	if err := s.db.Where("backdrop_path = '' OR backdrop_path IS NULL").Limit(40).Find(&missing).Error; err != nil || len(missing) == 0 {
 		return
 	}
 	slog.Info("BackfillMissingMetadata: Enriching cached content items", "count", len(missing))
 	for _, item := range missing {
+		select {
+		case <-ctx.Done():
+			slog.Info("BackfillMissingMetadata: Context cancelled, aborting.")
+			return
+		default:
+		}
 		idStr := strconv.Itoa(item.TmdbID)
 		switch item.Type {
 		case entity.MOVIE:
@@ -379,7 +386,9 @@ func (s *Service) BackfillMissingMetadata() {
 					"append_to_response": "release_dates,external_ids",
 				},
 			}); err == nil {
-				_, _ = s.CacheContentMovie(resp, true)
+				if _, err := s.CacheContentMovie(resp, true); err != nil {
+					slog.Warn("BackfillMissingMetadata: Failed to cache movie content", "tmdbId", item.TmdbID, "error", err)
+				}
 			}
 		case entity.SHOW:
 			if resp, err := s.tmdb.ShowDetails(tmdb.ShowDetailsOptions{
@@ -389,9 +398,15 @@ func (s *Service) BackfillMissingMetadata() {
 					"append_to_response": "external_ids,content_ratings",
 				},
 			}); err == nil {
-				_, _ = s.CacheContentShow(resp, true)
+				if _, err := s.CacheContentShow(resp, true); err != nil {
+					slog.Warn("BackfillMissingMetadata: Failed to cache show content", "tmdbId", item.TmdbID, "error", err)
+				}
 			}
 		}
-		time.Sleep(250 * time.Millisecond)
+		select {
+		case <-time.After(250 * time.Millisecond):
+		case <-ctx.Done():
+			return
+		}
 	}
 }

@@ -317,7 +317,9 @@ func sendGenericActivityWebhook(webhookUrl string, p ActivityWebhookPayload, isT
 // TestActivityWebhook sends a test notification
 func TestActivityWebhook(db *gorm.DB, userId uint, targetUrl string) error {
 	var user entity.User
-	_ = db.Where("id = ?", userId).First(&user)
+	if err := db.Where("id = ?", userId).First(&user).Error; err != nil {
+		slog.Warn("TestActivityWebhook: Failed to find user", "userId", userId, "error", err)
+	}
 
 	sample := ActivityWebhookPayload{
 		Event:     "media.finished",
@@ -334,4 +336,3 @@ func TestActivityWebhook(db *gorm.DB, userId uint, targetUrl string) error {
 
 	return SendActivityWebhook(targetUrl, sample, true)
 }
-

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -94,7 +95,11 @@ func (r *Router) ExportWatchedList(c *gin.Context) {
 				item.UpdatedAt.Format(time.RFC3339),
 				epCount,
 			}
-			_ = w.Write(row)
+			if err := w.Write(row); err != nil {
+				slog.Error("ExportWatched: Failed to write CSV row", "error", err)
+				c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: "failed to write csv export"})
+				return
+			}
 		}
 
 		w.Flush()
@@ -115,4 +120,3 @@ func (r *Router) ExportWatchedList(c *gin.Context) {
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	c.JSON(http.StatusOK, watched)
 }
-
