@@ -3,6 +3,7 @@ package activity
 import (
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/sbondCo/Watcharr/database/entity"
 	"github.com/sbondCo/Watcharr/domain"
@@ -59,6 +60,7 @@ func Delete(db *gorm.DB, userId uint, id uint) error {
 		return errors.New("an id wasn't provided")
 	}
 	res := db.
+		Unscoped().
 		Where("user_id = ?", userId).
 		Delete(&entity.Activity{}, id)
 	if res.Error != nil {
@@ -70,4 +72,23 @@ func Delete(db *gorm.DB, userId uint, id uint) error {
 		return errors.New("no rows affected")
 	}
 	return nil
+}
+
+// CleanupOldActivities permanently removes soft-deleted activities older than 90 days
+// and legacy unsupported activity types (such as SEASON_ADDED_AUTO).
+func CleanupOldActivities(db *gorm.DB) {
+	if db == nil {
+		return
+	}
+	cutoff := time.Now().AddDate(0, -3, 0)
+	res := db.Unscoped().
+		Where("(deleted_at IS NOT NULL AND deleted_at < ?) OR type = ?", cutoff, "SEASON_ADDED_AUTO").
+		Delete(&entity.Activity{})
+	if res.Error != nil {
+		slog.Error("CleanupOldActivities: Failed to hard-delete old activities!", "error", res.Error)
+		return
+	}
+	if res.RowsAffected > 0 {
+		slog.Info("CleanupOldActivities: Purged old soft-deleted and legacy activities", "rows", res.RowsAffected)
+	}
 }

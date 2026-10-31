@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from "$app/paths";
 	import type { Media } from "@/types";
 
 	interface Props {
@@ -207,10 +208,16 @@
 				{/if}
 
 				{#if ext?.animationStudio}
-					<span class="meta-chip studio" title="Estúdio de Animação">
+					<a
+						class="meta-chip studio clickable"
+						href={resolve(
+							`/search?query=${encodeURIComponent(ext.animationStudio)}`,
+						)}
+						title={`Pesquisar títulos de ${ext.animationStudio}`}
+					>
 						<span class="chip-key">Estúdio</span>
 						<span>{ext.animationStudio}</span>
-					</span>
+					</a>
 				{/if}
 
 				{#if ext?.sourceMaterial}
@@ -228,17 +235,33 @@
 				{/if}
 
 				{#if media.developers && media.developers.length > 0}
-					<span class="meta-chip dev" title="Estúdio / Developer">
-						<span class="chip-key">Dev</span>
-						<span>{media.developers.slice(0, 2).join(", ")}</span>
-					</span>
+					{#each media.developers.slice(0, 2) as dev (dev)}
+						<a
+							class="meta-chip dev clickable"
+							href={resolve(
+								`/search?query=${encodeURIComponent(dev)}&type=game`,
+							)}
+							title={`Ver mais jogos de ${dev}`}
+						>
+							<span class="chip-key">Dev</span>
+							<span>{dev}</span>
+						</a>
+					{/each}
 				{/if}
 
 				{#if media.publishers && media.publishers.length > 0}
-					<span class="meta-chip pub" title="Editora / Publisher">
-						<span class="chip-key">Pub</span>
-						<span>{media.publishers.slice(0, 2).join(", ")}</span>
-					</span>
+					{#each media.publishers.slice(0, 2) as pub (pub)}
+						<a
+							class="meta-chip pub clickable"
+							href={resolve(
+								`/search?query=${encodeURIComponent(pub)}&type=game`,
+							)}
+							title={`Ver mais jogos publicados por ${pub}`}
+						>
+							<span class="chip-key">Pub</span>
+							<span>{pub}</span>
+						</a>
+					{/each}
 				{/if}
 
 				{#if media.timeToBeat && (media.timeToBeat.normally || media.timeToBeat.completely)}
@@ -469,6 +492,20 @@
 			color: rgba(255, 255, 255, 0.85);
 			background: rgba(255, 255, 255, 0.04);
 			border: 1px solid rgba(255, 255, 255, 0.09);
+			text-decoration: none;
+
+			&.clickable {
+				cursor: pointer;
+				transition:
+					background-color 120ms ease,
+					border-color 120ms ease;
+
+				&:hover {
+					background: rgba(255, 255, 255, 0.11);
+					border-color: rgba(255, 255, 255, 0.24);
+					color: #fff;
+				}
+			}
 
 			.chip-key {
 				font-size: 10.5px;

@@ -32,6 +32,26 @@
 
 	let { data } = $props();
 
+	let searchInputText = $state("");
+	let searchInputEl: HTMLInputElement | undefined = $state();
+
+	$effect(() => {
+		searchInputText = data?.query || "";
+	});
+
+	function clearSearchInput() {
+		searchInputText = "";
+		searchInputEl?.focus();
+	}
+
+	function submitSearchInput(e: Event) {
+		e.preventDefault();
+		const q = searchInputText.trim();
+		if (q) {
+			applySearchQuery(q);
+		}
+	}
+
 	const scroll = infScroll({ callback: onScrollToBottom });
 	const dataLoader = paginatedLoader<Media, SearchResponseMeta>(load);
 
@@ -204,6 +224,36 @@
 
 <div class="content">
 	<div class="inner">
+		<form class="direct-search-bar" onsubmit={submitSearchInput}>
+			<span class="search-bar-icon">
+				<Icon i="search" wh={18} />
+			</span>
+			<input
+				bind:this={searchInputEl}
+				bind:value={searchInputText}
+				type="text"
+				name="query"
+				placeholder="Search movies, TV shows, games, people..."
+				autocomplete="off"
+				autocorrect="off"
+				autocapitalize="off"
+				spellcheck="false"
+				aria-label="Search query"
+			/>
+			{#if searchInputText}
+				<button
+					type="button"
+					class="plain clear-search-btn"
+					onclick={clearSearchInput}
+					aria-label="Clear search query"
+					title="Clear search"
+				>
+					<Icon i="close" wh={14} />
+				</button>
+			{/if}
+			<button type="submit" class="search-submit-btn">Search</button>
+		</form>
+
 		{#if data?.query}
 			<!-- Users Search Results Rail -->
 			{#await searchUsers(data?.query) then results}
@@ -442,6 +492,69 @@
 		.inner {
 			width: 100%;
 			max-width: 1400px;
+		}
+	}
+
+	.direct-search-bar {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		width: 100%;
+		margin-bottom: 20px;
+		padding: 6px 8px 6px 14px;
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-radius: 8px;
+
+		&:focus-within {
+			border-color: rgba(245, 158, 11, 0.5);
+			background: rgba(255, 255, 255, 0.06);
+		}
+
+		.search-bar-icon {
+			display: flex;
+			align-items: center;
+			color: rgba(255, 255, 255, 0.5);
+			flex-shrink: 0;
+		}
+
+		input {
+			flex: 1;
+			min-inline-size: 0;
+			border: none;
+			background: transparent;
+			padding: 6px 4px;
+			font-size: 16px;
+			color: #fff;
+			box-shadow: none;
+
+			&:focus {
+				box-shadow: none;
+			}
+		}
+
+		.clear-search-btn {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 28px;
+			height: 28px;
+			border-radius: 6px;
+			color: rgba(255, 255, 255, 0.55);
+			flex-shrink: 0;
+
+			&:hover {
+				background: rgba(255, 255, 255, 0.1);
+				color: #fff;
+			}
+		}
+
+		.search-submit-btn {
+			padding: 6px 14px;
+			border-radius: 6px;
+			font-size: 13px;
+			font-weight: 600;
+			flex-shrink: 0;
 		}
 	}
 

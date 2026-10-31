@@ -869,7 +869,7 @@ func (s *Service) UpdateWatchedLastViewedSeason(
 	res := s.db.
 		Model(&entity.Watched{}).
 		Where("id = ? AND user_id = ?", id, userId).
-		Update("last_viewed_season", seasonNum)
+		UpdateColumn("last_viewed_season", seasonNum)
 	if res.Error != nil {
 		slog.Error("updateWatchedLastViewedSeason: Failed when updating.",
 			"error", res.Error)

@@ -2,7 +2,9 @@ package watched
 
 import (
 	"testing"
+	"time"
 
+	"github.com/sbondCo/Watcharr/activity"
 	"github.com/sbondCo/Watcharr/database/entity"
 	"github.com/sbondCo/Watcharr/domain"
 	"github.com/sbondCo/Watcharr/internal/testutil"
@@ -201,6 +203,127 @@ func TestRemoveWatched_AtomicTransaction(t *testing.T) {
 	var rmAct entity.Activity
 	if err := db.Where("watched_id = ? AND type = ?", watched.ID, entity.REMOVED_WATCHED).First(&rmAct).Error; err != nil {
 		t.Fatalf("failed to find REMOVED_WATCHED activity: %v", err)
+	}
+}
+
+func TestUpdateWatchedLastViewedSeason_PreservesUpdatedAt(t *testing.T) {
+	testutil.SetupLogging()
+	db := testutil.SetupDB(t)
+
+	user := entity.User{
+		Username: "lvs_tester",
+		Type:     entity.WATCHARR_USER,
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	showContent := entity.Content{
+		TmdbID: 99903,
+		Title:  "Station Eleven",
+		Type:   entity.SHOW,
+	}
+	if err := db.Create(&showContent).Error; err != nil {
+		t.Fatalf("failed to create content: %v", err)
+	}
+
+	showContentID := int(showContent.ID)
+	initialSeason := 1
+	pastTime := time.Now().Add(-48 * time.Hour).Truncate(time.Second)
+	watched := entity.Watched{
+		UserID:           user.ID,
+		ContentID:        &showContentID,
+		Status:           entity.WATCHING,
+		LastViewedSeason: &initialSeason,
+	}
+	if err := db.Create(&watched).Error; err != nil {
+		t.Fatalf("failed to create watched: %v", err)
+	}
+	if err := db.Model(&entity.Watched{}).Where("id = ?", watched.ID).UpdateColumn("updated_at", pastTime).Error; err != nil {
+		t.Fatalf("failed to set historical updated_at: %v", err)
+	}
+
+	s := NewService(db, nil, nil, nil, nil)
+	if err := s.UpdateWatchedLastViewedSeason(user.ID, watched.ID, 3); err != nil {
+		t.Fatalf("UpdateWatchedLastViewedSeason failed: %v", err)
+	}
+
+	var refreshed entity.Watched
+	if err := db.First(&refreshed, watched.ID).Error; err != nil {
+		t.Fatalf("failed to fetch watched: %v", err)
+	}
+	if refreshed.LastViewedSeason == nil || *refreshed.LastViewedSeason != 3 {
+		t.Fatalf("expected LastViewedSeason=3, got %v", refreshed.LastViewedSeason)
+	}
+	if !refreshed.UpdatedAt.Truncate(time.Second).Equal(pastTime) {
+		t.Fatalf("expected UpdatedAt to remain %v, got %v", pastTime, refreshed.UpdatedAt)
+	}
+}
+
+func TestActivityHardDeleteAndCleanup(t *testing.T) {
+	testutil.SetupLogging()
+	db := testutil.SetupDB(t)
+
+	user := entity.User{
+		Username: "act_cleanup_tester",
+		Type:     entity.WATCHARR_USER,
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	movieContent := entity.Content{
+		TmdbID: 99904,
+		Title:  "Cleanup Movie",
+		Type:   entity.MOVIE,
+	}
+	if err := db.Create(&movieContent).Error; err != nil {
+		t.Fatalf("failed to create content: %v", err)
+	}
+
+	movieContentID := int(movieContent.ID)
+	watched := entity.Watched{
+		UserID:    user.ID,
+		ContentID: &movieContentID,
+		Status:    entity.FINISHED,
+	}
+	if err := db.Create(&watched).Error; err != nil {
+		t.Fatalf("failed to create watched: %v", err)
+	}
+
+	act1 := entity.Activity{
+		UserID:    user.ID,
+		WatchedID: watched.ID,
+		Type:      entity.ADDED_WATCHED,
+	}
+	if err := db.Create(&act1).Error; err != nil {
+		t.Fatalf("failed to create act1: %v", err)
+	}
+
+	if err := activity.Delete(db, user.ID, act1.ID); err != nil {
+		t.Fatalf("activity.Delete failed: %v", err)
+	}
+
+	var count int64
+	db.Unscoped().Model(&entity.Activity{}).Where("id = ?", act1.ID).Count(&count)
+	if count != 0 {
+		t.Fatalf("expected hard delete (count=0), got %d", count)
+	}
+
+	legacyAct := entity.Activity{
+		UserID:    user.ID,
+		WatchedID: watched.ID,
+		Type:      entity.ActivityType("SEASON_ADDED_AUTO"),
+	}
+	if err := db.Create(&legacyAct).Error; err != nil {
+		t.Fatalf("failed to create legacyAct: %v", err)
+	}
+
+	activity.CleanupOldActivities(db)
+
+	db.Unscoped().Model(&entity.Activity{}).Where("id = ?", legacyAct.ID).Count(&count)
+	if count != 0 {
+		t.Fatalf("expected CleanupOldActivities to purge SEASON_ADDED_AUTO (count=0), got %d", count)
 	}
 }
 

@@ -16,11 +16,14 @@
 
 	interface Props {
 		ep: TMDBSeasonDetailsEpisode;
+		tvId?: number;
 		watchedItem: Watched | undefined;
 		onStatusChanged?: () => void;
 	}
 
-	let { ep, watchedItem, onStatusChanged }: Props = $props();
+	let { ep, tvId, watchedItem, onStatusChanged }: Props = $props();
+
+	let isExpanded = $state(false);
 
 	const we = $derived(
 		watchedItem?.watchedEpisodes?.find(
@@ -164,8 +167,53 @@
 		</div>
 
 		{#if ep.overview}
-			<p class="overview">{ep.overview}</p>
+			<p class="overview" class:expanded={isExpanded}>{ep.overview}</p>
 		{/if}
+
+		<div class="ep-actions-row">
+			<button
+				type="button"
+				class="plain ep-expand-btn"
+				onclick={() => (isExpanded = !isExpanded)}
+				aria-expanded={isExpanded}
+			>
+				<Icon i="chevron" wh={11} />
+				<span>{isExpanded ? "Menos detalhes" : "Mais detalhes"}</span>
+			</button>
+
+			{#if isExpanded}
+				<div class="ep-expanded-details">
+					<span class="detail-pill">
+						<strong>Código:</strong>
+						S{String(ep.season_number).padStart(2, "0")}E{String(
+							ep.episode_number,
+						).padStart(2, "0")}
+					</span>
+					{#if airDate}
+						<span class="detail-pill">
+							<strong>Exibição:</strong>
+							{airDate.toLocaleDateString()}
+						</span>
+					{/if}
+					{#if ep.vote_count > 0}
+						<span class="detail-pill">
+							<strong>Avaliações TMDB:</strong>
+							{Math.round(ep.vote_average * 10) / 10}/10 ({ep.vote_count} votos)
+						</span>
+					{/if}
+					{#if tvId}
+						<a
+							class="detail-link"
+							href={`https://www.themoviedb.org/tv/${tvId}/season/${ep.season_number}/episode/${ep.episode_number}`}
+							target="_blank"
+							rel="noreferrer noopener external"
+						>
+							Ver ficha completa & elenco no TMDB ↗
+						</a>
+					{/if}
+				</div>
+			{/if}
+		</div>
 	</div>
 
 	{#if watchedItem}
@@ -205,17 +253,13 @@
 		flex-flow: row;
 		gap: 18px;
 		position: relative;
-		background: rgba(22, 27, 38, 0.65);
+		background: rgba(15, 19, 28, 0.82);
 		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 16px;
+		border-radius: 10px;
 		padding: 16px;
-		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
 		transition:
 			background 150ms ease,
-			border-color 150ms ease,
-			transform 150ms ease;
+			border-color 150ms ease;
 
 		&:hover {
 			background: rgba(26, 32, 46, 0.82);
@@ -351,12 +395,87 @@
 				margin: 0;
 				font-size: 13.5px;
 				line-height: 1.5;
-				color: rgba(255, 255, 255, 0.7);
+				color: rgba(255, 255, 255, 0.72);
 				display: -webkit-box;
 				-webkit-line-clamp: 3;
 				line-clamp: 3;
 				-webkit-box-orient: vertical;
 				overflow: hidden;
+
+				&.expanded {
+					display: block;
+					-webkit-line-clamp: unset;
+					line-clamp: unset;
+					overflow: visible;
+				}
+			}
+
+			.ep-actions-row {
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+				margin-top: 2px;
+
+				.ep-expand-btn {
+					display: inline-flex;
+					align-items: center;
+					gap: 5px;
+					width: fit-content;
+					padding: 2px 0;
+					font-size: 11.5px;
+					font-weight: 600;
+					color: rgba(255, 255, 255, 0.5);
+					cursor: pointer;
+
+					&:hover {
+						color: #fff;
+					}
+				}
+
+				.ep-expanded-details {
+					display: flex;
+					flex-wrap: wrap;
+					align-items: center;
+					gap: 8px;
+					padding-top: 6px;
+					border-top: 1px solid rgba(255, 255, 255, 0.07);
+					font-size: 12px;
+					color: rgba(255, 255, 255, 0.75);
+
+					.detail-pill {
+						display: inline-flex;
+						align-items: center;
+						gap: 4px;
+						padding: 3px 8px;
+						border-radius: 6px;
+						background: rgba(255, 255, 255, 0.04);
+						border: 1px solid rgba(255, 255, 255, 0.08);
+
+						strong {
+							font-size: 10.5px;
+							text-transform: uppercase;
+							letter-spacing: 0.04em;
+							color: rgba(255, 255, 255, 0.45);
+						}
+					}
+
+					.detail-link {
+						display: inline-flex;
+						align-items: center;
+						padding: 3px 8px;
+						border-radius: 6px;
+						background: rgba(99, 102, 241, 0.14);
+						border: 1px solid rgba(99, 102, 241, 0.3);
+						color: #c7d2fe;
+						font-weight: 600;
+						text-decoration: none;
+
+						&:hover {
+							background: rgba(99, 102, 241, 0.24);
+							color: #fff;
+						}
+					}
+				}
 			}
 		}
 

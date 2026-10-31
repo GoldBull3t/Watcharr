@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
+	"github.com/sbondCo/Watcharr/activity"
 	"github.com/sbondCo/Watcharr/config"
 	"github.com/sbondCo/Watcharr/database"
 	"github.com/sbondCo/Watcharr/feature/arr"
@@ -84,6 +85,12 @@ func SetupTasks(cfg *config.ServerConfig, db *gorm.DB, calendarNotifier Calendar
 			},
 			dd: 24 * time.Hour,
 		},
+		"Cleanup Activities": {
+			f: func() {
+				activity.CleanupOldActivities(db)
+			},
+			dd: 24 * time.Hour,
+		},
 		"Optimize Database": {
 			f: func() {
 				database.TaskOptimize(db)
@@ -136,6 +143,7 @@ func SetupTasks(cfg *config.ServerConfig, db *gorm.DB, calendarNotifier Calendar
 	}
 
 	taskScheduler.Start()
+	activity.CleanupOldActivities(db)
 	slog.Info("SetupTasks: Jobs created and scheduler started.")
 }
 

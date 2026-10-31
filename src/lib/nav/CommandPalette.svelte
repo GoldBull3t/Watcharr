@@ -387,6 +387,8 @@
 					type="text"
 					placeholder="Type a command or search movies, shows, games..."
 					autocomplete="off"
+					autocorrect="off"
+					autocapitalize="off"
 					spellcheck="false"
 				/>
 				{#if query}

@@ -161,6 +161,10 @@
 			box-shadow 150ms ease,
 			background-color 150ms ease;
 
+		@media screen and (max-width: 768px) {
+			font-size: 16px;
+		}
+
 		&::placeholder {
 			color: $placeholder-color;
 		}
