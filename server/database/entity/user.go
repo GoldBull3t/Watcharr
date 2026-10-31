@@ -12,6 +12,8 @@ var (
 	PLEX_USER     UserType = 2
 	// Registered via trusted header auth
 	PROXY_USER UserType = 3
+	// Registered via OpenID Connect / OAuth2 (#461)
+	OIDC_USER UserType = 4
 )
 
 // User Perms

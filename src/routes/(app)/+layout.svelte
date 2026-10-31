@@ -10,10 +10,8 @@
 	import FollowingMenu from "@/lib/nav/FollowingMenu.svelte";
 	import TagMenu from "@/lib/tag/TagMenu.svelte";
 	import { baseURL, req } from "@/lib/util/api";
-	import { isTouch, userHasPermission } from "@/lib/util/helpers";
 	import { store } from "@/store.svelte";
 	import {
-		UserPermission,
 		type ServerFeatures,
 		type Follow,
 		type PrivateUser,
@@ -21,7 +19,6 @@
 		type UserSettings,
 	} from "@/types";
 	import { onMount } from "svelte";
-	import { SvelteURLSearchParams } from "svelte/reactivity";
 	import HandbookModal from "@/lib/handbook/HandbookModal.svelte";
 	import CommandPalette from "@/lib/nav/CommandPalette.svelte";
 	import { t } from "@/lib/i18n";
@@ -33,8 +30,6 @@
 	let { children }: Props = $props();
 
 	let navEl: HTMLElement | undefined = $state();
-	let mainSearchEl: HTMLInputElement | undefined = $state();
-	let searchTimeout: number;
 	let subMenuShown = $state(false);
 	let followingMenuShown = $state(false);
 	let tagMenuShown = $state(false);
@@ -49,99 +44,6 @@
 			closeAllSubMenus("sub");
 			subMenuShown = !subMenuShown;
 		}
-	}
-
-	/**
-	 * Handle KeyDown event on the search bar.
-	 */
-	function searchBarKeyDown(ev: KeyboardEvent) {
-		if (
-			ev.key === "ContextMenu" ||
-			ev.key === "Home" ||
-			ev.key === "End" ||
-			ev.key === "PageDown" ||
-			ev.key === "PageUp" ||
-			ev.key === "NumLock" ||
-			ev.key === "Escape" ||
-			ev.key === "Tab" ||
-			ev.key === "CapsLock" ||
-			ev.key === "OS" ||
-			ev.key === "ArrowLeft" ||
-			ev.key === "ArrowRight" ||
-			ev.key === "ArrowUp" ||
-			ev.key === "ArrowDown" ||
-			ev.key === "Control" ||
-			ev.key === "Alt" ||
-			ev.key === "AltGraph" ||
-			ev.key === "Shift" ||
-			ev.key === "Meta"
-		) {
-			return;
-		}
-
-		clearTimeout(searchTimeout);
-
-		if (ev.key === "Enter") {
-			handleSearch(ev);
-		} else {
-			searchTimeout = window.setTimeout(
-				() => {
-					handleSearch(ev);
-				},
-				isTouch() ? 800 : 400,
-			);
-		}
-	}
-
-	/**
-	 * Processes the query in search bar after a new query is input and
-	 * navigates us to the new search page.
-	 */
-	function handleSearch(ev: KeyboardEvent) {
-		const target = ev.target as HTMLInputElement;
-		if (!target) {
-			console.error("handleSearch: Event target doesn't exist!");
-			return;
-		}
-		if (!target.value.trim()) {
-			console.debug("handleSearch: Search box has no valid value.");
-			return;
-		}
-		// Only trim the start of the query incase the debounced search
-		// fires before the user finishes typing the full query (which
-		// would remove any last space if the query is multi-word).
-		let query = target.value.trimStart();
-		if (ev.key === "Enter") {
-			// If enter is the key that triggered the search, we will
-			// also trim the end of the query, since we can be sure
-			// the user was done typing.
-			query = query.trimEnd();
-		}
-		const currentSearchType = page.url.searchParams.get("type");
-		const searchParams = new SvelteURLSearchParams({
-			query: encodeURIComponent(query),
-			preferMyList: "true",
-		});
-		if (page.route?.id === "/(app)/search" && currentSearchType) {
-			// If we are already on the search page, we can attempt
-			// to keep any existing type filter on the next query.
-			searchParams.set("type", currentSearchType);
-		}
-		// Enable autofocus before running `goto` because on chromium
-		// the .focus() call won't work, even after a timeout.
-		// Using autofocus seems to work. Disables after goto runs.
-		// https://github.com/sbondCo/Watcharr/issues/169
-		target.autofocus = true;
-		goto(resolve(`/search?${searchParams.toString()}`)).then(() => {
-			// Use mainSearchEl if nav not split, otherwise use ev target.
-			if (!document.body.classList.contains("split-nav") && mainSearchEl) {
-				mainSearchEl.focus();
-				mainSearchEl.autofocus = false;
-			} else {
-				target?.focus();
-			}
-			target.autofocus = false;
-		});
 	}
 
 	function isPublicRoute(pathname: string): boolean {
@@ -204,6 +106,20 @@
 	}
 
 	/**
+	 * Close open nav menus when clicking into the page outside of nav menu wrappers (#813).
+	 */
+	function handleDocumentPointerDown(ev: PointerEvent) {
+		if (!subMenuShown && !followingMenuShown && !tagMenuShown) return;
+		const target = ev.target as HTMLElement | null;
+		if (
+			!target?.closest(".nav-item-wrap") &&
+			!target?.closest(".mobile-bottom-bar")
+		) {
+			closeAllSubMenus();
+		}
+	}
+
+	/**
 	 * Adds or removed `split-nav` tag to body depending
 	 * on how big the main search bar is.
 	 */
@@ -237,23 +153,11 @@
 		scroll = Math.max(0, currentScrollY);
 	}
 
-	function focusSearch() {
-		try {
-			if (!mainSearchEl) {
-				console.warn("focusSearch: mainSearchEl not defined!");
-				return;
-			}
-			if (document.activeElement === mainSearchEl) {
-				console.debug("focusSearch: mainSearchEl is already focused.");
-				return;
-			}
-			mainSearchEl.focus();
-		} catch (err) {
-			console.error("focusSearch: Failed!", err);
-		}
-	}
-
 	function handleGlobalKeybind(ev: KeyboardEvent) {
+		if (ev.key === "Escape" && (subMenuShown || followingMenuShown || tagMenuShown)) {
+			closeAllSubMenus();
+			return;
+		}
 		const isCmdOrCtrl = ev.ctrlKey || ev.metaKey;
 		const key = ev.key.toLowerCase();
 		if (isCmdOrCtrl && (key === "k" || key === "p")) {
@@ -288,11 +192,16 @@
 			window.addEventListener("resize", decideOnNavSplit);
 			window.document.addEventListener("scroll", docOnScroll);
 			window.document.addEventListener("keydown", handleGlobalKeybind);
+			window.document.addEventListener("pointerdown", handleDocumentPointerDown);
 
 			return () => {
 				window.removeEventListener("resize", decideOnNavSplit);
 				window.document.removeEventListener("scroll", docOnScroll);
 				window.document.removeEventListener("keydown", handleGlobalKeybind);
+				window.document.removeEventListener(
+					"pointerdown",
+					handleDocumentPointerDown,
+				);
 			};
 		} else {
 			console.error(

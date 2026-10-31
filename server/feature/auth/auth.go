@@ -65,6 +65,7 @@ type AvailableAuthProvidersResponse struct {
 	IsInSetup              bool     `json:"isInSetup"`
 	UseEmby                bool     `json:"useEmby"`
 	HeaderAuthAutoLogin    bool     `json:"headerAuthAutoLogin"`
+	OIDCProviderName       string   `json:"oidcProviderName,omitempty"`
 }
 
 type PlexProvider interface {
@@ -102,10 +103,12 @@ func (s *Service) Register(ur *UserRegisterRequest, initialPerm int) (AuthRespon
 	// Update user obj to replace the plaintext pass with hash
 	user.Password = hash
 
-	// Update user permissions if an initial perm is passed in (1 is default)
+	// Apply initialPerm if passed in, otherwise use configured DEFAULT_USER_PERMISSIONS (#674)
 	if initialPerm != 0 && initialPerm != entity.PERM_NONE {
 		slog.Info("Register: User being registered has been given extra initial permissions", "initial_perm", initialPerm)
 		user.Permissions = initialPerm
+	} else {
+		user.Permissions = s.cfg.GetDefaultUserPermissions()
 	}
 
 	user.Country = &s.cfg.DEFAULT_COUNTRY
@@ -308,6 +311,7 @@ func (s *Service) createJellyfinUser(
 	})
 	dbUser.Username = resp.User.Name
 	dbUser.Type = entity.JELLYFIN_USER
+	dbUser.Permissions = s.cfg.GetDefaultUserPermissions()
 	dbUser.Country = &s.cfg.DEFAULT_COUNTRY
 	dbUser.Language = &s.cfg.DEFAULT_LANGUAGE
 
@@ -350,6 +354,7 @@ func (s *Service) LoginPlex(lr *plex.PlexLoginRequest) (AuthResponse, error) {
 			slog.Debug("loginPlex: New plex user attempted login.. creating Watcharr account now.")
 			dbUser.Username = account.Username
 			dbUser.Type = entity.PLEX_USER
+			dbUser.Permissions = s.cfg.GetDefaultUserPermissions()
 			dbUser.UserServices = append(dbUser.UserServices, entity.UserServices{
 				Name:       "plex",
 				ClientID:   strconv.FormatUint(account.Id, 10),

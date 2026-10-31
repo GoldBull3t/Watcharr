@@ -6,6 +6,7 @@
 	import Tag from "./Tag.svelte";
 	import DeleteTagModal from "./DeleteTagModal.svelte";
 	import Menu, { type MenuConfig } from "../Menu.svelte";
+	import { onMount } from "svelte";
 
 	interface Props {
 		titleText?: string | undefined;
@@ -20,7 +21,7 @@
 	}
 
 	const defaultMenuConfig: MenuConfig = {
-		width: "230px",
+		width: "240px",
 		right: "47px",
 		arrowLeft: "78px",
 	};
@@ -33,7 +34,14 @@
 		menuConfig = {},
 	}: Props = $props();
 
+	const TAG_ORDER_STORAGE_KEY = "watcharr_tag_order";
+	const TAG_SORT_MODE_KEY = "watcharr_tag_sort_mode";
+
 	let allTags = $derived(store.tags);
+	let customOrderIds = $state<number[]>([]);
+	let sortMode = $state<"custom" | "alpha">("custom");
+	let draggedTagId = $state<number | null>(null);
+	let dragOverTagId = $state<number | null>(null);
 
 	let tagModalOpen = $state(false);
 	let inManageMode = $state(false);
@@ -41,15 +49,104 @@
 	let tagToDelete: TagT | undefined = $state(undefined);
 	let filterQuery = $state("");
 
+	onMount(() => {
+		try {
+			const savedOrder = localStorage.getItem(TAG_ORDER_STORAGE_KEY);
+			if (savedOrder) {
+				const parsed = JSON.parse(savedOrder);
+				if (Array.isArray(parsed)) {
+					customOrderIds = parsed.filter((id) => typeof id === "number");
+				}
+			}
+			const savedMode = localStorage.getItem(TAG_SORT_MODE_KEY);
+			if (savedMode === "alpha" || savedMode === "custom") {
+				sortMode = savedMode;
+			}
+		} catch (err) {
+			console.debug("TagMenu: Failed to load saved tag order", err);
+		}
+	});
+
+	let orderedTags = $derived.by(() => {
+		if (!allTags) return [];
+		const list = [...allTags];
+		if (sortMode === "alpha") {
+			return list.sort((a, b) => a.name.localeCompare(b.name));
+		}
+		if (customOrderIds.length > 0) {
+			return list.sort((a, b) => {
+				const idxA = customOrderIds.indexOf(a.id);
+				const idxB = customOrderIds.indexOf(b.id);
+				if (idxA === -1 && idxB === -1) return 0;
+				if (idxA === -1) return 1;
+				if (idxB === -1) return -1;
+				return idxA - idxB;
+			});
+		}
+		return list;
+	});
+
 	let filteredTags = $derived(
-		allTags
-			? allTags.filter((t) =>
-					filterQuery
-						? t.name.toLowerCase().includes(filterQuery.toLowerCase())
-						: true,
-				)
-			: [],
+		orderedTags.filter((t) =>
+			filterQuery
+				? t.name.toLowerCase().includes(filterQuery.toLowerCase())
+				: true,
+		),
 	);
+
+	function toggleSortMode() {
+		sortMode = sortMode === "custom" ? "alpha" : "custom";
+		try {
+			localStorage.setItem(TAG_SORT_MODE_KEY, sortMode);
+		} catch {
+			// Ignore storage errors
+		}
+	}
+
+	function handleDragStart(ev: DragEvent, tagId: number) {
+		draggedTagId = tagId;
+		if (ev.dataTransfer) {
+			ev.dataTransfer.effectAllowed = "move";
+			ev.dataTransfer.setData("text/plain", String(tagId));
+		}
+	}
+
+	function handleDragOver(ev: DragEvent, targetTagId: number) {
+		ev.preventDefault();
+		if (draggedTagId === null || draggedTagId === targetTagId) return;
+		dragOverTagId = targetTagId;
+	}
+
+	function handleDrop(ev: DragEvent, targetTagId: number) {
+		ev.preventDefault();
+		if (draggedTagId === null || draggedTagId === targetTagId || !allTags) {
+			draggedTagId = null;
+			dragOverTagId = null;
+			return;
+		}
+		const currentIds = orderedTags.map((t) => t.id);
+		const fromIdx = currentIds.indexOf(draggedTagId);
+		const toIdx = currentIds.indexOf(targetTagId);
+		if (fromIdx !== -1 && toIdx !== -1) {
+			currentIds.splice(fromIdx, 1);
+			currentIds.splice(toIdx, 0, draggedTagId);
+			customOrderIds = currentIds;
+			sortMode = "custom";
+			try {
+				localStorage.setItem(TAG_ORDER_STORAGE_KEY, JSON.stringify(currentIds));
+				localStorage.setItem(TAG_SORT_MODE_KEY, "custom");
+			} catch {
+				// Ignore storage errors
+			}
+		}
+		draggedTagId = null;
+		dragOverTagId = null;
+	}
+
+	function handleDragEnd() {
+		draggedTagId = null;
+		dragOverTagId = null;
+	}
 
 	function deleteTag(t: TagT) {
 		tagToDelete = t;
@@ -63,13 +160,24 @@
 <Menu conf={Object.assign(defaultMenuConfig, menuConfig)}>
 	<div class="title">
 		<h4 class="norm sm-caps">{titleText ? titleText : "my tags"}</h4>
+		{#if allTags && allTags.length > 1}
+			<button
+				class="plain sort-btn {sortMode === 'alpha' ? 'manage-on' : ''}"
+				onclick={toggleSortMode}
+				title={sortMode === "alpha"
+					? "Sorted A–Z (click for custom drag order)"
+					: "Custom order — drag tags to reorder (click for A–Z)"}
+			>
+				<Icon i="sort" wh={15} />
+			</button>
+		{/if}
 		{#if showManageBtn}
 			<button
 				class={["plain", inManageMode ? "manage-on" : ""].join(" ")}
 				onclick={() => (inManageMode = !inManageMode)}
 				title={inManageMode
 					? "Exit manage mode"
-					: "Manage tags (edit / delete)"}
+					: "Manage tags (edit / delete / reorder)"}
 			>
 				<Icon i={inManageMode ? "close" : "settings"} wh={16} />
 			</button>
@@ -103,18 +211,31 @@
 	{#if allTags && allTags.length > 0}
 		{#if inManageMode}
 			<div class="manage-hint">
-				<span>Edit or delete your collections:</span>
+				<span>Drag to reorder, or edit/delete your tags:</span>
 			</div>
 		{/if}
-		<div class="list">
+		<div class="list" role="list">
 			{#each filteredTags as t (t.id)}
 				{@const isSelected = selectedTags
 					? selectedTags.find((tag) => tag.id === t.id)
 						? true
 						: false
 					: false}
-				<div class="tag-row {inManageMode ? 'manage-row' : ''}">
+				<div
+					class="tag-row {inManageMode ? 'manage-row' : ''} {dragOverTagId === t.id
+						? 'drag-over'
+						: ''}"
+					role="listitem"
+					draggable={!filterQuery}
+					ondragstart={(e) => handleDragStart(e, t.id)}
+					ondragover={(e) => handleDragOver(e, t.id)}
+					ondrop={(e) => handleDrop(e, t.id)}
+					ondragend={handleDragEnd}
+				>
 					<div class="tag-with-indicator">
+						{#if !filterQuery && allTags.length > 1}
+							<span class="drag-grip" title="Drag to reorder">⋮⋮</span>
+						{/if}
 						<Tag
 							tag={t}
 							size="sm"
@@ -201,13 +322,13 @@
 		flex-flow: row;
 		align-items: center;
 		margin-bottom: 8px;
-		gap: 5px;
+		gap: 4px;
 
 		button.plain {
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			width: 28px;
+			width: 26px;
 			height: 26px;
 			padding: 2px 3px;
 			border-radius: 8px;
@@ -285,17 +406,37 @@
 			justify-content: space-between;
 			gap: 6px;
 			color: $text-color;
-			padding: 2px;
+			padding: 3px 4px;
 			border-radius: 6px;
+			border: 1px solid transparent;
+			transition: border-color 120ms ease, background 120ms ease;
 
 			&.manage-row {
 				background: rgba(255, 255, 255, 0.02);
 			}
 
+			&.drag-over {
+				border-color: rgba(99, 102, 241, 0.6);
+				background: rgba(99, 102, 241, 0.12);
+			}
+
 			.tag-with-indicator {
 				display: inline-flex;
 				align-items: center;
-				gap: 4px;
+				gap: 5px;
+
+				.drag-grip {
+					font-size: 10px;
+					letter-spacing: -1px;
+					color: rgba(255, 255, 255, 0.3);
+					cursor: grab;
+					user-select: none;
+					line-height: 1;
+
+					&:hover {
+						color: rgba(255, 255, 255, 0.7);
+					}
+				}
 
 				.public-tag-indicator {
 					font-size: 11px;

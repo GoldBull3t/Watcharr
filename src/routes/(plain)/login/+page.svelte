@@ -14,6 +14,8 @@
 	let availableProviders: string[] = $state([]);
 	let apHeader = $state(false);
 	let apPlex = $state(false);
+	let apOidc = $state(false);
+	let oidcProviderName = $state("");
 	let signupEnabled = $state(true);
 	let useEmby = $state(false);
 	let noAuto = $state(false);
@@ -34,6 +36,7 @@
 		}
 
 		processAvailableLoginMethods();
+		handleOidcCallback();
 	});
 
 	/**
@@ -63,6 +66,8 @@
 		availableProviders = r.available;
 		apHeader = availableProviders?.includes("header");
 		apPlex = availableProviders?.includes("plex");
+		apOidc = availableProviders?.includes("oidc");
+		oidcProviderName = r.oidcProviderName ?? "";
 		signupEnabled = r.signupEnabled;
 		useEmby = r.useEmby;
 		if (r.headerAuthAutoLogin && !noAuto) {
@@ -150,6 +155,56 @@
 			console.error("plexLogin: failed!", err);
 			error = "Plex login failed";
 		}
+	}
+
+	const oidcRedirectUri = () => `/login`;
+
+	/** Start the OAuth2 / OIDC login by redirecting to the provider (#461). */
+	async function oidcLogin() {
+		try {
+			const r = await noAuthReq.get<{ authUrl: string }>("/auth/oidc/login", {
+				params: { redirectUri: oidcRedirectUri() },
+			});
+			if (!r?.authUrl) throw new Error("missing authUrl");
+			window.location.assign(r.authUrl);
+		} catch (err) {
+			console.error("oidcLogin: failed!", err);
+			error = ReqerError.getMsg(err, "Failed to start SSO login");
+		}
+	}
+
+	/** Complete the OIDC login when the provider redirects back with ?code=...&state=.... */
+	function handleOidcCallback() {
+		const code = page.url.searchParams.get("code");
+		const state = page.url.searchParams.get("state");
+		const oauthErr = page.url.searchParams.get("error_description") ?? page.url.searchParams.get("error");
+		if (oauthErr && !code) {
+			error = `SSO login failed: ${oauthErr}`;
+			history.replaceState(history.state, "", location.pathname);
+			return;
+		}
+		if (!code || !state) return;
+		// Remove the one-time code from the address bar right away.
+		history.replaceState(history.state, "", location.pathname);
+		const nid = notify({ text: "Logging in", type: "loading" });
+		noAuthReq
+			.post<AuthResponse>("/auth/oidc/callback", {
+				code,
+				state,
+				redirectUri: oidcRedirectUri(),
+			})
+			.then((resp) => {
+				if (resp?.token) {
+					localStorage.setItem("token", resp.token);
+					goto(resolve("/"));
+					notify({ id: nid, text: `Welcome!`, type: "success" });
+				}
+			})
+			.catch((err) => {
+				console.error("handleOidcCallback: Fail", err);
+				error = ReqerError.getMsg(err, "SSO login failed");
+				unNotify(nid);
+			});
 	}
 
 	function proxyLogin(auto = false) {
@@ -279,6 +334,17 @@
 						<button type="button" onclick={plexLogin} class="provider-btn plex">
 							<Icon i="plex" wh={18} />
 							<span>Plex</span>
+						</button>
+					{/if}
+
+					{#if apOidc}
+						<button
+							type="button"
+							onclick={oidcLogin}
+							class="provider-btn sso"
+						>
+							<Icon i="lock-closed" wh={18} />
+							<span>Continue with {oidcProviderName || "SSO"}</span>
 						</button>
 					{/if}
 

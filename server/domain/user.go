@@ -33,6 +33,7 @@ type (
 	UserManageProvider interface {
 		GetAll() ([]ManagedUser, error)
 		Manage(userId uint, ur UpdateUserRequest) error
+		Delete(adminId uint, targetUserId uint) error
 	}
 )
 

@@ -44,6 +44,17 @@ type TrustedHeaderAuthSetting struct {
 	LogoutUrl string `json:"logoutUrl"`
 }
 
+// OIDCSetting holds OpenID Connect / OAuth2 single sign-on configuration (#461).
+type OIDCSetting struct {
+	Enabled      bool   `json:"enabled"`
+	ProviderName string `json:"providerName"`
+	IssuerURL    string `json:"issuerUrl"`
+	ClientID     string `json:"clientId"`
+	ClientSecret string `json:"clientSecret"`
+	RedirectURI  string `json:"redirectUri"`
+	AutoRegister bool   `json:"autoRegister"`
+}
+
 var cfgMu sync.RWMutex
 
 type ServerConfig struct {
@@ -58,6 +69,9 @@ type ServerConfig struct {
 
 	// Default language for TMDB metadata and new users (e.g. en-US, de-DE, tr-TR, pt-BR).
 	DEFAULT_LANGUAGE string `json:",omitempty"`
+
+	// Default permissions bitmask for newly registered users (#674).
+	DEFAULT_USER_PERMISSIONS int `json:",omitempty"`
 
 	// Optional: Point to your Jellyfin install
 	// to enable it as an auth provider.
@@ -81,6 +95,12 @@ type ServerConfig struct {
 	// If unprovided, the default Watcharr API key will be used.
 	TMDB_KEY string `json:",omitempty"`
 
+	// Optional: Provide your own TheTVDB API Key (v4) (#555, #1103).
+	TVDB_KEY string `json:",omitempty"`
+
+	// Primary TV metadata provider ("tmdb" or "tvdb") (#555, #1103).
+	METADATA_PROVIDER string `json:",omitempty"`
+
 	// Optional: OMDb API Key for IMDb, Rotten Tomatoes, Metacritic & Awards.
 	OMDB_KEY string `json:",omitempty"`
 
@@ -103,6 +123,9 @@ type ServerConfig struct {
 	// VERY DANGEROUS if access is not controlled correctly!
 	HEADER_AUTH TrustedHeaderAuthSetting `json:",omitempty"`
 
+	// Optional: OpenID Connect / OAuth2 authentication configuration (#461).
+	OIDC OIDCSetting `json:",omitempty"`
+
 	// Optional: Point to Jellyseerr or Overseerr install to enable media requests.
 	OVERSEERR_HOST string `json:",omitempty"`
 	OVERSEERR_KEY  string `json:",omitempty"`
@@ -115,8 +138,8 @@ type ServerConfig struct {
 	TASK_SCHEDULE map[string]int `json:",omitempty"`
 
 	// Automated disaster recovery backup configuration
-	BACKUP_ENABLED *bool `json:",omitempty"`
-	BACKUP_RETENTION int `json:",omitempty"`
+	BACKUP_ENABLED   *bool `json:",omitempty"`
+	BACKUP_RETENTION int   `json:",omitempty"`
 
 	// Enable/disable debug logging. Useful for when trying
 	// to figure out exactly what the server is doing at a point
@@ -138,11 +161,14 @@ func (c *ServerConfig) GetSafe() ServerConfig {
 		SIGNUP_ENABLED:           c.SIGNUP_ENABLED,
 		DEFAULT_COUNTRY:          c.DEFAULT_COUNTRY,
 		DEFAULT_LANGUAGE:         c.DEFAULT_LANGUAGE,
+		DEFAULT_USER_PERMISSIONS: c.GetDefaultUserPermissions(),
 		JELLYFIN_HOST:            c.JELLYFIN_HOST,
 		JELLYFIN_WEBHOOK_ENABLED: c.JELLYFIN_WEBHOOK_ENABLED,
 		JELLYFIN_WEBHOOK_KEY:     c.JELLYFIN_WEBHOOK_KEY,
 		USE_EMBY:                 c.USE_EMBY,
 		TMDB_KEY:                 c.TMDB_KEY,
+		TVDB_KEY:                 c.TVDB_KEY,
+		METADATA_PROVIDER:        c.GetMetadataProvider(),
 		OMDB_KEY:                 c.OMDB_KEY,
 		MDBLIST_KEY:              c.MDBLIST_KEY,
 		STEAM_KEY:                c.STEAM_KEY,
@@ -153,6 +179,7 @@ func (c *ServerConfig) GetSafe() ServerConfig {
 		BACKUP_ENABLED:           func() *bool { b := c.GetBackupEnabled(); return &b }(),
 		BACKUP_RETENTION:         c.GetBackupRetention(),
 		DEBUG:                    c.DEBUG,
+		OIDC:                     c.OIDC,
 		SONARR:                   c.SONARR, // Dont act safe, this contains sonarr api key, needed for config
 		RADARR:                   c.RADARR, // Dont act safe, this contains radarr api key, needed for config
 		TWITCH: igdb.IGDB{
@@ -160,6 +187,29 @@ func (c *ServerConfig) GetSafe() ServerConfig {
 			ClientSecret: c.TWITCH.ClientSecret,
 		}, // Dont act safe, this contains twitch secrets, needed for config
 	}
+}
+
+func (c *ServerConfig) GetDefaultUserPermissions() int {
+	if c.DEFAULT_USER_PERMISSIONS <= 0 {
+		return 1 // entity.PERM_NONE
+	}
+	return c.DEFAULT_USER_PERMISSIONS
+}
+
+func (c *ServerConfig) GetTVDBKey() string {
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+	if c.TVDB_KEY != "" {
+		return c.TVDB_KEY
+	}
+	return strings.TrimSpace(os.Getenv("TVDB_API_KEY"))
+}
+
+func (c *ServerConfig) GetMetadataProvider() string {
+	if strings.EqualFold(c.METADATA_PROVIDER, "tvdb") && (c.TVDB_KEY != "" || os.Getenv("TVDB_API_KEY") != "") {
+		return "tvdb"
+	}
+	return "tmdb"
 }
 
 func (c *ServerConfig) GetDefaultLanguage() string {
@@ -265,6 +315,8 @@ func (c *ServerConfig) Get(s string) (ServerConfigGetByName, error) {
 		return ServerConfigGetByName{Value: c.DEFAULT_COUNTRY}, nil
 	case "DEFAULT_LANGUAGE":
 		return ServerConfigGetByName{Value: c.DEFAULT_LANGUAGE}, nil
+	case "DEFAULT_USER_PERMISSIONS":
+		return ServerConfigGetByName{Value: c.GetDefaultUserPermissions()}, nil
 	case "JELLYFIN_HOST":
 		return ServerConfigGetByName{Value: c.JELLYFIN_HOST}, nil
 	case "JELLYFIN_WEBHOOK_ENABLED":
@@ -277,6 +329,10 @@ func (c *ServerConfig) Get(s string) (ServerConfigGetByName, error) {
 		return ServerConfigGetByName{Value: c.SIGNUP_ENABLED}, nil
 	case "TMDB_KEY":
 		return ServerConfigGetByName{Value: c.TMDB_KEY}, nil
+	case "TVDB_KEY":
+		return ServerConfigGetByName{Value: c.TVDB_KEY}, nil
+	case "METADATA_PROVIDER":
+		return ServerConfigGetByName{Value: c.GetMetadataProvider()}, nil
 	case "OMDB_KEY":
 		return ServerConfigGetByName{Value: c.OMDB_KEY}, nil
 	case "MDBLIST_KEY":
@@ -289,6 +345,8 @@ func (c *ServerConfig) Get(s string) (ServerConfigGetByName, error) {
 		return ServerConfigGetByName{Value: c.PLEX_MACHINE_ID}, nil
 	case "HEADER_AUTH":
 		return ServerConfigGetByName{Value: c.HEADER_AUTH}, nil
+	case "OIDC":
+		return ServerConfigGetByName{Value: c.OIDC}, nil
 	case "DEBUG":
 		return ServerConfigGetByName{Value: c.DEBUG}, nil
 	case "OVERSEERR_HOST":
@@ -301,6 +359,23 @@ func (c *ServerConfig) Get(s string) (ServerConfigGetByName, error) {
 		return ServerConfigGetByName{Value: c.GetBackupRetention()}, nil
 	}
 	return ServerConfigGetByName{}, errors.New("invalid setting")
+}
+
+// SetOIDCSetting saves OpenID Connect / OAuth2 settings (#461).
+func (c *ServerConfig) SetOIDCSetting(oidc OIDCSetting) error {
+	cfgMu.Lock()
+	oidc.IssuerURL = strings.TrimRight(strings.TrimSpace(oidc.IssuerURL), "/")
+	oidc.ClientID = strings.TrimSpace(oidc.ClientID)
+	oidc.ClientSecret = strings.TrimSpace(oidc.ClientSecret)
+	oidc.RedirectURI = strings.TrimSpace(oidc.RedirectURI)
+	oidc.ProviderName = strings.TrimSpace(oidc.ProviderName)
+	c.OIDC = oidc
+	cfgMu.Unlock()
+	if err := c.Write(); err != nil {
+		slog.Error("SetOIDCSetting: Failed to write config!", "error", err)
+		return errors.New("failed to write config")
+	}
+	return nil
 }
 
 // Update server config property
@@ -332,13 +407,51 @@ func (c *ServerConfig) UpdateConfig(k string, v any) error {
 			return errors.New("invalid value")
 		}
 		c.SIGNUP_ENABLED = b
+	case "DEFAULT_USER_PERMISSIONS":
+		var perms int
+		switch val := v.(type) {
+		case float64:
+			perms = int(val)
+		case int:
+			perms = val
+		default:
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		if perms <= 0 {
+			perms = 1
+		}
+		// Never allow default user permissions to include PERM_ADMIN (2) automatically
+		perms &^= 2
+		if perms == 0 {
+			perms = 1
+		}
+		c.DEFAULT_USER_PERMISSIONS = perms
 	case "TMDB_KEY":
 		str, ok := v.(string)
 		if !ok {
 			cfgMu.Unlock()
 			return errors.New("invalid value")
 		}
-		c.TMDB_KEY = str
+		c.TMDB_KEY = strings.TrimSpace(str)
+	case "TVDB_KEY":
+		str, ok := v.(string)
+		if !ok {
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		c.TVDB_KEY = strings.TrimSpace(str)
+	case "METADATA_PROVIDER":
+		str, ok := v.(string)
+		if !ok {
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		p := strings.ToLower(strings.TrimSpace(str))
+		if p != "tvdb" {
+			p = "tmdb"
+		}
+		c.METADATA_PROVIDER = p
 	case "OMDB_KEY":
 		str, ok := v.(string)
 		if !ok {

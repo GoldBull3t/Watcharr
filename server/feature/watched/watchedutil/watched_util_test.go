@@ -54,4 +54,14 @@ func TestGetLatestWatchedInTv(t *testing.T) {
 	if resp != want {
 		t.Errorf("%s != %s", resp, want)
 	}
+
+	// #753: When all watched seasons are FINISHED (no season WATCHING), show only "S3"
+	completedSeasons := []entity.WatchedSeason{
+		{SeasonNumber: 1, Status: entity.FINISHED},
+		{SeasonNumber: 3, Status: entity.FINISHED},
+	}
+	respCompleted := watchedutil.GetLatestWatchedInTv(completedSeasons, watchedEps)
+	if respCompleted != "S3" {
+		t.Errorf("expected S3 for completed season, got %s", respCompleted)
+	}
 }

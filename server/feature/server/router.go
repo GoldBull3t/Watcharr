@@ -67,6 +67,8 @@ func (r *Router) AddRoutes() {
 	server.GET("/users", r.GetAllUsers)
 	// Edit a user (for manage users page)
 	server.POST("/users/:id", r.UpdateManageUser)
+	// Delete a user (#473)
+	server.DELETE("/users/:id", r.DeleteManageUser)
 	// Repair content table (#62)
 	server.POST("/repair-content", r.RepairContent)
 }
@@ -104,6 +106,18 @@ func (r *Router) UpdateConfig(c *gin.Context) {
 			}
 			err = r.trustedHeaderAuthProvider.SetTrustedHeaderAuthSetting(ur)
 			if err != nil {
+				c.AbortWithStatusJSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+				return
+			}
+			c.Status(http.StatusOK)
+			return
+		case "OIDC":
+			var ur config.OIDCSetting
+			if err := c.ShouldBindJSON(&ur); err != nil {
+				c.AbortWithStatusJSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+				return
+			}
+			if err := r.br.Cfg.SetOIDCSetting(ur); err != nil {
 				c.AbortWithStatusJSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
 				return
 			}
@@ -204,4 +218,19 @@ func (r *Router) UpdateManageUser(c *gin.Context) {
 		return
 	}
 	c.AbortWithStatusJSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+}
+
+// DeleteManageUser permanently deletes a user (#473).
+func (r *Router) DeleteManageUser(c *gin.Context) {
+	targetId, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || targetId == 0 {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid user id"})
+		return
+	}
+	adminId := c.MustGet("userId").(uint)
+	if err := r.userManageProvider.Delete(adminId, uint(targetId)); err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.Status(http.StatusOK)
 }

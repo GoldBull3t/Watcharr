@@ -1124,7 +1124,9 @@
 		}
 	}
 
-	async function downloadExport(format: "json" | "csv") {
+	async function downloadExport(
+		format: "json" | "csv" | "txt" | "md" | "html",
+	) {
 		try {
 			isExporting = true;
 			const nid = notify({
@@ -1299,6 +1301,33 @@
 					<Icon i="download" wh={18} />
 					<span>Export as CSV</span>
 					<span class="btn-subtext">Spreadsheet compatible</span>
+				</button>
+				<button
+					class="export-btn secondary"
+					disabled={isExporting}
+					onclick={() => downloadExport("md")}
+				>
+					<Icon i="document" wh={18} />
+					<span>Export as Markdown</span>
+					<span class="btn-subtext">Formatted tables (.md)</span>
+				</button>
+				<button
+					class="export-btn secondary"
+					disabled={isExporting}
+					onclick={() => downloadExport("txt")}
+				>
+					<Icon i="document" wh={18} />
+					<span>Export as Text</span>
+					<span class="btn-subtext">Plain text list (.txt)</span>
+				</button>
+				<button
+					class="export-btn secondary"
+					disabled={isExporting}
+					onclick={() => downloadExport("html")}
+				>
+					<Icon i="document" wh={18} />
+					<span>Export as HTML</span>
+					<span class="btn-subtext">Printable web page (.html)</span>
 				</button>
 			</div>
 		</div>

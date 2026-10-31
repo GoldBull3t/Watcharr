@@ -84,6 +84,7 @@ export enum UserType {
 	Jellyfin = 1,
 	Plex = 2,
 	Proxy = 3,
+	OIDC = 4,
 }
 
 export interface AuthResponse {
@@ -422,6 +423,7 @@ export interface AvailableAuthProviders {
 	isInSetup: boolean;
 	useEmby: boolean;
 	headerAuthAutoLogin: boolean;
+	oidcProviderName?: string;
 }
 
 export interface TokenClaims {
@@ -864,12 +866,15 @@ export interface ManagedUser {
 export interface ServerConfig {
 	DEFAULT_COUNTRY?: string;
 	DEFAULT_LANGUAGE?: string;
+	DEFAULT_USER_PERMISSIONS?: number;
 	JELLYFIN_HOST?: string;
 	JELLYFIN_WEBHOOK_ENABLED?: boolean;
 	JELLYFIN_WEBHOOK_KEY?: string;
 	USE_EMBY: boolean;
 	SIGNUP_ENABLED: boolean;
 	TMDB_KEY?: string;
+	TVDB_KEY?: string;
+	METADATA_PROVIDER?: "tmdb" | "tvdb";
 	OMDB_KEY?: string;
 	MDBLIST_KEY?: string;
 	PLEX_HOST?: string;
@@ -929,6 +934,16 @@ export interface TrustedHeaderAuthSetting {
 	headerName: string;
 	autoLogin: boolean;
 	logoutUrl: string;
+}
+
+export interface OIDCSetting {
+	enabled: boolean;
+	providerName: string;
+	issuerUrl: string;
+	clientId: string;
+	clientSecret: string;
+	redirectUri: string;
+	autoRegister: boolean;
 }
 
 export interface TrustedHeaderAuthLogoutDetailsResponse {

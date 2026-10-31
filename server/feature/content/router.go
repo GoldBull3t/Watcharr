@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sbondCo/Watcharr/database/entity"
@@ -15,6 +16,7 @@ import (
 	"github.com/sbondCo/Watcharr/feature/watched/addedtocontent"
 	"github.com/sbondCo/Watcharr/media/extratings"
 	"github.com/sbondCo/Watcharr/media/tmdb"
+	"github.com/sbondCo/Watcharr/media/tvdb"
 	"github.com/sbondCo/Watcharr/router"
 	"github.com/sbondCo/Watcharr/util"
 )
@@ -30,6 +32,22 @@ type Router struct {
 	cs   *Service
 	wp   WatchedProvider
 	tmdb *tmdb.TMDB
+
+	tvdbMu  sync.Mutex
+	tvdbC   *tvdb.Client
+	tvdbKey string
+}
+
+// tvdbClient returns a cached TVDB client, recreating it if the configured key changed.
+func (r *Router) tvdbClient() *tvdb.Client {
+	key := r.br.Cfg.GetTVDBKey()
+	r.tvdbMu.Lock()
+	defer r.tvdbMu.Unlock()
+	if r.tvdbC == nil || r.tvdbKey != key {
+		r.tvdbC = tvdb.New(key)
+		r.tvdbKey = key
+	}
+	return r.tvdbC
 }
 
 func NewRouter(
@@ -208,6 +226,20 @@ func (r *Router) GetTvDetails(c *gin.Context) {
 	}
 	cancInfo := EvaluateShowCancellation(content, dbEndingType)
 	contentAsMedia.Cancellation = &cancInfo
+
+	// TVDB as primary TV metadata provider (#555, #1103): swap in TVDB's localized
+	// title/overview when available. Falls back silently to TMDB data on any failure.
+	if r.br.Cfg.GetMetadataProvider() == "tvdb" && contentAsMedia.IDs.TVDB != 0 {
+		tvdbClient := r.tvdbClient()
+		if tr, err := tvdbClient.SeriesTranslation(contentAsMedia.IDs.TVDB, c.MustGet("userLanguage").(string)); err == nil {
+			if strings.TrimSpace(tr.Name) != "" {
+				contentAsMedia.Name = tr.Name
+			}
+			if strings.TrimSpace(tr.Overview) != "" {
+				contentAsMedia.Summary = tr.Overview
+			}
+		}
+	}
 
 	extRatings, fallbackCert := extratings.FetchEnrichments(extratings.FetchOptions{
 		MediaType:  "tv",

@@ -74,7 +74,7 @@
 				<div class="season-progress-pill" title={seasonProgress.displayText}>
 					{#if seasonProgress.totalSeasons <= 10}
 						<div class="segments-row">
-							{#each seasonProgress.seasons as s}
+							{#each seasonProgress.seasons as s (s.number)}
 								<span
 									class="seg {s.status.toLowerCase()}"
 									title={`T${s.number}: ${
@@ -111,13 +111,13 @@
 								wh={11}
 							/></i
 						>
-						<span>{seasonProgress.displayText}</span>
+						<span>{seasonProgress.shortLabel}</span>
 					</span>
 				</div>
 			{:else if lastWatched && store.wlDetailedView.includes("lastWatched")}
 				<span title={t("poster.latest_season") || "Latest season watched"}>
 					<i><Icon i="play" wh={15} /></i>
-					<span>{lastWatched}</span>
+					<span>{lastWatched.replace(/^Season\s+/i, "S")}</span>
 				</span>
 			{/if}{#if typeof hoursPlayed === "number" && hoursPlayed > 0}
 				<span title={t("gaming.hours_played") || "Horas jogadas"}>

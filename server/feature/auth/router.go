@@ -41,6 +41,9 @@ func (r *Router) AddRoutes() {
 	auth.POST("/plex", authLimiter, r.LoginPlex)
 	// Proxy Login
 	auth.POST("/proxy", authLimiter, r.LoginProxy)
+	// OIDC / OAuth2 Login (#461)
+	auth.GET("/oidc/login", authLimiter, r.GetOIDCLoginURL)
+	auth.POST("/oidc/callback", authLimiter, r.LoginOIDC)
 	// Register
 	auth.POST("/register", authLimiter, r.Register)
 	// Get available auth providers
@@ -128,6 +131,32 @@ func (r *Router) LoginProxy(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// GetOIDCLoginURL returns the OAuth2 / OIDC authorization URL (#461).
+func (r *Router) GetOIDCLoginURL(c *gin.Context) {
+	redirectURI := c.Query("redirectUri")
+	resp, err := r.service.GetOIDCLoginURL(redirectURI)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// LoginOIDC exchanges the OIDC authorization code for a Watcharr JWT (#461).
+func (r *Router) LoginOIDC(c *gin.Context) {
+	var req OIDCCallbackRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	resp, err := r.service.LoginOIDC(req)
+	if err != nil {
+		c.JSON(http.StatusForbidden, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
 // Register
 func (r *Router) Register(c *gin.Context) {
 	var user UserRegisterRequest
@@ -160,6 +189,10 @@ func (r *Router) GetAvailableAuthProviders(c *gin.Context) {
 	if r.trustedHeaderService.TrustedHeaderAuthIsEnabled() {
 		resp.AvailableAuthProviders = append(resp.AvailableAuthProviders, "header")
 		resp.HeaderAuthAutoLogin = r.br.Cfg.HEADER_AUTH.AutoLogin
+	}
+	if r.br.Cfg.OIDC.Enabled && r.br.Cfg.OIDC.IssuerURL != "" && r.br.Cfg.OIDC.ClientID != "" {
+		resp.AvailableAuthProviders = append(resp.AvailableAuthProviders, "oidc")
+		resp.OIDCProviderName = r.br.Cfg.OIDC.ProviderName
 	}
 	c.JSON(http.StatusOK, resp)
 }

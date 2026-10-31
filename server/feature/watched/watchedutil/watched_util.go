@@ -6,7 +6,9 @@ import (
 	"github.com/sbondCo/Watcharr/database/entity"
 )
 
-// Get biggest season watching or biggest season watched.
+// Get biggest season watching or biggest season watched (#753).
+// When a season is FINISHED (and no season/episode is actively WATCHING),
+// returns a compact season indicator ("S1") instead of verbose "Season 1" or "S1E10".
 func GetLatestWatchedInTv(
 	ws []entity.WatchedSeason,
 	we []entity.WatchedEpisode,
@@ -15,15 +17,19 @@ func GetLatestWatchedInTv(
 		return ""
 	}
 
-	seasonNum := getLatestWatchedSeasonInTv(ws)
+	seasonNum, seasonIsWatching := getLatestWatchedSeasonStateInTv(ws)
 	episode := getLatestWatchedEpisodeInTv(we, seasonNum)
 
 	if seasonNum > -1 && episode.ID != 0 {
-		// If we have a season num and an episode
-		return SeasonAndEpToReadable(seasonNum, episode.EpisodeNumber)
+		// If the season itself is WATCHING or the latest episode in it is WATCHING, show SxEy
+		if seasonIsWatching || episode.Status == entity.WATCHING {
+			return SeasonAndEpToReadable(seasonNum, episode.EpisodeNumber)
+		}
+		// Season is FINISHED: show only the season number ("S1") (#753)
+		return "S" + strconv.Itoa(seasonNum)
 	} else if seasonNum > -1 {
 		// If we only have a season num
-		return "Season " + strconv.Itoa(seasonNum)
+		return "S" + strconv.Itoa(seasonNum)
 	} else if episode.ID != 0 {
 		// If we only have an episode
 		return SeasonAndEpToReadable(episode.SeasonNumber, episode.EpisodeNumber)
@@ -32,9 +38,9 @@ func GetLatestWatchedInTv(
 	return ""
 }
 
-func getLatestWatchedSeasonInTv(ws []entity.WatchedSeason) int {
+func getLatestWatchedSeasonStateInTv(ws []entity.WatchedSeason) (int, bool) {
 	if len(ws) <= 0 {
-		return -1
+		return -1, false
 	}
 
 	biggestWatched := -1
@@ -55,10 +61,10 @@ func getLatestWatchedSeasonInTv(ws []entity.WatchedSeason) int {
 	}
 
 	if biggestWatching >= 0 {
-		return biggestWatching
+		return biggestWatching, true
 	}
 
-	return biggestWatched
+	return biggestWatched, false
 }
 
 func getLatestWatchedEpisodeInTv(

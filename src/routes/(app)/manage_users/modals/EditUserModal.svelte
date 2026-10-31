@@ -57,6 +57,26 @@
 		}
 	}
 
+	let confirmingDelete = $state(false);
+	let deleting = $state(false);
+
+	/** Permanently delete this user and all their data (#473). */
+	async function deleteUser() {
+		if (deleting) return;
+		deleting = true;
+		try {
+			await req.delete(`/server/users/${user.id}`);
+			notify({ type: "success", text: `User ${user.username} deleted` });
+			onClose();
+		} catch (err) {
+			console.error("Failed to delete user!", err);
+			error = ReqerError.getMsg(err, "Failed to delete user");
+			confirmingDelete = false;
+		} finally {
+			deleting = false;
+		}
+	}
+
 	function userTogglePermission(perm: UserPermission) {
 		user.permissions ^= perm;
 		changedPerms = true;
@@ -161,6 +181,28 @@
 			{/if}
 		</Setting>
 
+		<h3 class="norm">Danger Zone</h3>
+
+		<Setting
+			title="Delete User"
+			desc="Permanently delete this user and all of their data (library, tags, activity). This cannot be undone."
+		>
+			{#if confirmingDelete}
+				<div class="btns delete-confirm">
+					<button class="danger" disabled={deleting} onclick={() => deleteUser()}>
+						{deleting ? "Deleting..." : `Yes, delete ${user.username}`}
+					</button>
+					<button class="plain" disabled={deleting} onclick={() => (confirmingDelete = false)}>
+						Cancel
+					</button>
+				</div>
+			{:else}
+				<button class="danger" onclick={() => (confirmingDelete = true)}>
+					Delete User
+				</button>
+			{/if}
+		</Setting>
+
 		<div class="btns">
 			<button onclick={() => save()}>Save</button>
 		</div>
@@ -182,6 +224,23 @@
 			padding-left: 15px;
 			padding-right: 15px;
 		}
+	}
+
+	button.danger {
+		width: max-content;
+		padding-left: 15px;
+		padding-right: 15px;
+		background-color: rgba(220, 38, 38, 0.15);
+		border: 1px solid rgba(220, 38, 38, 0.5);
+		color: #f87171;
+
+		&:hover:not(:disabled) {
+			background-color: rgba(220, 38, 38, 0.3);
+		}
+	}
+
+	.delete-confirm :first-child {
+		margin-left: 0;
 	}
 
 	.error {

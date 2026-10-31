@@ -24,6 +24,7 @@ export interface SeasonProgressStats {
 	isCaughtUp: boolean;
 	percentage: number;
 	displayText: string;
+	shortLabel: string;
 	badgeText?: string;
 	seasons: {
 		number: number;
@@ -34,6 +35,7 @@ export interface SeasonProgressStats {
 export function calculateSeasonProgress(
 	numberOfSeasons?: number,
 	watchedSeasons?: { seasonNumber: number; status: WatchedStatus }[],
+	watchingSeason?: string,
 ): SeasonProgressStats | null {
 	const total =
 		numberOfSeasons && numberOfSeasons > 0
@@ -97,25 +99,34 @@ export function calculateSeasonProgress(
 
 	const percentage = Math.min(100, Math.round((finished.length / total) * 100));
 
-	// Determine progression state and smart labels
+	// Determine progression state and smart labels (#753)
 	let progressionState: SeriesProgressionState = "UNWATCHED";
 	let isCaughtUp = false;
 	let displayText = `${finished.length}/${total} Temp.`;
+	let shortLabel =
+		watchingSeason?.replace(/^Season\s+/i, "S") ||
+		`S${finished.length > 0 ? Math.max(...finished) : nextUpSeason || 1}`;
 	let badgeText: string | undefined;
 
 	if (finished.length === total && total > 0) {
 		progressionState = "FULLY_FINISHED";
 		isCaughtUp = true;
 		displayText = `Completa (${total}/${total} Temp.)`;
+		shortLabel = `S${total}`;
 		badgeText = "Completa";
 	} else if (watching.length > 0) {
 		progressionState = "IN_PROGRESS";
 		isCaughtUp = false;
 		displayText = `${finished.length}/${total} Temp. (A ver T${nextUpSeason})`;
+		shortLabel =
+			watchingSeason && /^S\d+E\d+$/i.test(watchingSeason)
+				? watchingSeason
+				: `S${nextUpSeason}`;
 		badgeText = `A ver T${nextUpSeason}`;
 	} else if (finished.length > 0) {
-		// All currently watched seasons are finished, and either a season is planned or waiting
+		// All currently watched seasons are finished (#753: show only season number Sx)
 		const maxFin = Math.max(...finished);
+		shortLabel = `S${maxFin}`;
 		const allPriorFinished = finished.length === maxFin;
 		if (
 			allPriorFinished &&
@@ -133,11 +144,12 @@ export function calculateSeasonProgress(
 		} else {
 			progressionState = "IN_PROGRESS";
 			displayText = `${finished.length}/${total} Temp.`;
-			badgeText = `${finished.length}/${total} Temp.`;
+			badgeText = `S${maxFin}`;
 		}
 	} else if (planned.length > 0) {
 		progressionState = "PLANNED";
 		displayText = `T${nextUpSeason} Planeada`;
+		shortLabel = `S${nextUpSeason}`;
 		badgeText = `Planeada`;
 	}
 
@@ -152,6 +164,7 @@ export function calculateSeasonProgress(
 		isCaughtUp,
 		percentage,
 		displayText,
+		shortLabel,
 		badgeText,
 		seasons: seasonsList,
 	};
@@ -179,9 +192,13 @@ export function buildExtraDetails(
 	const isTv =
 		t === "tv" ||
 		media?.type === MediaTypeE.tmdbShow ||
-		(media?.type as any) === "tv";
+		(media?.type as unknown) === "tv";
 	const seasonProgress = isTv
-		? calculateSeasonProgress(media?.numberOfSeasons, w.watchedSeasons)
+		? calculateSeasonProgress(
+				media?.numberOfSeasons,
+				w.watchedSeasons,
+				w.watchingSeason,
+			)
 		: null;
 
 	const obj = {

@@ -36,4 +36,5 @@ const (
 	UserServiceNameJellyfin UserServiceName = "jellyfin"
 	UserServiceNamePlex     UserServiceName = "plex"
 	UserServiceNameSteam    UserServiceName = "steam"
+	UserServiceNameOIDC     UserServiceName = "oidc"
 )

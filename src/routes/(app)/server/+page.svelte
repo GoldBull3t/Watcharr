@@ -23,6 +23,9 @@
 	import TaskScheduleModal from "./modals/TaskScheduleModal.svelte";
 	import BackupModal from "./modals/BackupModal.svelte";
 	import TrustedHeaderAuthModal from "./modals/TrustedHeaderAuthModal.svelte";
+	import OIDCModal from "./modals/OIDCModal.svelte";
+	import { userHasPermission } from "@/lib/util/helpers";
+	import { UserPermission } from "@/types";
 	import { resolve } from "$app/paths";
 
 	let serverConfig: ServerConfig | undefined = $state();
@@ -37,6 +40,21 @@
 	let taskScheduleModalOpen = $state(false);
 	let backupModalOpen = $state(false);
 	let headerSSOModalOpen = $state(false);
+	let oidcModalOpen = $state(false);
+	let tvdbkDisabled = $state(false);
+	let providerDisabled = $state(false);
+	let defaultPermsDisabled = $state(false);
+
+	function toggleDefaultPerm(perm: UserPermission, on: boolean) {
+		if (!serverConfig) return;
+		let perms = serverConfig.DEFAULT_USER_PERMISSIONS ?? UserPermission.PERM_NONE;
+		perms = on ? perms | perm : perms & ~perm;
+		if (perms === 0) perms = UserPermission.PERM_NONE;
+		defaultPermsDisabled = true;
+		updateServerConfig("DEFAULT_USER_PERMISSIONS", perms, () => {
+			defaultPermsDisabled = false;
+		});
+	}
 	// Disabled vars for disabling inputs until api request completes
 	let signupDisabled = $state(false);
 	let debugDisabled = $state(false);
@@ -401,6 +419,42 @@
 						/>
 					</Setting>
 					<Setting
+						title="TheTVDB API Key"
+						desc="Optional: Provide a TheTVDB v4 API key (thetvdb.com) to use TVDB as the TV metadata provider."
+					>
+						<input
+							type="password"
+							placeholder="TheTVDB API Key"
+							bind:value={serverConfig.TVDB_KEY}
+							onblur={() => {
+								tvdbkDisabled = true;
+								updateServerConfig("TVDB_KEY", serverConfig!.TVDB_KEY ?? "", () => {
+									tvdbkDisabled = false;
+								});
+							}}
+							disabled={tvdbkDisabled}
+						/>
+					</Setting>
+					<Setting
+						title="TV Metadata Provider"
+						desc="Primary source for TV show titles and descriptions. TheTVDB requires an API key above, and falls back to TMDB if unavailable. Movies always use TMDB; games use IGDB (Twitch credentials below)."
+					>
+						<select
+							value={serverConfig.METADATA_PROVIDER ?? "tmdb"}
+							disabled={providerDisabled}
+							onchange={(e) => {
+								const v = e.currentTarget.value as "tmdb" | "tvdb";
+								providerDisabled = true;
+								updateServerConfig("METADATA_PROVIDER", v, () => {
+									providerDisabled = false;
+								});
+							}}
+						>
+							<option value="tmdb">TMDB</option>
+							<option value="tvdb" disabled={!serverConfig.TVDB_KEY}>TheTVDB</option>
+						</select>
+					</Setting>
+					<Setting
 						title="OMDb API Key"
 						desc="Optional: Provide an OMDb API Key (omdbapi.com) to display IMDb, Rotten Tomatoes, Metacritic scores, Box Office and Oscars/Awards."
 					>
@@ -453,6 +507,41 @@
 									signupDisabled = false;
 								});
 							}}
+						/>
+					</Setting>
+					<Setting
+						title="New Users Can Request Content"
+						desc="Default permission for newly registered users (Watcharr, Jellyfin, Plex, SSO). Doesn't affect existing users."
+						row
+					>
+						<Checkbox
+							name="DEFAULT_PERM_REQUEST_CONTENT"
+							disabled={defaultPermsDisabled}
+							value={userHasPermission(
+								serverConfig.DEFAULT_USER_PERMISSIONS ?? UserPermission.PERM_NONE,
+								UserPermission.PERM_REQUEST_CONTENT,
+							)}
+							toggled={(on) =>
+								toggleDefaultPerm(UserPermission.PERM_REQUEST_CONTENT, on)}
+						/>
+					</Setting>
+					<Setting
+						title="New Users Requests Auto Approved"
+						desc="Auto approve content requests of newly registered users."
+						row
+					>
+						<Checkbox
+							name="DEFAULT_PERM_AUTO_APPROVE"
+							disabled={defaultPermsDisabled}
+							value={userHasPermission(
+								serverConfig.DEFAULT_USER_PERMISSIONS ?? UserPermission.PERM_NONE,
+								UserPermission.PERM_REQUEST_CONTENT_AUTO_APPROVE,
+							)}
+							toggled={(on) =>
+								toggleDefaultPerm(
+									UserPermission.PERM_REQUEST_CONTENT_AUTO_APPROVE,
+									on,
+								)}
 						/>
 					</Setting>
 					<Setting
@@ -509,6 +598,19 @@
 							}}
 						/>
 					</Setting>
+					<Setting>
+						<SettingButton
+							title="OpenID Connect (OAuth2)"
+							desc="Configure single sign-on with an OIDC provider."
+							icon="arrow"
+							onClick={() => {
+								oidcModalOpen = true;
+							}}
+						/>
+					</Setting>
+					{#if oidcModalOpen}
+						<OIDCModal onClose={() => (oidcModalOpen = false)} />
+					{/if}
 					{#if headerSSOModalOpen}
 						<TrustedHeaderAuthModal onClose={() => (headerSSOModalOpen = false)}
 						></TrustedHeaderAuthModal>
