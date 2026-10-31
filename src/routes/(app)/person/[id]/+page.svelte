@@ -240,13 +240,17 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 16px;
-		margin: 20px auto;
-		padding: 12px 24px;
-		border-radius: 16px;
-		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid rgba(255, 255, 255, 0.06);
-		width: 100%;
-		max-width: 1200px;
+		margin: 12px auto 20px;
+		padding: 12px 20px;
+		border-radius: 10px;
+		background: rgba(15, 19, 28, 0.72);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		width: calc(100% - 64px);
+		max-width: 1296px;
+
+		@media screen and (max-width: 680px) {
+			width: calc(100% - 32px);
+		}
 
 		.listFilter {
 			display: flex;
@@ -261,14 +265,14 @@
 	.content {
 		position: relative;
 		color: white;
-		margin-bottom: 15px;
+		margin-bottom: 8px;
 
 		.details-container .details {
 			.title-container {
 				a {
 					color: #ffffff;
 					text-decoration: none;
-					font-size: 32px;
+					font-size: 28px;
 					font-weight: 700;
 					letter-spacing: -0.02em;
 					line-height: 1.2;
@@ -279,7 +283,7 @@
 				}
 
 				span {
-					font-size: 20px;
+					font-size: 18px;
 					color: rgba(255, 255, 255, 0.7);
 				}
 			}
@@ -288,28 +292,28 @@
 				display: flex;
 				flex-wrap: wrap;
 				gap: 10px;
-				margin-top: 14px;
+				margin-top: 12px;
 
 				div {
 					display: flex;
 					flex-flow: column;
 					gap: 2px;
-					padding: 8px 16px;
-					border-radius: 12px;
-					background: rgba(255, 255, 255, 0.05);
+					padding: 8px 14px;
+					border-radius: 8px;
+					background: rgba(255, 255, 255, 0.04);
 					border: 1px solid rgba(255, 255, 255, 0.08);
 
 					span:first-child {
-						font-size: 11px;
-						font-weight: 600;
+						font-size: 10.5px;
+						font-weight: 700;
 						text-transform: uppercase;
 						letter-spacing: 0.05em;
-						color: rgba(255, 255, 255, 0.5);
+						color: rgba(255, 255, 255, 0.48);
 					}
 
 					span:last-child {
 						font-size: 13.5px;
-						font-weight: 500;
+						font-weight: 600;
 						color: #ffffff;
 					}
 				}
@@ -321,8 +325,15 @@
 		display: flex;
 		flex-flow: column;
 		align-items: center;
-		gap: 30px;
-		padding: 10px 0px;
+		width: 100%;
+		max-width: 1360px;
+		margin-inline: auto;
+		gap: 28px;
+		padding: 10px 32px 60px;
+
+		@media screen and (max-width: 680px) {
+			padding: 10px 16px 40px;
+		}
 	}
 
 	.no-credits-message {

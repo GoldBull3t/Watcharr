@@ -2,6 +2,7 @@
 	import { req } from "@/lib/util/api";
 	import type { FranchiseMatch } from "@/types";
 	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import Icon from "@/lib/Icon.svelte";
 
 	interface Props {
@@ -9,9 +10,16 @@
 		tmdbId: number;
 		collectionId?: number;
 		collectionName?: string;
+		hasCollectionBlock?: boolean;
 	}
 
-	let { mediaType, tmdbId, collectionId, collectionName }: Props = $props();
+	let {
+		mediaType,
+		tmdbId,
+		collectionId,
+		collectionName,
+		hasCollectionBlock = false,
+	}: Props = $props();
 
 	let match = $state<FranchiseMatch | undefined>();
 
@@ -32,7 +40,9 @@
 {#if match && match.inFranchise && match.franchiseId}
 	<div class="franchise-universe-banner">
 		<div class="banner-left">
-			<span class="cosmic-icon">🌌</span>
+			<span class="banner-icon">
+				<Icon i="compass" wh={18} />
+			</span>
 			<div class="banner-texts">
 				<span class="banner-kicker">Universo Cinematográfico & Franquia</span>
 				<div class="name-row">
@@ -47,17 +57,19 @@
 		<button
 			type="button"
 			class="explore-btn"
-			onclick={() => goto(`/franchise/${match?.franchiseId}`)}
+			onclick={() => goto(resolve(`/franchise/${match?.franchiseId}`))}
 		>
 			<Icon i="clock" wh={14} />
 			<span>Ver Linha Cronológica</span>
 			<span class="arrow-sym">→</span>
 		</button>
 	</div>
-{:else if collectionId}
+{:else if collectionId && !hasCollectionBlock}
 	<div class="franchise-universe-banner tmdb-col-banner">
 		<div class="banner-left">
-			<span class="film-icon">🎬</span>
+			<span class="banner-icon">
+				<Icon i="film" wh={18} />
+			</span>
 			<div class="banner-texts">
 				<span class="banner-kicker">Coleção & Franquia TMDB</span>
 				<strong class="universe-name">{collectionName || "Ver Franquia"}</strong
@@ -68,7 +80,7 @@
 		<button
 			type="button"
 			class="explore-btn"
-			onclick={() => goto(`/franchise/tmdb-${collectionId}`)}
+			onclick={() => goto(resolve(`/franchise/tmdb-${collectionId}`))}
 		>
 			<Icon i="clock" wh={14} />
 			<span>Ver Rota da Franquia</span>
@@ -82,38 +94,17 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		width: 100%;
 		gap: 16px;
-		background: rgba(22, 27, 38, 0.75);
-		border: 1px solid rgba(88, 166, 255, 0.3);
-		border-radius: 12px;
-		padding: 12px 18px;
-		margin: 16px 0;
-		box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
-		transition: all 0.2s ease;
+		background: rgba(15, 19, 28, 0.86);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-radius: 10px;
+		padding: 14px 18px;
+		margin: 0;
+		transition: border-color 150ms ease;
 
 		&:hover {
-			border-color: rgba(88, 166, 255, 0.55);
-			box-shadow: 0 6px 24px rgba(56, 139, 253, 0.2);
-		}
-
-		&.tmdb-col-banner {
-			background: rgba(22, 27, 38, 0.75);
-			border-color: rgba(240, 136, 62, 0.3);
-
-			&:hover {
-				border-color: rgba(240, 136, 62, 0.5);
-			}
-
-			.explore-btn {
-				background: rgba(240, 136, 62, 0.18);
-				border-color: rgba(240, 136, 62, 0.4);
-				color: #ffa657;
-
-				&:hover {
-					background: #f0883e;
-					color: #ffffff;
-				}
-			}
+			border-color: rgba(255, 255, 255, 0.22);
 		}
 
 		@media (max-width: 600px) {
@@ -131,13 +122,20 @@
 	.banner-left {
 		display: flex;
 		align-items: center;
-		gap: 14px;
+		gap: 12px;
 	}
 
-	.cosmic-icon,
-	.film-icon {
-		font-size: 1.6rem;
-		line-height: 1;
+	.banner-icon {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 36px;
+		height: 36px;
+		border-radius: 8px;
+		background: rgba(245, 158, 11, 0.12);
+		border: 1px solid rgba(245, 158, 11, 0.28);
+		color: $brand-color;
+		flex-shrink: 0;
 	}
 
 	.banner-texts {

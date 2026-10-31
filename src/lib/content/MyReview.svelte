@@ -22,6 +22,15 @@
 </script>
 
 <div class="review">
+	<div class="review-header">
+		<span class="review-title">Your Log & Rating</span>
+		{#if watched && typeof watched.plays == "number" && watched.plays > 0}
+			<span class="plays-badge">
+				{watched.plays}
+				{watched.plays > 1 ? "Plays" : "Play"}
+			</span>
+		{/if}
+	</div>
 	<Rating rating={watched?.rating} onChange={onRatingChanged} />
 	<Status status={watched?.status} onChange={onStatusChanged} />
 	{#if watched}
@@ -30,11 +39,6 @@
 			thoughts={watched?.thoughts}
 			onChange={onThoughtsChanged}
 		/>
-		{#if typeof watched.plays == "number" && watched.plays > 0}
-			<div class="plays-badge">
-				<span>{watched.plays} {watched.plays > 1 ? "Plays" : "Play"}</span>
-			</div>
-		{/if}
 	{/if}
 </div>
 
@@ -42,33 +46,50 @@
 	.review {
 		display: flex;
 		flex-flow: column;
-		gap: 12px;
+		gap: 14px;
 		width: 100%;
-		max-width: 400px;
+		min-inline-size: 0;
 		color: $text-color;
-		margin-left: auto;
-		margin-right: auto;
-		margin-top: 24px;
-		padding: 20px 24px;
-		background: rgba(22, 27, 38, 0.75);
+		padding: 20px;
+		background: rgba(15, 19, 28, 0.86);
 		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 18px;
-		box-shadow: 0 12px 32px -6px rgba(0, 0, 0, 0.5);
+		border-radius: 10px;
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 		backdrop-filter: blur(16px);
 		-webkit-backdrop-filter: blur(16px);
 
-		.plays-badge {
+		.review-header {
 			display: flex;
-			justify-content: center;
-			font-size: 12.5px;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			padding-bottom: 10px;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+
+			.review-title {
+				font-size: 11.5px;
+				font-weight: 700;
+				text-transform: uppercase;
+				letter-spacing: 0.06em;
+				color: rgba(255, 255, 255, 0.55);
+			}
+		}
+
+		.plays-badge {
+			display: inline-flex;
+			align-items: center;
+			padding: 2px 8px;
+			border-radius: 6px;
+			background: rgba(255, 255, 255, 0.06);
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			font-size: 11px;
 			font-weight: 600;
-			color: rgba(255, 255, 255, 0.5);
-			letter-spacing: 0.04em;
+			color: rgba(255, 255, 255, 0.75);
+			letter-spacing: 0.03em;
 			text-transform: uppercase;
 		}
 
 		@media screen and (max-width: 440px) {
-			max-width: 100%;
 			padding: 16px;
 		}
 	}

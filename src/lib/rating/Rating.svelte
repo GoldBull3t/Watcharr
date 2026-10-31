@@ -23,10 +23,8 @@
 
 <style lang="scss">
 	.wrap {
-		width: 377px;
-
-		@media screen and (max-width: 420px) {
-			width: 100%;
-		}
+		width: 100%;
+		max-width: 340px;
+		margin-inline: auto;
 	}
 </style>

@@ -55,55 +55,56 @@
 
 <style lang="scss">
 	.creators {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
-		gap: 14px;
-		margin: 10px auto;
-		max-width: 1000px;
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+		gap: 10px;
+		width: 100%;
+		margin: 0;
 
 		.crew-card {
 			position: relative;
 			display: flex;
 			flex-flow: column;
-			gap: 3px;
-			min-width: 140px;
-			padding: 10px 16px;
-			border-radius: 12px;
-			background: rgba(22, 27, 38, 0.6);
+			gap: 2px;
+			padding: 10px 14px;
+			border-radius: 8px;
+			background: rgba(15, 19, 28, 0.72);
 			border: 1px solid rgba(255, 255, 255, 0.08);
-			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-			backdrop-filter: blur(10px);
-			-webkit-backdrop-filter: blur(10px);
 			transition:
 				background 150ms ease,
-				border-color 150ms ease,
-				transform 150ms ease;
+				border-color 150ms ease;
 
 			&:hover,
 			&:focus-within {
-				background: rgba(30, 36, 52, 0.85);
-				border-color: rgba(255, 255, 255, 0.16);
-				transform: translateY(-1px);
+				background: rgba(24, 30, 44, 0.9);
+				border-color: rgba(255, 255, 255, 0.18);
 				z-index: 100;
 			}
 
 			.crew-name {
-				font-size: 14px;
+				font-size: 13.5px;
 				font-weight: 700;
 				color: #ffffff;
 				text-decoration: none;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
 
 				&:hover {
-					color: #a5b4fc;
+					color: $brand-color;
 					text-decoration: underline;
 				}
 			}
 
 			.crew-job {
-				font-size: 12px;
-				font-weight: 500;
-				color: rgba(255, 255, 255, 0.55);
+				font-size: 11px;
+				font-weight: 600;
+				text-transform: uppercase;
+				letter-spacing: 0.04em;
+				color: rgba(255, 255, 255, 0.48);
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
 			}
 		}
 	}

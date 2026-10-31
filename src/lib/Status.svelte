@@ -91,88 +91,84 @@
 	.status {
 		display: flex;
 		flex-flow: row;
-		gap: 10px;
+		gap: 6px;
 		width: 100%;
 		height: 100%;
 		container-type: inline-size;
 
 		button {
 			font-size: 10px;
-			padding: 5px 10px;
-			height: 54px;
+			padding: 6px 8px;
+			height: 42px;
 			flex: 1;
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
-			border-radius: 12px;
-			border: 1.5px solid var(--card-border, rgba(255, 255, 255, 0.1));
+			border-radius: 8px;
+			border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));
 			background-color: var(--card-bg, rgba(255, 255, 255, 0.04));
 			color: $text-color;
-			transition: all 160ms ease;
+			transition:
+				border-color 140ms ease,
+				background-color 140ms ease,
+				opacity 140ms ease;
 			cursor: pointer;
 
 			&:hover {
 				opacity: 1 !important;
-				transform: translateY(-2px);
 				border-color: rgba(255, 255, 255, 0.25);
+				background-color: rgba(255, 255, 255, 0.08);
 			}
 
 			&.untracked {
-				opacity: 0.6;
+				opacity: 0.65;
 			}
 
 			&.not-active {
-				opacity: 0.35;
+				opacity: 0.4;
 			}
 
 			&.active {
 				opacity: 1;
-				transform: translateY(-1px);
 
 				&.planned {
-					border-color: #f59e0b;
-					background-color: rgba(245, 158, 11, 0.18);
+					border-color: rgba(245, 158, 11, 0.55);
+					background-color: rgba(245, 158, 11, 0.16);
 					color: #fbbf24;
-					box-shadow: 0 0 14px rgba(245, 158, 11, 0.25);
 				}
 				&.watching {
-					border-color: #3b82f6;
-					background-color: rgba(59, 130, 246, 0.18);
+					border-color: rgba(59, 130, 246, 0.55);
+					background-color: rgba(59, 130, 246, 0.16);
 					color: #60a5fa;
-					box-shadow: 0 0 14px rgba(59, 130, 246, 0.25);
 				}
 				&.finished {
-					border-color: #10b981;
-					background-color: rgba(16, 185, 129, 0.18);
+					border-color: rgba(16, 185, 129, 0.55);
+					background-color: rgba(16, 185, 129, 0.16);
 					color: #34d399;
-					box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);
 				}
 				&.hold {
-					border-color: #f97316;
-					background-color: rgba(249, 115, 22, 0.18);
+					border-color: rgba(249, 115, 22, 0.55);
+					background-color: rgba(249, 115, 22, 0.16);
 					color: #fb923c;
-					box-shadow: 0 0 14px rgba(249, 115, 22, 0.25);
 				}
 				&.dropped {
-					border-color: #ef4444;
-					background-color: rgba(239, 68, 68, 0.18);
+					border-color: rgba(239, 68, 68, 0.55);
+					background-color: rgba(239, 68, 68, 0.16);
 					color: #f87171;
-					box-shadow: 0 0 14px rgba(239, 68, 68, 0.25);
 				}
 				&.cancelled {
-					border-color: #dc2626;
-					background-color: rgba(220, 38, 38, 0.18);
+					border-color: rgba(220, 38, 38, 0.55);
+					background-color: rgba(220, 38, 38, 0.16);
 					color: #fca5a5;
-					box-shadow: 0 0 14px rgba(220, 38, 38, 0.25);
 				}
 			}
 		}
 
 		/* When container starts to shrink make button height responsive */
-		@container (width < 380px) {
+		@container (width < 320px) {
 			button {
-				height: unset;
-				padding: 8px 6px;
+				height: 38px;
+				padding: 6px 4px;
 			}
 		}
 	}

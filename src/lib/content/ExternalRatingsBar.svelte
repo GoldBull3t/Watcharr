@@ -119,7 +119,7 @@
 						class="score-badge rt"
 						title="Rotten Tomatoes (Tomatometer / Crítica)"
 					>
-						<span class="brand">🍅 RT</span>
+						<span class="brand">RT</span>
 						<span class="val">{ext.rottenTomatoes}</span>
 					</span>
 				{/if}
@@ -129,14 +129,14 @@
 						class="score-badge rt-aud"
 						title="Rotten Tomatoes (Popcornmeter / Audiência)"
 					>
-						<span class="brand">🍿 Aud</span>
+						<span class="brand">AUD</span>
 						<span class="val">{ext.rottenTomatoesAudience}</span>
 					</span>
 				{/if}
 
 				{#if ext?.metacritic}
 					<span class="score-badge metacritic" title="Metacritic Metascore">
-						<span class="brand">M</span>
+						<span class="brand">MC</span>
 						<span class="val">{ext.metacritic}</span>
 					</span>
 				{/if}
@@ -146,7 +146,7 @@
 						class="score-badge critic"
 						title={`Nota da Crítica IGDB (${media.criticRatingCount || 0} análises)`}
 					>
-						<span class="brand">Crítica</span>
+						<span class="brand">IGDB</span>
 						<span class="val">{media.criticRating}/100</span>
 					</span>
 				{/if}
@@ -208,31 +208,36 @@
 
 				{#if ext?.animationStudio}
 					<span class="meta-chip studio" title="Estúdio de Animação">
-						<span>🎨 {ext.animationStudio}</span>
+						<span class="chip-key">Estúdio</span>
+						<span>{ext.animationStudio}</span>
 					</span>
 				{/if}
 
 				{#if ext?.sourceMaterial}
 					<span class="meta-chip source" title="Material de Origem">
-						<span>📖 {ext.sourceMaterial}</span>
+						<span class="chip-key">Origem</span>
+						<span>{ext.sourceMaterial}</span>
 					</span>
 				{/if}
 
 				{#if ext?.networkSchedule}
 					<span class="meta-chip schedule" title="Horário de Transmissão">
-						<span>🗓️ {ext.networkSchedule}</span>
+						<span class="chip-key">Emissão</span>
+						<span>{ext.networkSchedule}</span>
 					</span>
 				{/if}
 
 				{#if media.developers && media.developers.length > 0}
 					<span class="meta-chip dev" title="Estúdio / Developer">
-						<span>🛠️ {media.developers.slice(0, 2).join(", ")}</span>
+						<span class="chip-key">Dev</span>
+						<span>{media.developers.slice(0, 2).join(", ")}</span>
 					</span>
 				{/if}
 
 				{#if media.publishers && media.publishers.length > 0}
 					<span class="meta-chip pub" title="Editora / Publisher">
-						<span>🏢 {media.publishers.slice(0, 2).join(", ")}</span>
+						<span class="chip-key">Pub</span>
+						<span>{media.publishers.slice(0, 2).join(", ")}</span>
 					</span>
 				{/if}
 
@@ -242,11 +247,8 @@
 							class="meta-chip ttb"
 							title="Tempo médio para terminar a história principal"
 						>
-							<span
-								>⏱️ História: {formatMinutesToHours(
-									media.timeToBeat.normally,
-								)}</span
-							>
+							<span class="chip-key">História</span>
+							<span>{formatMinutesToHours(media.timeToBeat.normally)}</span>
 						</span>
 					{/if}
 					{#if media.timeToBeat.completely}
@@ -254,19 +256,17 @@
 							class="meta-chip ttb-100"
 							title="Tempo médio para 100% (Completionist)"
 						>
-							<span
-								>🏆 100%: {formatMinutesToHours(
-									media.timeToBeat.completely,
-								)}</span
-							>
+							<span class="chip-key">100%</span>
+							<span>{formatMinutesToHours(media.timeToBeat.completely)}</span>
 						</span>
 					{/if}
 				{/if}
 
 				{#if media.platforms && media.platforms.length > 0}
 					<span class="meta-chip platforms" title={media.platforms.join(", ")}>
+						<span class="chip-key">Plataformas</span>
 						<span
-							>🎮 {media.platforms.slice(0, 5).join(" • ")}{media.platforms
+							>{media.platforms.slice(0, 5).join(" • ")}{media.platforms
 								.length > 5
 								? ` +${media.platforms.length - 5}`
 								: ""}</span
@@ -276,23 +276,27 @@
 
 				{#if ext?.boxOffice}
 					<span class="meta-chip boxoffice" title="Bilheteira (Box Office)">
-						<span>🎟️ Bilheteira: {ext.boxOffice}</span>
+						<span class="chip-key">Bilheteira</span>
+						<span>{ext.boxOffice}</span>
 					</span>
 				{:else if media.revenue && media.revenue > 0}
 					<span class="meta-chip boxoffice" title="Receita Mundial">
-						<span>🎟️ Receita: {formatCurrency(media.revenue)}</span>
+						<span class="chip-key">Receita</span>
+						<span>{formatCurrency(media.revenue)}</span>
 					</span>
 				{/if}
 
 				{#if media.budget && media.budget > 0}
 					<span class="meta-chip budget" title="Orçamento de Produção">
-						<span>💰 Orçamento: {formatCurrency(media.budget)}</span>
+						<span class="chip-key">Orçamento</span>
+						<span>{formatCurrency(media.budget)}</span>
 					</span>
 				{/if}
 
 				{#if ext?.awards}
 					<span class="meta-chip awards" title={ext.awards}>
-						<span>🏆 {ext.awards}</span>
+						<span class="chip-key">Prémios</span>
+						<span>{ext.awards}</span>
 					</span>
 				{/if}
 			</div>
@@ -302,10 +306,10 @@
 
 <style lang="scss">
 	.media-tagline {
-		font-size: 14.5px;
+		font-size: 14px;
 		font-style: italic;
-		color: rgba(255, 255, 255, 0.72);
-		margin: -2px 0 8px 0;
+		color: rgba(255, 255, 255, 0.65);
+		margin: -2px 0 6px 0;
 		letter-spacing: 0.01em;
 	}
 
@@ -313,9 +317,9 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 6px;
-		font-size: 12.5px;
+		font-size: 12px;
 		color: rgba(255, 255, 255, 0.55);
-		margin-bottom: 8px;
+		margin-bottom: 6px;
 
 		.orig-label {
 			font-weight: 600;
@@ -341,50 +345,50 @@
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
-		margin: 6px 0 14px 0;
+		margin: 4px 0 12px 0;
 	}
 
 	.scores-row {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 8px;
+		gap: 6px;
 
 		.score-badge {
 			display: inline-flex;
 			align-items: center;
 			gap: 6px;
-			padding: 4px 10px;
-			border-radius: 8px;
-			font-size: 12.5px;
+			padding: 3px 8px;
+			border-radius: 6px;
+			font-size: 12px;
 			font-weight: 700;
 			text-decoration: none;
-			background: rgba(255, 255, 255, 0.07);
-			border: 1px solid rgba(255, 255, 255, 0.14);
+			background: rgba(255, 255, 255, 0.05);
+			border: 1px solid rgba(255, 255, 255, 0.12);
 			color: #f8fafc;
-			backdrop-filter: blur(10px);
 			transition:
-				transform 140ms ease,
 				border-color 140ms ease,
 				background 140ms ease;
 
 			&:hover {
-				transform: translateY(-1px);
 				border-color: rgba(255, 255, 255, 0.28);
+				background: rgba(255, 255, 255, 0.09);
 			}
 
 			.brand {
-				font-size: 11px;
+				font-size: 10px;
 				font-weight: 800;
-				letter-spacing: 0.4px;
+				letter-spacing: 0.04em;
 				padding: 1px 5px;
 				border-radius: 4px;
+				background: rgba(255, 255, 255, 0.1);
+				color: rgba(255, 255, 255, 0.85);
 			}
 
 			&.imdb,
 			&.imdb-link {
-				background: rgba(245, 197, 24, 0.12);
-				border-color: rgba(245, 197, 24, 0.35);
+				background: rgba(245, 197, 24, 0.08);
+				border-color: rgba(245, 197, 24, 0.3);
 				color: #fde047;
 
 				.brand {
@@ -394,20 +398,20 @@
 			}
 
 			&.rt {
-				background: rgba(250, 50, 10, 0.14);
-				border-color: rgba(250, 50, 10, 0.35);
+				background: rgba(250, 50, 10, 0.1);
+				border-color: rgba(250, 50, 10, 0.3);
 				color: #fca5a5;
 			}
 
 			&.rt-aud {
-				background: rgba(249, 115, 22, 0.14);
-				border-color: rgba(249, 115, 22, 0.35);
+				background: rgba(249, 115, 22, 0.1);
+				border-color: rgba(249, 115, 22, 0.3);
 				color: #fdba74;
 			}
 
 			&.metacritic {
-				background: rgba(34, 197, 94, 0.14);
-				border-color: rgba(34, 197, 94, 0.38);
+				background: rgba(34, 197, 94, 0.1);
+				border-color: rgba(34, 197, 94, 0.3);
 				color: #86efac;
 
 				.brand {
@@ -417,32 +421,32 @@
 			}
 
 			&.critic {
-				background: rgba(168, 85, 247, 0.15);
-				border-color: rgba(168, 85, 247, 0.38);
+				background: rgba(168, 85, 247, 0.1);
+				border-color: rgba(168, 85, 247, 0.3);
 				color: #d8b4fe;
 			}
 
 			&.letterboxd {
-				background: rgba(16, 185, 129, 0.14);
-				border-color: rgba(16, 185, 129, 0.35);
+				background: rgba(16, 185, 129, 0.1);
+				border-color: rgba(16, 185, 129, 0.3);
 				color: #6ee7b7;
 			}
 
 			&.trakt {
-				background: rgba(237, 28, 36, 0.14);
-				border-color: rgba(237, 28, 36, 0.35);
+				background: rgba(237, 28, 36, 0.1);
+				border-color: rgba(237, 28, 36, 0.3);
 				color: #fda4af;
 			}
 
 			&.tvmaze {
-				background: rgba(60, 148, 139, 0.18);
-				border-color: rgba(60, 148, 139, 0.4);
+				background: rgba(60, 148, 139, 0.12);
+				border-color: rgba(60, 148, 139, 0.32);
 				color: #5eead4;
 			}
 
 			&.anilist {
-				background: rgba(2, 169, 255, 0.15);
-				border-color: rgba(2, 169, 255, 0.38);
+				background: rgba(2, 169, 255, 0.12);
+				border-color: rgba(2, 169, 255, 0.32);
 				color: #7dd3fc;
 			}
 		}
@@ -452,39 +456,55 @@
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 7px;
+		gap: 6px;
 
 		.meta-chip {
 			display: inline-flex;
 			align-items: center;
-			gap: 6px;
-			padding: 3px 10px;
-			border-radius: 999px;
-			font-size: 12px;
+			gap: 5px;
+			padding: 3px 8px;
+			border-radius: 6px;
+			font-size: 11.5px;
 			font-weight: 600;
 			color: rgba(255, 255, 255, 0.85);
-			background: rgba(255, 255, 255, 0.06);
-			border: 1px solid rgba(255, 255, 255, 0.11);
+			background: rgba(255, 255, 255, 0.04);
+			border: 1px solid rgba(255, 255, 255, 0.09);
+
+			.chip-key {
+				font-size: 10.5px;
+				font-weight: 700;
+				text-transform: uppercase;
+				letter-spacing: 0.04em;
+				color: rgba(255, 255, 255, 0.45);
+			}
 
 			.net-logo {
-				height: 13px;
+				height: 12px;
 				width: auto;
-				max-width: 48px;
+				max-width: 44px;
 				object-fit: contain;
 				filter: brightness(0) invert(1);
 			}
 
 			&.awards {
-				background: rgba(234, 179, 8, 0.12);
-				border-color: rgba(234, 179, 8, 0.3);
+				background: rgba(234, 179, 8, 0.08);
+				border-color: rgba(234, 179, 8, 0.25);
 				color: #fef08a;
+
+				.chip-key {
+					color: rgba(250, 204, 21, 0.7);
+				}
 			}
 
 			&.ttb,
 			&.ttb-100 {
-				background: rgba(56, 189, 248, 0.12);
-				border-color: rgba(56, 189, 248, 0.28);
+				background: rgba(56, 189, 248, 0.08);
+				border-color: rgba(56, 189, 248, 0.25);
 				color: #bae6fd;
+
+				.chip-key {
+					color: rgba(125, 211, 252, 0.7);
+				}
 			}
 		}
 	}

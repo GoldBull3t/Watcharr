@@ -94,15 +94,15 @@
 		.rating {
 			display: inline-flex;
 			align-items: center;
-			gap: 6px;
+			gap: 5px;
 			margin-left: auto;
-			padding: 4px 12px;
-			height: 32px;
-			border-radius: 20px;
-			background: rgba(250, 204, 21, 0.12);
-			border: 1px solid rgba(250, 204, 21, 0.28);
-			color: #ffd060;
-			font-size: 14.5px;
+			padding: 4px 10px;
+			height: 28px;
+			border-radius: 6px;
+			background: rgba(245, 158, 11, 0.12);
+			border: 1px solid rgba(245, 158, 11, 0.3);
+			color: #fbbf24;
+			font-size: 13.5px;
 			font-weight: 700;
 			letter-spacing: 0.02em;
 			flex-shrink: 0;

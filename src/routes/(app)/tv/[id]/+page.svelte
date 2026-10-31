@@ -390,36 +390,18 @@
 							mediaTitle={show.name}
 						/>
 					</div>
+
+					<MyReview
+						watched={show.watched}
+						contentTitle={show.name}
+						onRatingChanged={(n) => contentChanged(undefined, n)}
+						onStatusChanged={(n) => contentChanged(n)}
+						onThoughtsChanged={(newThoughts) => {
+							return contentChanged(undefined, undefined, newThoughts);
+						}}
+					/>
 				</div>
 			</div>
-
-			<!-- Item 7: Prominent Highlight Action Card "Up Next" -->
-			{#if show.watched && show.seasons && show.seasons.length > 0 && data.tvId}
-				<NextEpisodeCard
-					tvId={data.tvId}
-					seasons={show.seasons}
-					watchedItem={show.watched}
-					onEpisodeWatched={() => {
-						if (show?.watched) {
-							show.watched = {
-								...show.watched,
-								watchedEpisodes: [...(show.watched.watchedEpisodes || [])],
-								watchedSeasons: [...(show.watched.watchedSeasons || [])],
-							};
-						}
-					}}
-				/>
-			{/if}
-
-			<MyReview
-				watched={show.watched}
-				contentTitle={show.name}
-				onRatingChanged={(n) => contentChanged(undefined, n)}
-				onStatusChanged={(n) => contentChanged(n)}
-				onThoughtsChanged={(newThoughts) => {
-					return contentChanged(undefined, undefined, newThoughts);
-				}}
-			/>
 		</div>
 
 		{#if countAsPlayModalSignal}
@@ -452,6 +434,23 @@
 		{/if}
 
 		<div class="page">
+			{#if show.watched && show.seasons && show.seasons.length > 0 && data.tvId}
+				<NextEpisodeCard
+					tvId={data.tvId}
+					seasons={show.seasons}
+					watchedItem={show.watched}
+					onEpisodeWatched={() => {
+						if (show?.watched) {
+							show.watched = {
+								...show.watched,
+								watchedEpisodes: [...(show.watched.watchedEpisodes || [])],
+								watchedSeasons: [...(show.watched.watchedSeasons || [])],
+							};
+						}
+					}}
+				/>
+			{/if}
+
 			{#if data.tvId}
 				<FranchiseBadgeLink mediaType="tv" tmdbId={data.tvId} />
 				<FollowedThoughts mediaType="tv" mediaId={data.tvId} />
@@ -639,15 +638,20 @@
 	.page {
 		display: flex;
 		flex-flow: column;
-		align-items: center;
-		margin-left: auto;
-		margin-right: auto;
-		gap: 30px;
-		padding: 20px 50px;
-		max-width: 1200px;
+		align-items: stretch;
+		width: 100%;
+		max-width: 1360px;
+		margin-inline: auto;
+		gap: 28px;
+		padding: 12px 32px 64px;
 
-		@media screen and (max-width: 500px) {
-			padding: 20px;
+		@media screen and (max-width: 1120px) {
+			padding: 12px 24px 48px;
+		}
+
+		@media screen and (max-width: 680px) {
+			padding: 12px 16px 40px;
+			gap: 22px;
 		}
 	}
 </style>

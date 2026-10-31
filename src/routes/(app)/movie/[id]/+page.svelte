@@ -288,18 +288,18 @@
 							mediaTitle={movie.name}
 						/>
 					</div>
+
+					<MyReview
+						watched={movie.watched}
+						contentTitle={movie.name}
+						onRatingChanged={(n) => contentChanged(undefined, n)}
+						onStatusChanged={(n) => contentChanged(n)}
+						onThoughtsChanged={(newThoughts) => {
+							return contentChanged(undefined, undefined, newThoughts);
+						}}
+					/>
 				</div>
 			</div>
-
-			<MyReview
-				watched={movie.watched}
-				contentTitle={movie.name}
-				onRatingChanged={(n) => contentChanged(undefined, n)}
-				onStatusChanged={(n) => contentChanged(n)}
-				onThoughtsChanged={(newThoughts) => {
-					return contentChanged(undefined, undefined, newThoughts);
-				}}
-			/>
 		</div>
 
 		{#if requestModalShown}
@@ -321,6 +321,7 @@
 					tmdbId={data.movieId}
 					collectionId={movie.collection?.id}
 					collectionName={movie.collection?.name}
+					hasCollectionBlock={Boolean(movie.collection?.id)}
 				/>
 			{/if}
 
@@ -338,7 +339,6 @@
 			{#await getMovieCredits()}
 				<Spinner />
 			{:then credits}
-				<!-- TODO make this nicer  -->
 				{#if credits.topCrew?.length > 0}
 					<TopCrewList topCrew={credits.topCrew} />
 				{/if}
@@ -406,13 +406,13 @@
 					display: inline-flex;
 					align-items: center;
 					gap: 5px;
-					font-size: 13px;
+					font-size: 12.5px;
 					font-weight: 600;
-					color: rgba(255, 255, 255, 0.7);
-					background: rgba(255, 255, 255, 0.08);
+					color: rgba(255, 255, 255, 0.75);
+					background: rgba(255, 255, 255, 0.06);
 					border: 1px solid rgba(255, 255, 255, 0.12);
-					border-radius: 999px;
-					padding: 3px 10px;
+					border-radius: 6px;
+					padding: 3px 8px;
 				}
 			}
 
@@ -459,11 +459,11 @@
 				align-items: center;
 				flex-wrap: wrap;
 				gap: 8px;
-				margin: 12px 0;
+				margin: 10px 0;
 				padding: 8px 12px;
 				background: rgba(255, 255, 255, 0.03);
 				border: 1px solid rgba(255, 255, 255, 0.07);
-				border-radius: 12px;
+				border-radius: 8px;
 
 				.tags-label {
 					display: inline-flex;
@@ -489,15 +489,20 @@
 	.page {
 		display: flex;
 		flex-flow: column;
-		align-items: center;
-		margin-left: auto;
-		margin-right: auto;
-		gap: 30px;
-		padding: 20px 50px;
-		max-width: 1200px;
+		align-items: stretch;
+		width: 100%;
+		max-width: 1360px;
+		margin-inline: auto;
+		gap: 28px;
+		padding: 12px 32px 64px;
 
-		@media screen and (max-width: 500px) {
-			padding: 20px;
+		@media screen and (max-width: 1120px) {
+			padding: 12px 24px 48px;
+		}
+
+		@media screen and (max-width: 680px) {
+			padding: 12px 16px 40px;
+			gap: 22px;
 		}
 	}
 </style>

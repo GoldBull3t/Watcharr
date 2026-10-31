@@ -260,18 +260,18 @@
 							/>
 						{/if}
 					</div>
+
+					<MyReview
+						watched={game.watched}
+						contentTitle={game.name}
+						onRatingChanged={(n) => contentChanged(undefined, n)}
+						onStatusChanged={(n) => contentChanged(n)}
+						onThoughtsChanged={(newThoughts) => {
+							return contentChanged(undefined, undefined, newThoughts);
+						}}
+					/>
 				</div>
 			</div>
-
-			<MyReview
-				watched={game.watched}
-				contentTitle={game.name}
-				onRatingChanged={(n) => contentChanged(undefined, n)}
-				onStatusChanged={(n) => contentChanged(n)}
-				onThoughtsChanged={(newThoughts) => {
-					return contentChanged(undefined, undefined, newThoughts);
-				}}
-			/>
 		</div>
 
 		<div class="page">
@@ -409,15 +409,20 @@
 	.page {
 		display: flex;
 		flex-flow: column;
-		align-items: center;
-		margin-left: auto;
-		margin-right: auto;
-		gap: 30px;
-		padding: 20px 50px;
-		max-width: 1200px;
+		align-items: stretch;
+		width: 100%;
+		max-width: 1360px;
+		margin-inline: auto;
+		gap: 28px;
+		padding: 12px 32px 64px;
 
-		@media screen and (max-width: 500px) {
-			padding: 20px;
+		@media screen and (max-width: 1120px) {
+			padding: 12px 24px 48px;
+		}
+
+		@media screen and (max-width: 680px) {
+			padding: 12px 16px 40px;
+			gap: 22px;
 		}
 
 		.game-screenshot-card {
@@ -425,7 +430,7 @@
 			flex-shrink: 0;
 			width: 280px;
 			height: 158px;
-			border-radius: 12px;
+			border-radius: 8px;
 			overflow: hidden;
 			border: 1px solid rgba(255, 255, 255, 0.12);
 			background: rgba(15, 23, 42, 0.6);
@@ -434,7 +439,7 @@
 				border-color 160ms ease;
 
 			&:hover {
-				transform: translateY(-2px) scale(1.02);
+				transform: translateY(-2px);
 				border-color: rgba(255, 255, 255, 0.28);
 			}
 

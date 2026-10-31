@@ -28,6 +28,14 @@
 					<div class="skeleton-line short shimmer"></div>
 				</div>
 			</div>
+			{#if type !== "person"}
+				<div class="skeleton-sidebar">
+					<div class="skeleton-line short shimmer"></div>
+					<div class="skeleton-stars shimmer"></div>
+					<div class="skeleton-status-row shimmer"></div>
+					<div class="skeleton-thoughts shimmer"></div>
+				</div>
+			{/if}
 		</div>
 	</div>
 </div>
@@ -37,7 +45,7 @@
 		width: 100%;
 		position: relative;
 		overflow: hidden;
-		min-height: 480px;
+		min-height: 440px;
 	}
 
 	.skeleton-backdrop {
@@ -53,48 +61,87 @@
 
 	.skeleton-container {
 		width: 100%;
-		max-width: 1100px;
+		max-width: 1360px;
 		margin: 0 auto;
-		padding: 40px 20px 60px;
+		padding: 36px 32px 24px;
 		position: relative;
 		z-index: 1;
+
+		@media screen and (max-width: 1120px) {
+			padding: 28px 24px 20px;
+		}
+
+		@media screen and (max-width: 680px) {
+			padding: 20px 16px;
+		}
 	}
 
 	.skeleton-layout {
-		display: flex;
-		gap: 32px;
-		align-items: flex-start;
+		display: grid;
+		grid-template-columns: 240px minmax(0, 1fr) 340px;
+		gap: 24px;
+		align-items: start;
 
-		@media screen and (max-width: 768px) {
-			flex-direction: column;
-			align-items: center;
-			gap: 24px;
+		.person & {
+			grid-template-columns: 240px minmax(0, 1fr);
+		}
+
+		@media screen and (max-width: 1120px) {
+			grid-template-columns: 200px minmax(0, 1fr);
+			gap: 20px;
+
+			.skeleton-sidebar {
+				grid-column: 1 / -1;
+			}
+		}
+
+		@media screen and (max-width: 680px) {
+			grid-template-columns: minmax(0, 1fr);
+			justify-items: center;
+			gap: 16px;
 		}
 	}
 
 	.skeleton-poster {
 		width: 240px;
 		aspect-ratio: 2 / 3;
-		border-radius: 12px;
+		border-radius: 10px;
 		flex-shrink: 0;
 		border: 1px solid rgba(255, 255, 255, 0.08);
 
-		@media screen and (max-width: 768px) {
-			width: 160px;
+		@media screen and (max-width: 1120px) {
+			width: 200px;
 		}
 	}
 
-	.skeleton-details {
-		flex: 1;
+	.skeleton-details,
+	.skeleton-sidebar {
 		display: flex;
 		flex-direction: column;
 		gap: 16px;
 		width: 100%;
+		background: rgba(15, 19, 28, 0.86);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 10px;
+		padding: 24px;
+	}
 
-		@media screen and (max-width: 768px) {
-			align-items: center;
-			text-align: center;
-		}
+	.skeleton-stars {
+		width: 100%;
+		height: 38px;
+		border-radius: 8px;
+	}
+
+	.skeleton-status-row {
+		width: 100%;
+		height: 42px;
+		border-radius: 8px;
+	}
+
+	.skeleton-thoughts {
+		width: 100%;
+		height: 68px;
+		border-radius: 8px;
 	}
 
 	.skeleton-title {

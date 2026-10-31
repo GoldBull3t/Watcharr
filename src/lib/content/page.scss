@@ -1,40 +1,65 @@
 /* Shared styles for content pages. */
 
-/* Details container (the poster and details box) */
+/* Details container (the poster, editorial details box, and user tracking sidebar) */
 .details-wrap {
-	min-height: 480px;
+	min-height: 420px;
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	position: relative;
 
 	.details-container {
-		display: flex;
-		flex-flow: row;
-		gap: 36px;
-		max-width: 1200px;
+		display: grid;
+		grid-template-columns: 240px minmax(0, 1fr) 340px;
+		gap: 24px;
+		max-width: 1360px;
 		width: 100%;
-		padding: 48px 40px;
-		margin-left: auto;
-		margin-right: auto;
-		align-items: flex-start;
+		padding: 36px 32px 24px;
+		margin-inline: auto;
+		align-items: start;
+
+		&:not(:has(:global(.review))) {
+			grid-template-columns: 240px minmax(0, 1fr);
+		}
+
+		&:not(:has(:global(.poster-interactive-wrap), > img)):has(
+				:global(.review)
+			) {
+			grid-template-columns: minmax(0, 1fr) 340px;
+		}
+
+		&:not(:has(:global(.poster-interactive-wrap), > img)):not(
+				:has(:global(.review))
+			) {
+			grid-template-columns: minmax(0, 1fr);
+		}
 
 		.details {
 			display: flex;
 			flex-flow: column;
 			gap: 12px;
 			width: 100%;
-			background: rgba(15, 20, 30, 0.78);
-			border: 1px solid rgba(255, 255, 255, 0.12);
-			border-radius: 20px;
-			padding: 28px 32px;
-			box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.65);
-			backdrop-filter: blur(20px);
-			-webkit-backdrop-filter: blur(20px);
+			min-inline-size: 0;
+			background: rgba(15, 19, 28, 0.86);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			border-radius: 10px;
+			padding: 24px 28px;
+			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+			backdrop-filter: blur(16px);
+			-webkit-backdrop-filter: blur(16px);
 		}
 
-		@media screen and (max-width: 900px) {
-			padding: 30px 20px;
-			gap: 24px;
+		@media screen and (max-width: 1120px) {
+			grid-template-columns: 200px minmax(0, 1fr);
+			padding: 28px 24px 20px;
+			gap: 20px;
+
+			&:not(:has(:global(.poster-interactive-wrap), > img)) {
+				grid-template-columns: minmax(0, 1fr);
+			}
+
+			:global(.review) {
+				grid-column: 1 / -1;
+			}
 
 			.details {
 				padding: 20px;
@@ -42,9 +67,14 @@
 		}
 
 		@media screen and (max-width: 680px) {
-			flex-flow: column;
-			align-items: center;
+			grid-template-columns: minmax(0, 1fr) !important;
+			justify-items: center;
 			padding: 20px 16px;
+			gap: 16px;
+
+			.details {
+				padding: 18px 16px;
+			}
 		}
 	}
 }

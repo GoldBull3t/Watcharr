@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { MediaCollection } from "@/types";
 	import { req } from "@/lib/util/api";
+	import { goto } from "$app/navigation";
+	import { resolve } from "$app/paths";
 	import Poster from "@/lib/poster/Poster.svelte";
 	import Icon from "@/lib/Icon.svelte";
 	import Spinner from "@/lib/Spinner.svelte";
@@ -15,12 +17,10 @@
 
 	let collection: MediaCollection | undefined = $state();
 	let loading = $state(false);
-	let error: unknown | undefined = $state();
 
 	$effect(() => {
 		if (collectionId) {
 			loading = true;
-			error = undefined;
 			req
 				.get<MediaCollection>(`/content/collection/${collectionId}`)
 				.then((resp) => {
@@ -29,7 +29,6 @@
 				})
 				.catch((err) => {
 					console.error("Failed to load collection:", err);
-					error = err;
 					loading = false;
 				});
 		}
@@ -63,8 +62,8 @@
 				<div class="title-row">
 					<div class="title-wrap">
 						<span class="series-tag">
-							<Icon i="reel" wh={14} />
-							Movie Franchise
+							<Icon i="film" wh={13} />
+							Movie Franchise & Collection
 						</span>
 						<h2 class="collection-name">{collection.name}</h2>
 					</div>
@@ -86,6 +85,15 @@
 								</span>
 							{/if}
 						{/if}
+						<button
+							type="button"
+							class="roadmap-btn"
+							onclick={() => goto(resolve(`/franchise/tmdb-${collectionId}`))}
+						>
+							<Icon i="clock" wh={13} />
+							<span>Timeline & Roadmap</span>
+							<span>→</span>
+						</button>
 					</div>
 				</div>
 
@@ -132,21 +140,20 @@
 
 	.movie-collection-section {
 		position: relative;
-		margin: 28px 0;
-		border-radius: 18px;
+		width: 100%;
+		margin: 0;
+		border-radius: 10px;
 		overflow: hidden;
-		background: rgba(22, 27, 38, 0.7);
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.5);
-		backdrop-filter: blur(16px);
-		-webkit-backdrop-filter: blur(16px);
+		background: rgba(15, 19, 28, 0.86);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 
 		.collection-bg {
 			position: absolute;
 			inset: 0;
 			background-size: cover;
 			background-position: center 25%;
-			opacity: 0.45;
+			opacity: 0.35;
 			pointer-events: none;
 			z-index: 0;
 		}
@@ -154,7 +161,7 @@
 		.collection-inner {
 			position: relative;
 			z-index: 1;
-			padding: 24px 28px;
+			padding: 22px 24px;
 
 			@media screen and (max-width: 600px) {
 				padding: 16px;
@@ -164,8 +171,8 @@
 		.collection-header {
 			display: flex;
 			flex-direction: column;
-			gap: 12px;
-			margin-bottom: 20px;
+			gap: 10px;
+			margin-bottom: 18px;
 
 			.title-row {
 				display: flex;
@@ -177,28 +184,28 @@
 				.title-wrap {
 					display: flex;
 					flex-direction: column;
-					gap: 6px;
+					gap: 4px;
 
 					.series-tag {
 						display: inline-flex;
 						align-items: center;
 						gap: 6px;
-						font-size: 11.5px;
+						font-size: 11px;
 						font-weight: 700;
-						letter-spacing: 0.08em;
+						letter-spacing: 0.06em;
 						text-transform: uppercase;
 						color: $brand-color;
 					}
 
 					.collection-name {
 						margin: 0;
-						font-size: 24px;
-						font-weight: 800;
+						font-size: 20px;
+						font-weight: 700;
 						color: #ffffff;
 						line-height: 1.25;
 
 						@media screen and (max-width: 600px) {
-							font-size: 19px;
+							font-size: 17px;
 						}
 					}
 				}
@@ -213,28 +220,52 @@
 						display: inline-flex;
 						align-items: center;
 						gap: 5px;
-						font-size: 12px;
+						font-size: 11.5px;
 						font-weight: 600;
 						padding: 4px 10px;
-						border-radius: 9999px;
+						border-radius: 6px;
 						border: 1px solid transparent;
 
 						&.count-badge {
-							background: rgba(255, 255, 255, 0.08);
+							background: rgba(255, 255, 255, 0.06);
 							color: rgba(255, 255, 255, 0.85);
-							border-color: rgba(255, 255, 255, 0.12);
+							border-color: rgba(255, 255, 255, 0.1);
 						}
 
 						&.progress-badge {
-							background: rgba(59, 130, 246, 0.15);
+							background: rgba(59, 130, 246, 0.12);
 							color: #93c5fd;
-							border-color: rgba(59, 130, 246, 0.35);
+							border-color: rgba(59, 130, 246, 0.3);
 						}
 
 						&.completed-badge {
-							background: rgba(16, 185, 129, 0.15);
+							background: rgba(16, 185, 129, 0.12);
 							color: #6ee7b7;
-							border-color: rgba(16, 185, 129, 0.35);
+							border-color: rgba(16, 185, 129, 0.3);
+						}
+					}
+
+					.roadmap-btn {
+						display: inline-flex;
+						align-items: center;
+						gap: 6px;
+						padding: 5px 12px;
+						border-radius: 6px;
+						background: rgba(245, 158, 11, 0.12);
+						border: 1px solid rgba(245, 158, 11, 0.35);
+						color: #fbbf24;
+						font-size: 12px;
+						font-weight: 600;
+						cursor: pointer;
+						transition:
+							background 150ms ease,
+							border-color 150ms ease,
+							color 150ms ease;
+
+						&:hover {
+							background: $brand-color;
+							border-color: $brand-color;
+							color: #0b0f19;
 						}
 					}
 				}
@@ -256,48 +287,43 @@
 			}
 
 			.collection-overview {
-				margin-top: 4px;
-				font-size: 14px;
+				margin-top: 2px;
+				font-size: 13.5px;
 				line-height: 1.5;
-				color: rgba(255, 255, 255, 0.7);
+				color: rgba(255, 255, 255, 0.68);
 			}
 		}
 
 		.collection-parts-scroll {
 			display: flex;
 			flex-flow: row;
-			gap: 16px;
+			gap: 14px;
 			overflow-x: auto;
-			padding-bottom: 8px;
-			padding-top: 6px;
+			padding-bottom: 6px;
+			padding-top: 8px;
 
 			.part-card-wrap {
 				position: relative;
 				flex-shrink: 0;
-				border-radius: 12px;
-				transition:
-					transform 180ms ease,
-					box-shadow 180ms ease;
+				border-radius: 10px;
+				transition: border-color 160ms ease;
 
 				&.is-current {
 					border: 2px solid $brand-color;
-					box-shadow: 0 0 16px rgba(99, 102, 241, 0.4);
-					transform: scale(1.02);
 
 					.current-badge {
 						position: absolute;
-						top: -10px;
+						top: -9px;
 						left: 50%;
 						transform: translateX(-50%);
 						background: $brand-color;
-						color: white;
-						font-size: 10.5px;
+						color: #0b0f19;
+						font-size: 10px;
 						font-weight: 700;
 						letter-spacing: 0.04em;
 						text-transform: uppercase;
 						padding: 2px 8px;
-						border-radius: 9999px;
-						box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+						border-radius: 6px;
 						z-index: 10;
 						white-space: nowrap;
 					}

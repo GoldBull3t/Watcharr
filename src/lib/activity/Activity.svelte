@@ -21,7 +21,16 @@
 	);
 	let count = $derived(activity ? activity.length : 0);
 
-	function safeJsonParse<T = any>(str: string | undefined): T | undefined {
+	interface ActivityPayload {
+		status?: string;
+		rating?: number;
+		season?: number;
+		episode?: number;
+	}
+
+	function safeJsonParse(
+		str: string | undefined,
+	): (ActivityPayload & number) | undefined {
 		if (!str) return undefined;
 		try {
 			return JSON.parse(str);
@@ -259,68 +268,87 @@
 	{#if groupedActivities && Object.keys(groupedActivities).length > 0}
 		<ul>
 			{#each Object.keys(groupedActivities) as k (k)}
-				<h3>{k}</h3>
+				<li class="month-group-header">
+					<h3>{k}</h3>
+				</li>
 
 				{#each groupedActivities[k] as a (a.id)}
 					{@const d = new Date(getCreatedAtVis(a))}
-					<li>
-						<button class="plain" onclick={() => openEditor(a)}>
-							<span title={d.toDateString()}>{toDayTime(d)}</span>
-							<span>{getMsg(a)}</span>
+					<li class="activity-row">
+						<button class="plain row-btn" onclick={() => openEditor(a)}>
+							<span class="act-msg">{getMsg(a)}</span>
+							<span class="act-date" title={d.toDateString()}
+								>{toDayTime(d)}</span
+							>
 						</button>
-						{#if a.createdBy == ActivityCreatedBy.Watcharr}
-							<ActivityIcon
-								icon="sparkles"
-								tooltipText={a.reason
-									? `(Automated) ${a.reason}`
-									: "Completed by an automation."}
-							/>
-						{:else if a.createdBy == ActivityCreatedBy.GenericImport}
-							<ActivityIcon icon="calendar" tooltipText="Imported" />
-						{:else if a.createdBy == ActivityCreatedBy.JellyfinImport}
-							<ActivityIcon icon="jellyfin" tooltipText="Jellyfin Import" />
-						{:else if a.createdBy == ActivityCreatedBy.JellyfinWebhook}
-							<ActivityIcon icon="jellyfin" tooltipText="Jellyfin Webhook" />
-						{:else if a.createdBy == ActivityCreatedBy.PlexImport}
-							<ActivityIcon icon="plex" tooltipText="Plex Import" />
-						{/if}
-						{#if a.countAsPlay}
-							<ActivityIcon icon="play" tooltipText="Counts as a Play." />
-						{/if}
+						<div class="act-icons">
+							{#if a.createdBy == ActivityCreatedBy.Watcharr}
+								<ActivityIcon
+									icon="sparkles"
+									tooltipText={a.reason
+										? `(Automated) ${a.reason}`
+										: "Completed by an automation."}
+								/>
+							{:else if a.createdBy == ActivityCreatedBy.GenericImport}
+								<ActivityIcon icon="calendar" tooltipText="Imported" />
+							{:else if a.createdBy == ActivityCreatedBy.JellyfinImport}
+								<ActivityIcon icon="jellyfin" tooltipText="Jellyfin Import" />
+							{:else if a.createdBy == ActivityCreatedBy.JellyfinWebhook}
+								<ActivityIcon icon="jellyfin" tooltipText="Jellyfin Webhook" />
+							{:else if a.createdBy == ActivityCreatedBy.PlexImport}
+								<ActivityIcon icon="plex" tooltipText="Plex Import" />
+							{/if}
+							{#if a.countAsPlay}
+								<ActivityIcon icon="play" tooltipText="Counts as a Play." />
+							{/if}
+						</div>
 					</li>
 				{/each}
 			{/each}
 		</ul>
 	{:else}
-		<span>You Have No Activity!</span>
+		<span class="empty-msg">No activity recorded yet.</span>
 	{/if}
 </div>
 
 <style lang="scss">
 	.activity {
 		width: 100%;
+		background: rgba(15, 19, 28, 0.72);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 10px;
+		padding: 20px 24px;
+
+		@media screen and (max-width: 600px) {
+			padding: 16px;
+		}
 
 		div.title {
 			display: flex;
 			flex-flow: row;
 			align-items: center;
 			gap: 10px;
+			margin-bottom: 14px;
+			padding-bottom: 12px;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+
+			h2 {
+				margin: 0;
+				font-size: 18px;
+				font-weight: 700;
+				letter-spacing: -0.01em;
+				color: #ffffff;
+			}
 
 			.act-count {
-				font-family:
-					"Shrikhand",
-					system-ui,
-					-apple-system,
-					BlinkMacSystemFont;
-				font-size: 13px;
-				color: black;
-				background-color: $gold;
-				padding: 3px 6px;
-				border-radius: 50px;
-				min-width: 25px;
-				min-height: 25px;
-				height: min-content;
-				display: flex;
+				font-size: 11.5px;
+				font-weight: 700;
+				color: $brand-color;
+				background: rgba(245, 158, 11, 0.12);
+				border: 1px solid rgba(245, 158, 11, 0.28);
+				padding: 2px 8px;
+				border-radius: 6px;
+				display: inline-flex;
 				align-items: center;
 				justify-content: center;
 			}
@@ -329,75 +357,97 @@
 		ul {
 			display: flex;
 			flex-flow: column;
-			gap: 8px;
-			margin-top: 8px;
-			margin-left: calc(30px + 8px);
+			gap: 6px;
+			margin: 0;
+			padding: 0 4px 0 0;
 			list-style: none;
-			max-height: 250px;
+			max-height: 300px;
 			overflow-y: auto;
 			overflow-x: hidden;
+			scrollbar-gutter: stable;
+			overscroll-behavior: contain;
 
-			h3 {
-				position: sticky;
-				top: 0;
-				font-size: 16px;
-				font-family:
-					sans-serif,
-					system-ui,
-					-apple-system,
-					BlinkMacSystemFont;
-				padding-bottom: 1px;
-				background-color: $bg-color;
+			li.month-group-header {
+				margin-top: 8px;
+
+				&:first-child {
+					margin-top: 0;
+				}
+
+				h3 {
+					margin: 0;
+					font-size: 11px;
+					font-weight: 700;
+					text-transform: uppercase;
+					letter-spacing: 0.06em;
+					color: rgba(255, 255, 255, 0.45);
+					padding: 4px 0;
+				}
 			}
 
-			li {
+			li.activity-row {
 				display: flex;
 				flex-flow: row;
-				gap: 8px;
+				gap: 10px;
 				align-items: center;
+				justify-content: space-between;
+				padding: 8px 12px;
+				border-radius: 6px;
+				background: rgba(255, 255, 255, 0.025);
+				border: 1px solid rgba(255, 255, 255, 0.05);
+				transition:
+					background 140ms ease,
+					border-color 140ms ease;
 
-				button {
+				&:hover {
+					background: rgba(255, 255, 255, 0.05);
+					border-color: rgba(255, 255, 255, 0.12);
+				}
+
+				button.row-btn {
 					all: unset;
 					display: flex;
 					flex-flow: row;
 					align-items: center;
-					flex-shrink: 1;
-					gap: 8px;
-					width: max-content;
+					justify-content: space-between;
+					flex: 1;
+					gap: 12px;
 					min-width: 0;
-					max-width: 100%;
 					cursor: pointer;
+
+					@media screen and (max-width: 560px) {
+						flex-direction: column;
+						align-items: flex-start;
+						gap: 4px;
+					}
 				}
 
-				span {
-					width: max-content;
-					margin-left: 0px;
+				.act-msg {
+					font-size: 13.5px;
+					font-weight: 500;
+					color: #f1f5f9;
+				}
 
-					&:first-child {
-						min-width: max-content;
-					}
+				.act-date {
+					font-size: 12px;
+					color: rgba(255, 255, 255, 0.48);
+					white-space: nowrap;
+				}
 
-					&:last-of-type {
-						background-color: $accent-color;
-						color: $text-color;
-						border-radius: 8px;
-						padding: 10px 12px;
-					}
+				.act-icons {
+					display: inline-flex;
+					align-items: center;
+					gap: 6px;
+					flex-shrink: 0;
 				}
 			}
 		}
 
-		span {
-			margin-left: calc(30px);
-			width: 100%;
-			display: flex;
-			justify-content: center;
+		.empty-msg {
+			display: block;
+			font-size: 13.5px;
+			color: rgba(255, 255, 255, 0.45);
+			padding: 8px 0;
 		}
-	}
-
-	h2 {
-		font-size: 30px;
-		font-weight: bold;
-		margin-left: 30px;
 	}
 </style>
