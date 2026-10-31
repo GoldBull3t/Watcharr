@@ -28,12 +28,17 @@
 		episode?: number;
 	}
 
-	function safeJsonParse(
-		str: string | undefined,
-	): (ActivityPayload & number) | undefined {
+	function safeJsonParse(str: string | undefined): ActivityPayload | undefined {
 		if (!str) return undefined;
 		try {
-			return JSON.parse(str);
+			const parsed: unknown = JSON.parse(str);
+			if (typeof parsed === "number") {
+				return { rating: parsed };
+			}
+			if (parsed && typeof parsed === "object") {
+				return parsed as ActivityPayload;
+			}
+			return undefined;
 		} catch {
 			return undefined;
 		}
@@ -73,14 +78,7 @@
 			case "IMPORTED_RATING":
 				if (a.data) {
 					const data = safeJsonParse(a.data);
-					if (typeof data === "number") {
-						return `Rating Changed to ${data}`;
-					}
-					if (
-						data &&
-						typeof data === "object" &&
-						typeof data.rating !== "undefined"
-					) {
+					if (data && typeof data.rating !== "undefined") {
 						return `Rating Changed to ${data.rating}`;
 					}
 					if (!isNaN(Number(a.data))) {

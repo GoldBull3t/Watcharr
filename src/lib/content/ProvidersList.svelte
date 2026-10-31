@@ -7,7 +7,6 @@
 	import {
 		POPULAR_REGIONS,
 		getAllRegions,
-		getCountryFlag,
 		getCountryName,
 		type RegionInfo,
 	} from "./watchProviders";
@@ -39,7 +38,6 @@
 			"PT",
 	);
 
-	let activeCountryFlag = $derived(getCountryFlag(activeCountry));
 	let activeCountryName = $derived(getCountryName(activeCountry));
 
 	let displayedProviders = $state<MediaProvider[]>([]);
@@ -179,7 +177,6 @@
 						onclick={() => (dropdownOpen = !dropdownOpen)}
 						title="Alterar país para verificar catálogo de streaming"
 					>
-						<span class="flag">{activeCountryFlag}</span>
 						<span class="country-code">{activeCountry}</span>
 						<span class="chevron">▾</span>
 					</button>
@@ -204,7 +201,6 @@
 										class:selected={r.code === activeCountry}
 										onclick={() => selectCountry(r.code)}
 									>
-										<span class="chip-flag">{r.flag}</span>
 										<span class="chip-code">{r.code}</span>
 									</button>
 								{/each}
@@ -218,7 +214,6 @@
 										class:selected={reg.code === activeCountry}
 										onclick={() => selectCountry(reg.code)}
 									>
-										<span class="row-flag">{reg.flag}</span>
 										<span class="row-name">{reg.name}</span>
 										<span class="row-code">{reg.code}</span>
 									</button>
@@ -252,8 +247,7 @@
 			<div class="providers-loading">
 				<Spinner />
 				<span class="loading-text">
-					A procurar catálogo em {activeCountryFlag}
-					{activeCountryName}...
+					A procurar catálogo em {activeCountryName} ({activeCountry})...
 				</span>
 			</div>
 		{:else if displayedProviders && displayedProviders.length > 0}
@@ -271,8 +265,7 @@
 		{:else if mediaType === "movie" || mediaType === "tv"}
 			<div class="no-providers-alert">
 				<span class="no-providers-text">
-					Sem plataformas de streaming registadas em {activeCountryFlag}
-					{activeCountryName}.
+					Sem plataformas de streaming registadas em {activeCountryName} ({activeCountry}).
 				</span>
 				<div class="alternative-suggestions">
 					<span class="suggest-label">Verificar em:</span>
@@ -282,7 +275,6 @@
 							class="suggest-pill"
 							onclick={() => selectCountry(c)}
 						>
-							<span class="s-flag">{getCountryFlag(c)}</span>
 							<span class="s-code">{c}</span>
 						</button>
 					{/each}
@@ -296,16 +288,13 @@
 	.streaming-providers-card {
 		display: flex;
 		flex-flow: column;
-		gap: 12px;
+		gap: 10px;
 		width: 100%;
-		margin-top: 18px;
-		padding: 16px 20px;
-		border-radius: 16px;
-		background: rgba(22, 27, 38, 0.65);
+		margin-top: 14px;
+		padding: 14px 16px;
+		border-radius: 8px;
+		background: rgba(255, 255, 255, 0.03);
 		border: 1px solid rgba(255, 255, 255, 0.08);
-		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-		backdrop-filter: blur(16px);
-		-webkit-backdrop-filter: blur(16px);
 
 		.card-header {
 			display: flex;
@@ -317,15 +306,15 @@
 			.header-left {
 				display: flex;
 				align-items: center;
-				gap: 12px;
+				gap: 10px;
 				flex-wrap: wrap;
 
 				.header-title {
-					font-size: 13.5px;
+					font-size: 11.5px;
 					font-weight: 700;
 					text-transform: uppercase;
-					letter-spacing: 0.6px;
-					color: rgba(255, 255, 255, 0.7);
+					letter-spacing: 0.06em;
+					color: rgba(255, 255, 255, 0.55);
 				}
 
 				.country-selector-wrap {
@@ -334,21 +323,16 @@
 					.country-btn {
 						display: inline-flex;
 						align-items: center;
-						gap: 6px;
-						padding: 4px 10px;
-						border-radius: 20px;
-						background: rgba(255, 255, 255, 0.08);
+						gap: 5px;
+						padding: 3px 8px;
+						border-radius: 6px;
+						background: rgba(255, 255, 255, 0.06);
 						border: 1px solid rgba(255, 255, 255, 0.12);
 						color: #ffffff;
-						font-size: 12px;
+						font-size: 11.5px;
 						font-weight: 700;
 						cursor: pointer;
 						transition: all 140ms ease;
-
-						.flag {
-							font-size: 14px;
-							line-height: 1;
-						}
 
 						.country-code {
 							letter-spacing: 0.5px;
@@ -432,10 +416,6 @@
 								cursor: pointer;
 								transition: all 120ms ease;
 
-								.chip-flag {
-									font-size: 12px;
-								}
-
 								&:hover {
 									background: rgba(255, 255, 255, 0.15);
 									border-color: rgba(255, 255, 255, 0.2);
@@ -478,10 +458,6 @@
 								text-align: left;
 								cursor: pointer;
 								transition: background 120ms ease;
-
-								.row-flag {
-									font-size: 15px;
-								}
 
 								.row-name {
 									flex: 1;
@@ -603,10 +579,6 @@
 						font-weight: 600;
 						cursor: pointer;
 						transition: all 120ms ease;
-
-						.s-flag {
-							font-size: 12px;
-						}
 
 						&:hover {
 							background: rgba(255, 255, 255, 0.16);

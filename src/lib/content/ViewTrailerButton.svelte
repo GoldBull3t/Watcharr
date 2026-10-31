@@ -60,21 +60,27 @@
 		align-items: center;
 		gap: 7px;
 		max-width: fit-content;
-		padding: 7px 16px;
-		border-radius: 10px;
-		background: rgba(99, 102, 241, 0.16);
-		border: 1px solid rgba(99, 102, 241, 0.35);
+		white-space: nowrap;
+		flex-shrink: 0;
+		padding: 7px 14px;
+		border-radius: 8px;
+		background: rgba(99, 102, 241, 0.14);
+		border: 1px solid rgba(99, 102, 241, 0.32);
 		color: #ffffff;
 		font-size: 13px;
 		font-weight: 600;
 		cursor: pointer;
-		transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+		transition:
+			background-color 140ms ease,
+			border-color 140ms ease;
+
+		span {
+			white-space: nowrap;
+		}
 
 		&:hover {
-			background: rgba(99, 102, 241, 0.28);
-			border-color: #818cf8;
-			box-shadow: 0 0 16px rgba(99, 102, 241, 0.35);
-			transform: translateY(-1px);
+			background: rgba(99, 102, 241, 0.24);
+			border-color: rgba(129, 140, 248, 0.6);
 		}
 	}
 </style>

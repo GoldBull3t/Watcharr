@@ -63,8 +63,8 @@
 				return {
 					label: cancellation?.badgeText || "Em Exibição",
 					type: "returning",
-					icon: "sparkles" as const,
-					bg: "rgba(99, 102, 241, 0.15)",
+					icon: undefined,
+					bg: "rgba(99, 102, 241, 0.14)",
 					border: "rgba(99, 102, 241, 0.3)",
 					color: "#c7d2fe",
 				};
@@ -273,12 +273,12 @@
 			display: inline-flex;
 			align-items: center;
 			gap: 6px;
-			font-size: 11.5px;
+			font-size: 11px;
 			font-weight: 700;
-			letter-spacing: 0.03em;
+			letter-spacing: 0.04em;
 			text-transform: uppercase;
-			padding: 4px 10px;
-			border-radius: 999px;
+			padding: 3px 9px;
+			border-radius: 6px;
 			border: 1px solid transparent;
 			cursor: default;
 			transition: all 0.2s ease;

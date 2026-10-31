@@ -555,13 +555,13 @@
 					display: inline-flex;
 					align-items: center;
 					gap: 5px;
-					font-size: 13px;
+					font-size: 12.5px;
 					font-weight: 600;
-					color: rgba(255, 255, 255, 0.7);
-					background: rgba(255, 255, 255, 0.08);
+					color: rgba(255, 255, 255, 0.75);
+					background: rgba(255, 255, 255, 0.06);
 					border: 1px solid rgba(255, 255, 255, 0.12);
-					border-radius: 999px;
-					padding: 3px 10px;
+					border-radius: 6px;
+					padding: 3px 8px;
 				}
 			}
 
@@ -612,7 +612,7 @@
 				padding: 8px 12px;
 				background: rgba(255, 255, 255, 0.03);
 				border: 1px solid rgba(255, 255, 255, 0.07);
-				border-radius: 12px;
+				border-radius: 8px;
 
 				.tags-label {
 					display: inline-flex;

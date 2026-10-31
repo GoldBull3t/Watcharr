@@ -154,20 +154,14 @@
 			} else {
 				r = Math.ceil(hoveredRating);
 			}
-			const start = ratingContainer?.getBoundingClientRect()?.x;
-			const starl = ratingWrapEl?.getBoundingClientRect()?.left;
-			const bodyRect = document.body.getBoundingClientRect();
-			const oneStarWidth = bodyRect.width <= 420 ? 33.5 : 37.5;
-			const offset = (r - 1) * oneStarWidth;
-			let prospectLeft = starl + offset - start + 11.5;
-			const bodyXX = bodyRect.width - 120;
-			if (bodyXX < prospectLeft) {
-				// Move text back if going off right
-				prospectLeft = prospectLeft - (prospectLeft - bodyXX);
-			} else if (bodyRect.x + 20 > prospectLeft && starl < 60) {
-				// This should stop the first star text from going off left
-				prospectLeft = prospectLeft + 30;
-			}
+			const containerRect = ratingContainer.getBoundingClientRect();
+			const wrapRect = ratingWrapEl.getBoundingClientRect();
+			const oneStarWidth = wrapRect.width / stars.length;
+			const offset = (r - 1) * oneStarWidth + oneStarWidth / 2;
+			let prospectLeft = wrapRect.left - containerRect.left + offset;
+			const minLeft = 36;
+			const maxLeft = Math.max(minLeft, containerRect.width - 36);
+			prospectLeft = Math.max(minLeft, Math.min(maxLeft, prospectLeft));
 			if (ratingText) ratingText.style.left = `${prospectLeft}px`;
 		} catch (err) {
 			console.error("moveRatingText: Failed!", err);
@@ -533,11 +527,11 @@ shownPerc: {shownPerc}<br /> -->
 		}
 
 		button {
-			font-size: 55px;
+			font-size: 40px;
 			font-family: "Rampart One";
-			letter-spacing: 10px;
-			line-height: 52px;
-			height: 38px;
+			letter-spacing: 4px;
+			line-height: 38px;
+			height: 32px;
 
 			&:global(.lit),
 			&:global(.lit ~ button) {
@@ -546,7 +540,8 @@ shownPerc: {shownPerc}<br /> -->
 			}
 
 			@media screen and (max-width: 420px) {
-				letter-spacing: 6px;
+				font-size: 36px;
+				letter-spacing: 3px;
 			}
 		}
 	}
