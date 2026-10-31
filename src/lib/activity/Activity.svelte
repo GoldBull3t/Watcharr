@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { type Activity, ActivityCreatedBy } from "@/types";
+	import { type Activity, ActivityCreatedBy, RatingSystem } from "@/types";
+	import { store } from "@/store.svelte";
 	import {
 		getOrdinalSuffix,
 		months,
@@ -44,13 +45,28 @@
 		}
 	}
 
+	function formatActivityRating(raw: number | string | undefined): string {
+		if (raw === undefined || raw === null || raw === "") return "";
+		const n = Number(raw);
+		if (isNaN(n)) return String(raw);
+		const sys = store.userSettings?.ratingSystem;
+		if (sys === RatingSystem.OutOf5) {
+			const scaled = Math.round((n / 2) * 10) / 10;
+			return `${scaled}/5`;
+		}
+		if (sys === RatingSystem.OutOf100) {
+			return `${Math.round(n * 10)}/100`;
+		}
+		return `${n}/10`;
+	}
+
 	function getMsg(a: Activity) {
 		switch (a?.type) {
 			case "ADDED_WATCHED":
 				if (a.data) {
 					const data = safeJsonParse(a.data);
 					return `Added to Watched List${data?.status ? ` as ${toFullTitleCase(data.status)}` : ""}${
-						data?.rating ? ` with ${data.rating} Stars` : ""
+						data?.rating ? ` with Rating ${formatActivityRating(data.rating)}` : ""
 					}`;
 				}
 				return "Added to Watched List";
@@ -58,7 +74,7 @@
 				return "Removed from Watched List";
 			case "RATING_CHANGED":
 				if (a.data) {
-					return `Rating Changed to ${a.data}`;
+					return `Rating Changed to ${formatActivityRating(a.data)}`;
 				}
 				return "Rating Changed";
 			case "STATUS_CHANGED":
@@ -79,10 +95,10 @@
 				if (a.data) {
 					const data = safeJsonParse(a.data);
 					if (data && typeof data.rating !== "undefined") {
-						return `Rating Changed to ${data.rating}`;
+						return `Rating Changed to ${formatActivityRating(data.rating)}`;
 					}
 					if (!isNaN(Number(a.data))) {
-						return `Rating Changed to ${a.data}`;
+						return `Rating Changed to ${formatActivityRating(a.data)}`;
 					}
 					return "Added to Watchlist with No Rating";
 				}
@@ -101,7 +117,7 @@
 				if (a.data) {
 					const data = safeJsonParse(a.data);
 					if (data?.season) {
-						return `Changed Season ${data.season} Rating to ${data.rating}`;
+						return `Changed Season ${data.season} Rating to ${formatActivityRating(data.rating)}`;
 					}
 				}
 				return "Season Rating Changed";
@@ -125,7 +141,7 @@
 				if (a.data) {
 					const data = safeJsonParse(a.data);
 					if (data) {
-						return `${seasonAndEpToReadable(data.season, data.episode)} Added ${data.status ? `as ${toFullTitleCase(data.status)}` : data.rating ? `with Rating ${data.rating}` : ""}`;
+						return `${seasonAndEpToReadable(data.season, data.episode)} Added ${data.status ? `as ${toFullTitleCase(data.status)}` : data.rating ? `with Rating ${formatActivityRating(data.rating)}` : ""}`;
 					}
 				}
 				return "Episode Added";
@@ -133,7 +149,7 @@
 				if (a.data) {
 					const data = safeJsonParse(a.data);
 					if (data) {
-						return `${seasonAndEpToReadable(data.season, data.episode)} Rating Changed to ${data.rating}`;
+						return `${seasonAndEpToReadable(data.season, data.episode)} Rating Changed to ${formatActivityRating(data.rating)}`;
 					}
 				}
 				return "Episode Rating Changed";

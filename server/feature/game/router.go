@@ -128,6 +128,11 @@ func (r *Router) GetGameDetails(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
 		return
 	}
+	if r.service != nil {
+		go func(details igdb.GameDetailsResponse) {
+			_, _ = r.service.CacheGameFromDetails(details, true)
+		}(content)
+	}
 	contentAsMedia := content.AsMedia()
 	if err := addedtocontent.AddSingularAndList(
 		r.watchedProvider,

@@ -150,3 +150,11 @@ func (t *TMDB) PrimaryTranslations() ([]string, error) {
 	}
 	return translations, nil
 }
+
+// InvalidateCacheForID evicts cached TMDB entries so fresh details and seasons are fetched (#1049).
+func (t *TMDB) InvalidateCacheForID(id string) {
+	if id == "" {
+		return
+	}
+	ContentStore.Flush()
+}

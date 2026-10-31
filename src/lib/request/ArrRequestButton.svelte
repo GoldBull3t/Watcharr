@@ -20,9 +20,10 @@
 		type: ContentType;
 		tmdbId: number;
 		openRequestModal: () => void;
+		onRequested?: () => void;
 	}
 
-	let { type, tmdbId, openRequestModal }: Props = $props();
+	let { type, tmdbId, openRequestModal, onRequested }: Props = $props();
 
 	let existingRequest: ArrRequestResponse | undefined;
 	let info: ArrInfoResponse | undefined = $state();
@@ -194,6 +195,7 @@
 				text: "Request submitted to Jellyseerr/Overseerr!",
 			});
 			status = "PENDING";
+			onRequested?.();
 		} catch (err) {
 			console.error("requestViaSeerr failed:", err);
 			notify({
@@ -259,6 +261,7 @@
 		if (existingRequest?.status) {
 			status = existingRequest?.status;
 		}
+		onRequested?.();
 		getInfo();
 	}
 

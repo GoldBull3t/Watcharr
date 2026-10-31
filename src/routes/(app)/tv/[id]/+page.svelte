@@ -15,6 +15,7 @@
 		updateWatched,
 		type UpdateWatchedOptions,
 	} from "@/lib/util/api";
+	import { notify } from "@/lib/util/notify";
 	import { getTopCrew } from "@/lib/util/helpers.js";
 	import { store } from "@/store.svelte.js";
 	import type {
@@ -71,6 +72,37 @@
 		  }
 		| undefined = $state();
 	let cliffhangerWarningShown = $state(false);
+	let isRefreshing = $state(false);
+
+	async function refreshMetadata() {
+		if (!data.tvId || isRefreshing) return;
+		isRefreshing = true;
+		const nid = notify({
+			type: "loading",
+			text: "Refreshing show & episodes...",
+		});
+		try {
+			const region = untrack(() => store.userSettings?.country);
+			const resp = await req.post<Media>(
+				`/content/tv/${data.tvId}/refresh`,
+				{},
+				{ params: { region } },
+			);
+			if (resp) {
+				show = resp;
+			}
+			notify({
+				id: nid,
+				type: "success",
+				text: "Show & episodes cache refreshed!",
+			});
+		} catch (err) {
+			console.error("refreshMetadata failed:", err);
+			notify({ id: nid, type: "error", text: "Failed to refresh metadata" });
+		} finally {
+			isRefreshing = false;
+		}
+	}
 
 	async function loadShow(signal?: AbortSignal) {
 		try {
@@ -323,11 +355,26 @@
 									tmdbId={data.tvId}
 									openRequestModal={() =>
 										(requestModalShown = !requestModalShown)}
+									onRequested={() => {
+										if (!show?.watched) {
+											contentChanged("PLANNED");
+										}
+									}}
 									bind:this={arrRequestButtonComp}
 								/>
 							{/if}
-							{#if show.watched}
-								<div class="other-side">
+							<div class="other-side">
+								<button
+									onclick={refreshMetadata}
+									disabled={isRefreshing}
+									use:tooltip={{
+										text: "Refresh TMDB metadata & episodes",
+										pos: "bot",
+									}}
+								>
+									<Icon i="refresh" wh={18} />
+								</button>
+								{#if show.watched}
 									<AddToTagButton watchedItem={show.watched} />
 									<button
 										onclick={() => {
@@ -359,8 +406,8 @@
 											}
 										}}
 									/>
-								</div>
-							{/if}
+								{/if}
+							</div>
 						</div>
 
 						{#if show?.watched?.tags && show.watched.tags.length > 0}

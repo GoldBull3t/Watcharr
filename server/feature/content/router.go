@@ -75,6 +75,8 @@ func (r *Router) AddRoutes() {
 	content.GET("/collection/:id", usermiddleware.WithUser(r.br.DB), router.LanguageRequired(r.br.Cfg), r.GetCollection)
 	// Update or set ending type override for tv show
 	content.POST("/tv/:id/ending-type", usermiddleware.WithUser(r.br.DB), r.UpdateTvEndingType)
+	// Force refresh TMDB metadata and episodes for a movie or tv show (#1049)
+	content.POST("/:type/:id/refresh", usermiddleware.WithUser(r.br.DB), router.WhereaboutsRequired(r.br.Cfg), router.LanguageRequired(r.br.Cfg), r.RefreshContent)
 }
 
 func (r *Router) GetMovieDetails(c *gin.Context) {
@@ -444,4 +446,21 @@ func (r *Router) GetCollection(c *gin.Context) {
 		}
 	}
 	c.JSON(http.StatusOK, collectionMedia)
+}
+
+// RefreshContent invalidates the in-memory TMDB cache for a movie or show (including all seasons)
+// and returns freshly fetched metadata (#1049).
+func (r *Router) RefreshContent(c *gin.Context) {
+	id := c.Param("id")
+	mediaType := strings.ToLower(strings.TrimSpace(c.Param("type")))
+	if id == "" || (mediaType != "tv" && mediaType != "movie") {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "valid type (tv/movie) and id are required"})
+		return
+	}
+	r.tmdb.InvalidateCacheForID(id)
+	if mediaType == "tv" {
+		r.GetTvDetails(c)
+		return
+	}
+	r.GetMovieDetails(c)
 }

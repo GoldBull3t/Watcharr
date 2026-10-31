@@ -176,12 +176,16 @@
 			let anySkipped = false;
 			// Sort so that episodes comes last, so they are imported last.
 			s.data?.sort((a, b) => {
-				const aType = a["Title Type"]?.toLowerCase();
-				if (aType === "tv episode") {
+				const aType = (a["Title Type"] || a["Tipo de título"] || a["Type"] || "")
+					?.toLowerCase()
+					.trim();
+				if (aType === "tv episode" || aType === "tvepisode" || aType === "episódio de tv" || aType === "episodio de tv") {
 					return 1;
 				}
-				const bType = b["Title Type"]?.toLowerCase();
-				if (bType === "tv episode") {
+				const bType = (b["Title Type"] || b["Tipo de título"] || b["Type"] || "")
+					?.toLowerCase()
+					.trim();
+				if (bType === "tv episode" || bType === "tvepisode" || bType === "episódio de tv" || bType === "episodio de tv") {
 					return -1;
 				}
 				return 0;
@@ -191,10 +195,19 @@
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					const el = s.data[i] as any;
 					if (el) {
-						const imdbId = el["Const"];
-						const type = el["Title Type"]?.toLowerCase();
+						const imdbId = el["Const"] || el["const"];
+						const titleVal = el["Title"] || el["Título"] || el["Titulo"] || el["Original Title"];
+						const type = (
+							el["Title Type"] ||
+							el["Tipo de título"] ||
+							el["Typ"] ||
+							el["Type"] ||
+							""
+						)
+							?.toLowerCase()
+							.trim();
 						// Skip if no name or tmdb id
-						if (!el.Title && !imdbId) {
+						if (!titleVal && !imdbId) {
 							console.warn("Skipping item with no title or imdb id", el);
 							anySkipped = true;
 							continue;
@@ -204,28 +217,48 @@
 							anySkipped = true;
 							continue;
 						}
-						const l: ImportedList = { name: el.Title };
-						const year = el["Release Date"]
-							? new Date(el["Release Date"])
-							: undefined;
-						if (year) {
+						const l: ImportedList = { name: titleVal };
+						const releaseDateRaw = el["Release Date"] || el["Data de lançamento"];
+						const year = releaseDateRaw
+							? new Date(releaseDateRaw)
+							: el["Year"]
+								? new Date(`${el["Year"]}-01-01`)
+								: undefined;
+						if (year && !isNaN(year.getTime())) {
 							l.year = year.getFullYear();
 						}
 
 						switch (type) {
 							case "movie":
+							case "filme":
+							case "película":
+							case "film":
 							case "video":
+							case "vídeo":
 							case "tv movie":
+							case "tvmovie":
+							case "filme para tv":
 							case "short":
+							case "tvshort":
+							case "curta-metragem":
 								l.type = "movie";
 								break;
 							case "tv series":
+							case "tvseries":
+							case "série de tv":
+							case "serie de tv":
 							case "tv mini series":
+							case "tvminiseries":
+							case "minissérie de tv":
 							case "tv special":
+							case "tvspecial":
 							case "tv short":
 								l.type = "tv";
 								break;
 							case "tv episode":
+							case "tvepisode":
+							case "episódio de tv":
+							case "episodio de tv":
 								l.type = "tv_episode";
 								break;
 							default:
@@ -241,11 +274,17 @@
 						if (imdbId) {
 							l.imdbId = imdbId;
 						}
-						if (el["Your Rating"]) {
-							l.rating = Math.floor(Number(el["Your Rating"]));
+						const yourRating = el["Your Rating"] || el["Sua classificação"];
+						if (yourRating) {
+							l.rating = Math.floor(Number(yourRating));
 						}
-						if (el["Date Rated"]) {
-							l.ratingCustomDate = new Date(el["Date Rated"]);
+						const dateRatedRaw = el["Date Rated"] || el["Data da classificação"] || el["Created"];
+						if (dateRatedRaw) {
+							const parsedRatedDate = new Date(dateRatedRaw);
+							if (!isNaN(parsedRatedDate.getTime())) {
+								l.ratingCustomDate = parsedRatedDate;
+								l.datesWatched = [parsedRatedDate];
+							}
 						}
 						rList.push(l);
 					}

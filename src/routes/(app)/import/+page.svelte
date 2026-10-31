@@ -12,6 +12,7 @@
 	import { notify } from "@/lib/util/notify";
 	import { store } from "@/store.svelte";
 	import { onMount } from "svelte";
+	import { SvelteMap } from "svelte/reactivity";
 	import papa from "papaparse";
 	import type {
 		ImportedList,
@@ -59,7 +60,12 @@
 			}
 			// Currently only support for importing one file at a time
 			const file = files[0];
-			if (type === "text-list" && file.type !== "text/plain") {
+			const lowerName = file.name?.toLowerCase() ?? "";
+			if (
+				type === "text-list" &&
+				file.type !== "text/plain" &&
+				!lowerName.endsWith(".txt")
+			) {
 				notify({
 					type: "error",
 					text: "Text list export must be a .txt file!",
@@ -67,7 +73,12 @@
 				isLoading = false;
 				return;
 			}
-			if ((type === "tmdb" || type === "imdb") && file.type !== "text/csv") {
+			if (
+				(type === "tmdb" || type === "imdb") &&
+				!lowerName.endsWith(".csv") &&
+				file.type !== "text/csv" &&
+				file.type !== "application/vnd.ms-excel"
+			) {
 				notify({
 					type: "error",
 					text: `${type} export must be a .csv file!`,
@@ -969,7 +980,7 @@
 			isLoading = true;
 
 			// Map by `${title.toLowerCase()}_${year}`
-			const itemsMap = new Map<string, ImportedList>();
+			const itemsMap = new SvelteMap<string, ImportedList>();
 
 			for (let f = 0; f < files.length; f++) {
 				const file = files[f];

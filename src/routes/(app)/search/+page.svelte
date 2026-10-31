@@ -68,6 +68,12 @@
 			dataLoader.state.data?.length > 0 && dataLoader.state.meta?.fromMyList,
 		),
 	);
+	let hideInLibrary = $state(false);
+	let filteredSearchData = $derived(
+		hideInLibrary && !showingResultsFromMyList
+			? (dataLoader.state.data ?? []).filter((w) => !w.watched)
+			: (dataLoader.state.data ?? []),
+	);
 
 	let nextLoadParams: SearchRequest = $derived({
 		page: dataLoader.state.page + 1,
@@ -300,6 +306,17 @@
 				<button class="syntax-pill" onclick={() => appendSyntax("imdb:")}>
 					+ IMDb ID
 				</button>
+				{#if !showingResultsFromMyList}
+					<button
+						type="button"
+						class="syntax-pill"
+						class:active={hideInLibrary}
+						onclick={() => (hideInLibrary = !hideInLibrary)}
+						aria-pressed={hideInLibrary}
+					>
+						{hideInLibrary ? "✓ Hiding in library" : "Hide in library"}
+					</button>
+				{/if}
 			</div>
 
 			<!-- Personal List Priority Notice Banner -->
@@ -325,8 +342,8 @@
 				<PosterGridSkeleton count={18} />
 			{:else}
 				<PosterList>
-					{#if dataLoader.state.data?.length > 0}
-						{#each dataLoader.state.data as w, i (`${i}-${w.type}`)}
+					{#if filteredSearchData.length > 0}
+						{#each filteredSearchData as w, i (`${i}-${w.type}-${w.ids?.tmdb || w.ids?.igdb || i}`)}
 							{#if w.type === MediaTypeE.tmdbPerson}
 								<PersonPoster
 									id={w.ids.tmdb}
@@ -336,7 +353,7 @@
 							{:else if w.type === MediaTypeE.tmdbMovie || w.type === MediaTypeE.tmdbShow || w.type === MediaTypeE.igdbGame}
 								<Poster
 									media={w}
-									bind:watched={dataLoader.state.data[i].watched}
+									bind:watched={w.watched}
 									fluidSize
 								/>
 							{/if}

@@ -30,6 +30,12 @@
 	const dataLoader = paginatedLoader<Media, undefined>(load);
 
 	let discoverFilter: DiscoverFilter = $state(DiscoverFilter.trending);
+	let hideInLibrary = $state(false);
+	let filteredDiscoverData = $derived(
+		hideInLibrary
+			? (dataLoader.state.data ?? []).filter((w) => !w.watched)
+			: (dataLoader.state.data ?? []),
+	);
 	let discoverType: SearchType | undefined = $derived.by(() => {
 		const t = page.url.searchParams.get("type");
 		if (t) {
@@ -128,6 +134,16 @@
 					/>
 				</div>
 				<div class="toolbar-filterdropdown">
+					<button
+						type="button"
+						class="plain hide-library-toggle"
+						class:active={hideInLibrary}
+						onclick={() => (hideInLibrary = !hideInLibrary)}
+						aria-pressed={hideInLibrary}
+					>
+						<Icon i={hideInLibrary ? "check" : "eye-closed"} wh={14} />
+						<span>Hide in library</span>
+					</button>
 					<FilterDropDown
 						{discoverType}
 						bind:active={discoverFilter}
@@ -144,8 +160,8 @@
 			<PosterGridSkeleton count={18} />
 		{:else}
 			<PosterList>
-				{#if dataLoader.state.data?.length > 0}
-					{#each dataLoader.state.data as w, i (`${i}-${w.type}`)}
+				{#if filteredDiscoverData.length > 0}
+					{#each filteredDiscoverData as w, i (`${i}-${w.type}-${w.ids?.tmdb || w.ids?.igdb || i}`)}
 						{#if w.type === MediaTypeE.tmdbPerson}
 							<PersonPoster
 								id={w.ids.tmdb}
@@ -155,7 +171,7 @@
 						{:else if w.type === MediaTypeE.tmdbMovie || w.type === MediaTypeE.tmdbShow || w.type === MediaTypeE.igdbGame}
 							<Poster
 								media={w}
-								bind:watched={dataLoader.state.data[i].watched}
+								bind:watched={w.watched}
 								fluidSize
 							/>
 						{/if}
@@ -253,6 +269,39 @@
 
 			.toolbar-filterdropdown {
 				margin-left: auto;
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+
+			.hide-library-toggle {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				padding: 7px 12px;
+				font-size: 13px;
+				font-weight: 600;
+				color: $text-muted;
+				background: rgba(255, 255, 255, 0.04);
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				border-radius: 8px;
+				cursor: pointer;
+				white-space: nowrap;
+				transition:
+					background-color 0.15s ease,
+					border-color 0.15s ease,
+					color 0.15s ease;
+
+				&:hover {
+					color: $text-color;
+					background: rgba(255, 255, 255, 0.08);
+				}
+
+				&.active {
+					color: #fbbf24;
+					background: rgba(245, 158, 11, 0.14);
+					border-color: rgba(245, 158, 11, 0.4);
+				}
 			}
 		}
 

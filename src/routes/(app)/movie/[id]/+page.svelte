@@ -3,6 +3,7 @@
 	import Spinner from "@/lib/Spinner.svelte";
 	import HorizontalList from "@/lib/HorizontalList.svelte";
 	import { contentExistsOnJellyfin, req, updateWatched } from "@/lib/util/api";
+	import { notify } from "@/lib/util/notify";
 	import { store } from "@/store.svelte";
 	import type {
 		Media,
@@ -49,6 +50,30 @@
 	let movie: Media | undefined = $state();
 	let pageError: unknown | undefined = $state();
 	let galleryOpen = $state(false);
+	let isRefreshing = $state(false);
+
+	async function refreshMetadata() {
+		if (!data.movieId || isRefreshing) return;
+		isRefreshing = true;
+		const nid = notify({ type: "loading", text: "Refreshing metadata..." });
+		try {
+			const region = untrack(() => store.userSettings?.country);
+			const resp = await req.post<Media>(
+				`/content/movie/${data.movieId}/refresh`,
+				{},
+				{ params: { region } },
+			);
+			if (resp) {
+				movie = resp;
+			}
+			notify({ id: nid, type: "success", text: "Metadata updated!" });
+		} catch (err) {
+			console.error("refreshMetadata failed:", err);
+			notify({ id: nid, type: "error", text: "Failed to refresh metadata" });
+		} finally {
+			isRefreshing = false;
+		}
+	}
 
 	async function loadMovie(signal?: AbortSignal) {
 		try {
@@ -221,11 +246,26 @@
 									tmdbId={data.movieId}
 									openRequestModal={() =>
 										(requestModalShown = !requestModalShown)}
+									onRequested={() => {
+										if (!movie?.watched) {
+											contentChanged("PLANNED");
+										}
+									}}
 									bind:this={arrRequestButtonComp}
 								/>
 							{/if}
-							{#if movie.watched}
-								<div class="other-side">
+							<div class="other-side">
+								<button
+									onclick={refreshMetadata}
+									disabled={isRefreshing}
+									use:tooltip={{
+										text: "Refresh TMDB metadata",
+										pos: "bot",
+									}}
+								>
+									<Icon i="refresh" wh={18} />
+								</button>
+								{#if movie.watched}
 									<AddToTagButton watchedItem={movie.watched} />
 									<button
 										onclick={() => {
@@ -257,8 +297,8 @@
 											}
 										}}
 									/>
-								</div>
-							{/if}
+								{/if}
+							</div>
 						</div>
 
 						{#if movie?.watched?.tags && movie.watched.tags.length > 0}

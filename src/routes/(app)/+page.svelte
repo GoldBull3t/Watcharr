@@ -12,20 +12,20 @@
 	import MediaTable from "@/lib/dashboard/MediaTable.svelte";
 	import PosterGridSkeleton from "@/lib/dashboard/PosterGridSkeleton.svelte";
 	import EmptyLibrary from "@/lib/dashboard/EmptyLibrary.svelte";
-	import { req, updateWatched, removeWatched } from "@/lib/util/api";
+	import { req } from "@/lib/util/api";
 	import infScroll from "@/lib/util/infScroll";
 	import paginatedLoader from "@/lib/util/paginatedLoader.svelte";
 	import { store } from "@/store.svelte";
 	import {
-		MediaTypeE,
 		type Media,
 		type PaginationResponse,
 		type WatchedStatus,
 		type UpNextItem,
 	} from "@/types";
-	import { notify, notifyUndo } from "@/lib/util/notify";
+	import { notify } from "@/lib/util/notify";
 	import { onDestroy, onMount, untrack } from "svelte";
-	import { goto } from "$app/navigation";
+	import { SvelteSet } from "svelte/reactivity";
+	import { beforeNavigate, goto } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { getMediaLink } from "@/lib/dashboard/mediaHelpers";
 	import { t } from "@/lib/i18n";
@@ -102,6 +102,23 @@
 	});
 
 	let isInitialLoad = $state(true);
+	let pendingScrollRestore: number | undefined = undefined;
+
+	beforeNavigate(({ to }) => {
+		const targetPath = to?.url?.pathname || "";
+		if (
+			targetPath.startsWith("/movie/") ||
+			targetPath.startsWith("/tv/") ||
+			targetPath.startsWith("/game/") ||
+			targetPath.startsWith("/person/") ||
+			targetPath.startsWith("/franchise/")
+		) {
+			sessionStorage.setItem(
+				"watcharr_dashboard_scroll",
+				String(Math.round(window.scrollY)),
+			);
+		}
+	});
 
 	async function load(signal: AbortSignal) {
 		console.debug("load: loadParams:", nextLoadParams);
@@ -121,6 +138,15 @@
 			return r;
 		} finally {
 			isInitialLoad = false;
+			if (pendingScrollRestore !== undefined && pendingScrollRestore > 0) {
+				const targetY = pendingScrollRestore;
+				pendingScrollRestore = undefined;
+				requestAnimationFrame(() => {
+					requestAnimationFrame(() => {
+						window.scrollTo({ top: targetY, behavior: "instant" });
+					});
+				});
+			}
 		}
 	}
 
@@ -157,15 +183,6 @@
 			return;
 		}
 		dataLoader.runFn();
-	}
-
-	function toggleSelectItem(id: number) {
-		selectedAllInLibrary = false;
-		if (selectedIds.includes(id)) {
-			selectedIds = selectedIds.filter((i) => i !== id);
-		} else {
-			selectedIds = [...selectedIds, id];
-		}
 	}
 
 	function selectAllLoaded() {
@@ -208,7 +225,7 @@
 				}
 			}
 
-			const merged = new Set(selectedIds);
+			const merged = new SvelteSet(selectedIds);
 			for (const id of rangeIds) {
 				merged.add(id);
 			}
@@ -261,7 +278,9 @@
 		isLassoing = true;
 		try {
 			(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-		} catch {}
+		} catch {
+			// Ignore pointer capture errors
+		}
 
 		if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !bulkMode) {
 			initialSelectedIds = [];
@@ -281,7 +300,7 @@
 		const posterEls = document.querySelectorAll<HTMLElement>(
 			"li[data-watched-id]",
 		);
-		const touchedIds = new Set<number>(initialSelectedIds);
+		const touchedIds = new SvelteSet<number>(initialSelectedIds);
 
 		for (const el of posterEls) {
 			const idStr = el.dataset.watchedId;
@@ -313,7 +332,9 @@
 			isLassoing = false;
 			try {
 				(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-			} catch {}
+			} catch {
+				// Ignore pointer release errors
+			}
 		}
 	}
 
@@ -516,6 +537,14 @@
 	});
 
 	onMount(() => {
+		const savedScroll = sessionStorage.getItem("watcharr_dashboard_scroll");
+		if (savedScroll) {
+			sessionStorage.removeItem("watcharr_dashboard_scroll");
+			const parsedY = Number(savedScroll);
+			if (!isNaN(parsedY) && parsedY > 0) {
+				pendingScrollRestore = parsedY;
+			}
+		}
 		const savedViewMode = localStorage.getItem("watcharr_view_mode") as
 			"grid" | "list";
 		if (savedViewMode === "grid" || savedViewMode === "list") {

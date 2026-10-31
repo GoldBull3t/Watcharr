@@ -67,6 +67,8 @@ func (r *Router) AddRoutes() {
 	server.GET("/users", r.GetAllUsers)
 	// Edit a user (for manage users page)
 	server.POST("/users/:id", r.UpdateManageUser)
+	// Repair content table (#62)
+	server.POST("/repair-content", r.RepairContent)
 }
 
 // Get server config (minus very sensitive fields, like JWT_SECRET)
@@ -160,6 +162,16 @@ func (r *Router) UpdateConfigPlexHost(c *gin.Context) {
 // Get server stats
 func (r *Router) GetStats(c *gin.Context) {
 	c.JSON(http.StatusOK, getServerStats(r.br.DB))
+}
+
+// RepairContent repairs invalid/incomplete content records (#62).
+func (r *Router) RepairContent(c *gin.Context) {
+	repaired, err := repairContentTable(r.br.DB)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"repaired": repaired})
 }
 
 // Get all server users (for manage users page)

@@ -140,13 +140,48 @@
 		watchedMovies: number;
 		watchedShows: number;
 		watchedSeasons: number;
+		watchedGames: number;
 		mostWatchedMovie: Content;
 		mostWatchedShow: Content;
+		mostWatchedGame?: {
+			igdbId?: number;
+			name?: string;
+		};
 		activities: number;
 	}
 
 	async function getServerStats() {
 		return await req.get<ServerStats>("/server/stats");
+	}
+
+	let isRepairingContent = $state(false);
+	async function repairContentTable() {
+		if (isRepairingContent) return;
+		isRepairingContent = true;
+		const nid = notify({
+			type: "loading",
+			text: "Repairing content table...",
+		});
+		try {
+			const res = await req.post<{ repaired: number }>(
+				"/server/repair-content",
+				{},
+			);
+			notify({
+				id: nid,
+				type: "success",
+				text: `Content table repaired (${res?.repaired ?? 0} entries queued/cleaned)!`,
+			});
+		} catch (err) {
+			console.error("repairContentTable failed:", err);
+			notify({
+				id: nid,
+				type: "error",
+				text: "Failed to repair content table",
+			});
+		} finally {
+			isRepairingContent = false;
+		}
 	}
 </script>
 
@@ -173,6 +208,7 @@
 					<Stat name="Watched Movies" value={stats.watchedMovies} large />
 					<Stat name="Watched Shows" value={stats.watchedShows} large />
 					<Stat name="Watched Seasons" value={stats.watchedSeasons} large />
+					<Stat name="Watched Games" value={stats.watchedGames ?? 0} large />
 					<Stat name="Activities" value={stats.activities} large />
 					{#if stats.mostWatchedMovie?.title}
 						<Stat
@@ -189,6 +225,15 @@
 							value={stats.mostWatchedShow.title}
 							href={resolve(
 								`/tv/${stats.mostWatchedShow.tmdbId}` as `/tv/${string}`,
+							)}
+						/>
+					{/if}
+					{#if stats.mostWatchedGame?.name && stats.mostWatchedGame?.igdbId}
+						<Stat
+							name="Most Played Game"
+							value={stats.mostWatchedGame.name}
+							href={resolve(
+								`/game/${stats.mostWatchedGame.igdbId}` as `/game/${string}`,
 							)}
 						/>
 					{/if}
@@ -621,6 +666,15 @@
 								{/if}
 							</div>
 						</div>
+					</Setting>
+
+					<Setting title="Maintenance">
+						<SettingButton
+							title="Repair Content Table"
+							desc="Clean up corrupted records and queue missing posters/metadata for refresh."
+							icon="refresh"
+							onClick={repairContentTable}
+						/>
 					</Setting>
 
 					{#if twitchModalOpen}

@@ -31,6 +31,12 @@ func (s *Service) saveGame(c *entity.Game, onlyUpdate bool) error {
 		slog.Error("saveGame: content missing id or name!", "id", c.IgdbID, "name", c.Name)
 		return errors.New("game missing id or title")
 	}
+	if onlyUpdate {
+		var existingCount int64
+		if err := s.db.Model(&entity.Game{}).Where("igdb_id = ?", c.IgdbID).Count(&existingCount).Error; err != nil || existingCount == 0 {
+			return nil
+		}
+	}
 	if c.CoverID != "" {
 		p, err := image.
 			NewSaver(
@@ -157,6 +163,72 @@ func (s *Service) cacheGame(g igdb.GameDetailsBasicResponse, onlyUpdate bool) (e
 	if err != nil {
 		slog.Error("cacheGame: Failed to save game!", "error", err)
 		return entity.Game{}, errors.New("failed to save game")
+	}
+	return c, nil
+}
+
+// CacheGameFromDetails updates or inserts a cached game record from full GameDetailsResponse (#1144).
+func (s *Service) CacheGameFromDetails(g igdb.GameDetailsResponse, onlyUpdate bool) (entity.Game, error) {
+	var (
+		gameModes        string
+		genres           string
+		platforms        string
+		developers       string
+		publishers       string
+		backdropID       string
+		timeToBeatNormal int
+	)
+	if len(g.Artworks) > 0 {
+		backdropID = g.Artworks[0].ImageID
+	} else if len(g.Screenshots) > 0 {
+		backdropID = g.Screenshots[0].ImageID
+	}
+	for _, v := range g.GameModes {
+		gameModes += v.Name + "|"
+	}
+	for _, v := range g.Genres {
+		genres += v.Name + "|"
+	}
+	for _, v := range g.Platforms {
+		platforms += v.Name + "|"
+	}
+	for _, ic := range g.InvolvedCompanies {
+		if ic.Company.Name == "" {
+			continue
+		}
+		if ic.Developer {
+			developers += ic.Company.Name + "|"
+		}
+		if ic.Publisher {
+			publishers += ic.Company.Name + "|"
+		}
+	}
+	if g.TimeToBeat != nil && g.TimeToBeat.Normally > 0 {
+		timeToBeatNormal = g.TimeToBeat.Normally
+	}
+	c := entity.Game{
+		IgdbID:           g.ID,
+		Name:             g.Name,
+		CoverID:          g.Cover.ImageID,
+		BackdropID:       backdropID,
+		Summary:          g.Summary,
+		Storyline:        g.Storyline,
+		ReleaseDate:      &g.FirstReleaseDate.Time,
+		Rating:           g.Rating,
+		RatingCount:      g.RatingCount,
+		AggregatedRating: g.AggregatedRating,
+		TimeToBeatNormal: timeToBeatNormal,
+		Status:           g.Status,
+		Category:         g.GameType,
+		GameModes:        gameModes,
+		Genres:           genres,
+		Platforms:        platforms,
+		Developers:       developers,
+		Publishers:       publishers,
+	}
+	if err := s.saveGame(&c, onlyUpdate); err != nil {
+		slog.Error("CacheGameFromDetails: Failed to save game!", "error", err)
+		return entity.Game{}, err
 	}
 	return c, nil
 }
