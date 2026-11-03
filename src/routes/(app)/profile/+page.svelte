@@ -46,6 +46,21 @@
 	let settings = $derived(store.userSettings);
 	let selectedTheme = $derived(store.appTheme);
 
+	let selectedCountry = $state(store.userSettings?.country ?? "US");
+	let selectedLanguage = $state(store.userSettings?.language ?? "en-US");
+
+	$effect(() => {
+		if (store.userSettings?.country && !countryDisabled) {
+			selectedCountry = store.userSettings.country;
+		}
+	});
+
+	$effect(() => {
+		if (store.userSettings?.language && !languageDisabled) {
+			selectedLanguage = store.userSettings.language;
+		}
+	});
+
 	let privateDisabled = $state(false);
 	let privateThoughtsDisabled = $state(false);
 	let exportModalOpen = $state(false);
@@ -852,7 +867,7 @@
 					desc={t("profile.country_desc")}
 				>
 					<RegionDropDown
-						selectedCountry={settings?.country}
+						bind:selectedCountry
 						disabled={countryDisabled}
 						onChange={(c) => {
 							countryDisabled = true;
@@ -867,7 +882,7 @@
 					desc={t("profile.meta_language_desc")}
 				>
 					<LanguageDropDown
-						selectedLanguage={settings?.language}
+						bind:selectedLanguage
 						disabled={languageDisabled}
 						onChange={(l) => {
 							languageDisabled = true;
