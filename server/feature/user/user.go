@@ -23,7 +23,7 @@ func NewService(db *gorm.DB) *Service {
 // Update user settings
 func (s *Service) UserUpdate(userId uint, ur entity.UserSettings) (entity.UserSettings, error) {
 	slog.Debug("user update request running", "user_id", userId, "ur", ur)
-	user := new(entity.User)
+	var user entity.User
 	res := s.db.Where("id = ?", userId).Take(&user)
 	if res.Error != nil {
 		slog.Error("user update failed", "user_id", userId, "error", res.Error)
@@ -50,6 +50,12 @@ func (s *Service) UserUpdate(userId uint, ur entity.UserSettings) (entity.UserSe
 	if ur.Language != nil {
 		user.Language = ur.Language
 	}
+	if ur.UiLanguage != nil {
+		user.UiLanguage = ur.UiLanguage
+	}
+	if ur.Theme != nil {
+		user.Theme = ur.Theme
+	}
 	if ur.RatingSystem != nil {
 		user.RatingSystem = ur.RatingSystem
 	}
@@ -74,7 +80,10 @@ func (s *Service) UserUpdate(userId uint, ur entity.UserSettings) (entity.UserSe
 	if ur.ActivityWebhookFilter != nil {
 		user.ActivityWebhookFilter = ur.ActivityWebhookFilter
 	}
-	s.db.Save(&user)
+	if err := s.db.Save(&user).Error; err != nil {
+		slog.Error("user update save failed", "user_id", userId, "error", err)
+		return entity.UserSettings{}, errors.New("failed to save user settings")
+	}
 	return entity.UserSettings{
 		Private:                  user.Private,
 		PrivateThoughts:          user.PrivateThoughts,
@@ -83,6 +92,8 @@ func (s *Service) UserUpdate(userId uint, ur entity.UserSettings) (entity.UserSe
 		AutomateShowStatuses:     user.AutomateShowStatuses,
 		Country:                  user.Country,
 		Language:                 user.Language,
+		UiLanguage:               user.UiLanguage,
+		Theme:                    user.Theme,
 		RatingSystem:             user.RatingSystem,
 		RatingStep:               user.RatingStep,
 		CalendarWebhookUrl:       user.CalendarWebhookUrl,
@@ -96,7 +107,7 @@ func (s *Service) UserUpdate(userId uint, ur entity.UserSettings) (entity.UserSe
 
 func (s *Service) UserGetSettings(userId uint) (entity.UserSettings, error) {
 	slog.Debug("UserGetSettings: Request running.", "user_id", userId)
-	user := new(entity.User)
+	var user entity.User
 	res := s.db.Where("id = ?", userId).Take(&user)
 	if res.Error != nil {
 		slog.Error("user get failed", "user_id", userId, "error", res.Error)
@@ -110,6 +121,8 @@ func (s *Service) UserGetSettings(userId uint) (entity.UserSettings, error) {
 		AutomateShowStatuses:     user.AutomateShowStatuses,
 		Country:                  user.Country,
 		Language:                 user.Language,
+		UiLanguage:               user.UiLanguage,
+		Theme:                    user.Theme,
 		RatingSystem:             user.RatingSystem,
 		RatingStep:               user.RatingStep,
 		CalendarWebhookUrl:       user.CalendarWebhookUrl,

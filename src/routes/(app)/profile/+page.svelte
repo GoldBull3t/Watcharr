@@ -787,7 +787,10 @@
 				<div class="theme-grid">
 					<button
 						class={`theme-option ${selectedTheme === "system" ? "active" : ""}`}
-						onclick={() => toggleTheme("system")}
+						onclick={() => {
+							toggleTheme("system");
+							updateUserSetting("theme", "system");
+						}}
 						type="button"
 					>
 						<div class="preview-box system-preview">
@@ -799,7 +802,10 @@
 
 					<button
 						class={`theme-option ${selectedTheme === "light" ? "active" : ""}`}
-						onclick={() => toggleTheme("light")}
+						onclick={() => {
+							toggleTheme("light");
+							updateUserSetting("theme", "light");
+						}}
 						type="button"
 					>
 						<div class="preview-box light-preview"></div>
@@ -808,7 +814,10 @@
 
 					<button
 						class={`theme-option ${selectedTheme === "dark" ? "active" : ""}`}
-						onclick={() => toggleTheme("dark")}
+						onclick={() => {
+							toggleTheme("dark");
+							updateUserSetting("theme", "dark");
+						}}
 						type="button"
 					>
 						<div class="preview-box dark-preview"></div>
@@ -831,6 +840,7 @@
 							const val = (e.currentTarget as HTMLSelectElement).value as
 								"en" | "pt";
 							i18n.setLocale(val);
+							updateUserSetting("uiLanguage", val);
 						}}
 					>
 						<option value="en">English</option>

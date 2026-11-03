@@ -63,6 +63,7 @@
 	let tmdbkDisabled = $state(false);
 	let omdbkDisabled = $state(false);
 	let mdblistkDisabled = $state(false);
+	let steamkDisabled = $state(false);
 	let plexHostDisabled = $state(false);
 	let countryDisabled = $state(false);
 	let languageDisabled = $state(false);
@@ -314,6 +315,9 @@
 									},
 								);
 							}}
+							onkeydown={(e) => {
+								if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+							}}
 							disabled={jfDisabled}
 						/>
 					</Setting>
@@ -396,6 +400,9 @@
 									},
 								);
 							}}
+							onkeydown={(e) => {
+								if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+							}}
 							disabled={plexHostDisabled}
 						/>
 						{#if serverConfig.PLEX_MACHINE_ID}
@@ -415,6 +422,9 @@
 									tmdbkDisabled = false;
 								});
 							}}
+							onkeydown={(e) => {
+								if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+							}}
 							disabled={tmdbkDisabled}
 						/>
 					</Setting>
@@ -431,6 +441,9 @@
 								updateServerConfig("TVDB_KEY", serverConfig!.TVDB_KEY ?? "", () => {
 									tvdbkDisabled = false;
 								});
+							}}
+							onkeydown={(e) => {
+								if (e.key === "Enter") (e.target as HTMLInputElement).blur();
 							}}
 							disabled={tvdbkDisabled}
 						/>
@@ -468,6 +481,9 @@
 									omdbkDisabled = false;
 								});
 							}}
+							onkeydown={(e) => {
+								if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+							}}
 							disabled={omdbkDisabled}
 						/>
 					</Setting>
@@ -489,7 +505,34 @@
 									},
 								);
 							}}
+							onkeydown={(e) => {
+								if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+							}}
 							disabled={mdblistkDisabled}
+						/>
+					</Setting>
+					<Setting
+						title="Steam Web API Key"
+						desc="Optional: Provide a Steam Web API Key (partner.steamgames.com) to allow users to sync gaming playtime and achievements."
+					>
+						<input
+							type="password"
+							placeholder="Steam Web API Key"
+							bind:value={serverConfig.STEAM_KEY}
+							onblur={() => {
+								steamkDisabled = true;
+								updateServerConfig(
+									"STEAM_KEY",
+									serverConfig!.STEAM_KEY ?? "",
+									() => {
+										steamkDisabled = false;
+									},
+								);
+							}}
+							onkeydown={(e) => {
+								if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+							}}
+							disabled={steamkDisabled}
 						/>
 					</Setting>
 					<Setting
@@ -728,6 +771,9 @@
 										},
 									);
 								}}
+								onkeydown={(e) => {
+									if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+								}}
 								disabled={overseerrHostDisabled}
 							/>
 							<input
@@ -744,6 +790,9 @@
 											getServerFeatures();
 										},
 									);
+								}}
+								onkeydown={(e) => {
+									if (e.key === "Enter") (e.target as HTMLInputElement).blur();
 								}}
 								disabled={overseerrKeyDisabled}
 							/>

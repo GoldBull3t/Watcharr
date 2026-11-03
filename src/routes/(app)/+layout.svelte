@@ -12,6 +12,9 @@
 	import { baseURL, req } from "@/lib/util/api";
 	import { store } from "@/store.svelte";
 	import {
+		MediaTypeE,
+		type Media,
+		type PaginationResponse,
 		type ServerFeatures,
 		type Follow,
 		type PrivateUser,
@@ -20,8 +23,8 @@
 	} from "@/types";
 	import { onMount } from "svelte";
 	import HandbookModal from "@/lib/handbook/HandbookModal.svelte";
-	import CommandPalette from "@/lib/nav/CommandPalette.svelte";
-	import { t } from "@/lib/i18n";
+	import { t, i18n } from "@/lib/i18n";
+	import { toggleTheme } from "@/lib/util/theme";
 
 	interface Props {
 		children?: import("svelte").Snippet;
@@ -30,12 +33,149 @@
 	let { children }: Props = $props();
 
 	let navEl: HTMLElement | undefined = $state();
+	let mainSearchEl: HTMLInputElement | undefined = $state();
 	let subMenuShown = $state(false);
 	let followingMenuShown = $state(false);
 	let tagMenuShown = $state(false);
-	let commandPaletteOpen = $state(false);
 	let isMac = $state(false);
 	let scroll = window.scrollY;
+
+	// Enhanced live search state
+	let navSearchQuery = $state("");
+	let navSearchFocused = $state(false);
+	let navSearchResults: Media[] = $state([]);
+	let navSearchLoading = $state(false);
+	let navSelectedIndex = $state(-1);
+	let navSearchDebounce: number;
+
+	function performNavSearch(query: string) {
+		clearTimeout(navSearchDebounce);
+		if (!query || query.trim().length < 2) {
+			navSearchResults = [];
+			navSearchLoading = false;
+			navSelectedIndex = -1;
+			return;
+		}
+		navSearchLoading = true;
+		navSearchDebounce = window.setTimeout(async () => {
+			try {
+				const res = await req.get<PaginationResponse<Media, unknown>>("/search", {
+					params: {
+						query: query.trim(),
+						type: "multi",
+						page: 1,
+						preferMyList: "true",
+					},
+				});
+				if (res?.results) {
+					navSearchResults = res.results.slice(0, 6);
+				} else {
+					navSearchResults = [];
+				}
+			} catch (err) {
+				console.error("Live search failed:", err);
+				navSearchResults = [];
+			} finally {
+				navSearchLoading = false;
+				navSelectedIndex = -1;
+			}
+		}, 200);
+	}
+
+	function getMediaHref(m: Media): string {
+		switch (m.type) {
+			case MediaTypeE.tmdbMovie:
+				return `/movie/${m.ids.tmdb}`;
+			case MediaTypeE.tmdbShow:
+				return `/tv/${m.ids.tmdb}`;
+			case MediaTypeE.igdbGame:
+				return `/game/${m.ids.igdb}`;
+			default:
+				if (m.ids.tmdb) return `/movie/${m.ids.tmdb}`;
+				return `/search?query=${encodeURIComponent(m.name || "")}`;
+		}
+	}
+
+	function getMediaPosterUrl(m: Media): string | undefined {
+		if (m.poster?.path) return `${baseURL}/${m.poster.path}`;
+		if (m.extPosterPath) {
+			if (m.type === MediaTypeE.igdbGame) {
+				return `https://images.igdb.com/igdb/image/upload/t_cover_big/${m.extPosterPath}.jpg`;
+			}
+			return `https://image.tmdb.org/t/p/w92${m.extPosterPath}`;
+		}
+		return undefined;
+	}
+
+	function getMediaBadge(m: Media): string {
+		switch (m.type) {
+			case MediaTypeE.tmdbMovie:
+				return "Movie";
+			case MediaTypeE.tmdbShow:
+				return "TV";
+			case MediaTypeE.igdbGame:
+				return "Game";
+			default:
+				return "Media";
+		}
+	}
+
+	function getMediaYear(m: Media): string | undefined {
+		if (!m.releaseDate) return undefined;
+		const y = new Date(m.releaseDate).getFullYear();
+		return isNaN(y) ? undefined : String(y);
+	}
+
+	function navigateToMedia(m: Media) {
+		const href = getMediaHref(m);
+		navSearchFocused = false;
+		navSearchResults = [];
+		navSearchQuery = "";
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		goto(resolve(href as any));
+	}
+
+	function submitFullSearch(q?: string) {
+		const query = (q !== undefined ? q : navSearchQuery).trim();
+		if (!query) return;
+		navSearchFocused = false;
+		navSearchResults = [];
+		navSearchQuery = "";
+		goto(resolve(`/search?query=${encodeURIComponent(query)}&preferMyList=true`));
+	}
+
+	function handleSearchKeyDown(ev: KeyboardEvent) {
+		if (ev.key === "ArrowDown") {
+			if (navSearchResults.length > 0) {
+				ev.preventDefault();
+				navSelectedIndex = (navSelectedIndex + 1) % navSearchResults.length;
+			}
+		} else if (ev.key === "ArrowUp") {
+			if (navSearchResults.length > 0) {
+				ev.preventDefault();
+				navSelectedIndex =
+					navSelectedIndex <= 0
+						? navSearchResults.length - 1
+						: navSelectedIndex - 1;
+			}
+		} else if (ev.key === "Enter") {
+			ev.preventDefault();
+			if (navSelectedIndex >= 0 && navSearchResults[navSelectedIndex]) {
+				navigateToMedia(navSearchResults[navSelectedIndex]);
+			} else {
+				submitFullSearch();
+			}
+		} else if (ev.key === "Escape") {
+			navSearchFocused = false;
+			navSearchResults = [];
+			mainSearchEl?.blur();
+		}
+	}
+
+	function focusSearch() {
+		mainSearchEl?.focus();
+		mainSearchEl?.select();
+	}
 
 	function handleProfileClick() {
 		if (!localStorage.getItem("token")) {
@@ -87,6 +227,15 @@
 		}
 		if (s) {
 			store.userSettings = s;
+			if (s.uiLanguage && (s.uiLanguage === "en" || s.uiLanguage === "pt")) {
+				i18n.setLocale(s.uiLanguage);
+			}
+			if (
+				s.theme &&
+				(s.theme === "system" || s.theme === "dark" || s.theme === "light")
+			) {
+				toggleTheme(s.theme);
+			}
 		}
 		if (f) {
 			store.serverFeatures = f;
@@ -109,13 +258,14 @@
 	 * Close open nav menus when clicking into the page outside of nav menu wrappers (#813).
 	 */
 	function handleDocumentPointerDown(ev: PointerEvent) {
-		if (!subMenuShown && !followingMenuShown && !tagMenuShown) return;
 		const target = ev.target as HTMLElement | null;
 		if (
 			!target?.closest(".nav-item-wrap") &&
-			!target?.closest(".mobile-bottom-bar")
+			!target?.closest(".mobile-bottom-bar") &&
+			!target?.closest(".search")
 		) {
 			closeAllSubMenus();
+			navSearchFocused = false;
 		}
 	}
 
@@ -149,26 +299,43 @@
 		document.body.classList.add("nav-shown");
 		if (currentScrollY > 80 && scroll < currentScrollY) {
 			closeAllSubMenus();
+			navSearchFocused = false;
 		}
 		scroll = Math.max(0, currentScrollY);
 	}
 
 	function handleGlobalKeybind(ev: KeyboardEvent) {
-		if (ev.key === "Escape" && (subMenuShown || followingMenuShown || tagMenuShown)) {
+		if (
+			ev.key === "Escape" &&
+			(subMenuShown || followingMenuShown || tagMenuShown || navSearchFocused)
+		) {
 			closeAllSubMenus();
+			navSearchFocused = false;
+			navSearchResults = [];
 			return;
 		}
 		const isCmdOrCtrl = ev.ctrlKey || ev.metaKey;
 		const key = ev.key.toLowerCase();
-		if (isCmdOrCtrl && (key === "k" || key === "p")) {
+		if (isCmdOrCtrl && (key === "k" || key === "p" || key === "s")) {
 			ev.preventDefault();
-			commandPaletteOpen = !commandPaletteOpen;
+			focusSearch();
+			return;
+		}
+		if (key === "/" && !isCmdOrCtrl) {
+			const target = ev.target as HTMLElement | null;
+			const tag = target?.tagName?.toLowerCase();
+			if (tag !== "input" && tag !== "textarea" && !target?.isContentEditable) {
+				ev.preventDefault();
+				focusSearch();
+			}
 		}
 	}
 
 	afterNavigate(() => {
 		decideOnNavSplit();
 		closeAllSubMenus();
+		navSearchFocused = false;
+		navSearchResults = [];
 	});
 
 	onMount(() => {
@@ -255,28 +422,107 @@
 				</a>
 			</div>
 		</div>
-		<div
-			class="search clickable"
-			role="button"
-			tabindex="0"
-			onclick={() => (commandPaletteOpen = true)}
-			onkeydown={(e) => {
-				if (e.key === "Enter" || e.key === " ") {
-					e.preventDefault();
-					commandPaletteOpen = true;
-				}
-			}}
-		>
+		<div class="search" class:is-focused={navSearchFocused}>
 			<span class="search-icon">
 				<Icon i="search" wh={16} />
 			</span>
 			<input
+				bind:this={mainSearchEl}
 				type="text"
 				placeholder={`${t("nav.search_placeholder")} (${isMac ? "⌘K" : "Ctrl+K"})`}
-				readonly
-				tabindex="-1"
+				bind:value={navSearchQuery}
+				oninput={(e) => performNavSearch((e.target as HTMLInputElement).value)}
+				onfocus={() => {
+					navSearchFocused = true;
+					if (navSearchQuery.trim().length >= 2 && navSearchResults.length === 0) {
+						performNavSearch(navSearchQuery);
+					}
+				}}
+				onkeydown={handleSearchKeyDown}
+				aria-label={t("nav.search_placeholder")}
+				autocomplete="off"
+				spellcheck="false"
 			/>
-			<kbd class="search-kbd">{isMac ? "⌘K" : "Ctrl+K"}</kbd>
+			{#if navSearchLoading}
+				<span class="search-spinner" aria-hidden="true"></span>
+			{:else if navSearchQuery}
+				<button
+					type="button"
+					class="plain search-clear-btn"
+					onclick={() => {
+						navSearchQuery = "";
+						navSearchResults = [];
+						mainSearchEl?.focus();
+					}}
+					aria-label="Clear search"
+				>
+					<Icon i="close" wh={13} />
+				</button>
+			{:else}
+				<kbd class="search-kbd">{isMac ? "⌘K" : "Ctrl+K"}</kbd>
+			{/if}
+
+			{#if navSearchFocused && (navSearchResults.length > 0 || (navSearchQuery.trim().length >= 2 && !navSearchLoading))}
+				<div class="search-preview-popover" role="listbox">
+					{#if navSearchResults.length > 0}
+						<div class="preview-results-list">
+							{#each navSearchResults as item, idx (item.ids.tmdb || item.ids.igdb || item.name || idx)}
+								<a
+									href={resolve(getMediaHref(item) as any)}
+									class="preview-item {navSelectedIndex === idx ? 'selected' : ''}"
+									onclick={(e) => {
+										e.preventDefault();
+										navigateToMedia(item);
+									}}
+									onmouseenter={() => (navSelectedIndex = idx)}
+									role="option"
+									aria-selected={navSelectedIndex === idx}
+								>
+									<div class="preview-thumb">
+										{#if getMediaPosterUrl(item)}
+											<img src={getMediaPosterUrl(item)} alt="" />
+										{:else}
+											<div class="preview-thumb-fallback">
+												<Icon i="film" wh={14} />
+											</div>
+										{/if}
+									</div>
+									<div class="preview-info">
+										<div class="preview-title-row">
+											<span class="preview-title">{item.name || "Untitled"}</span>
+											{#if item.watched}
+												<span class="preview-watched-tag">Na Lista</span>
+											{/if}
+										</div>
+										<div class="preview-sub">
+											<span class="preview-badge {getMediaBadge(item).toLowerCase()}">
+												{getMediaBadge(item)}
+											</span>
+											{#if getMediaYear(item)}
+												<span class="preview-year">{getMediaYear(item)}</span>
+											{/if}
+										</div>
+									</div>
+								</a>
+							{/each}
+						</div>
+						<div class="preview-footer">
+							<button
+								type="button"
+								class="plain preview-view-all"
+								onclick={() => submitFullSearch()}
+							>
+								<span>Ver todos os resultados para <strong>"{navSearchQuery.trim()}"</strong></span>
+								<kbd>Enter ↵</kbd>
+							</button>
+						</div>
+					{:else if !navSearchLoading}
+						<div class="preview-empty">
+							<span>Nenhum resultado para "{navSearchQuery.trim()}"</span>
+						</div>
+					{/if}
+				</div>
+			{/if}
 		</div>
 		<div class="btns">
 			<!-- Tags menu -->
@@ -376,21 +622,25 @@
 			</div>
 		</div>
 	</div>
-	<div
-		class="search-small-bar"
-		role="button"
-		tabindex="0"
-		onclick={() => (commandPaletteOpen = true)}
-		onkeydown={(e) => {
-			if (e.key === "Enter" || e.key === " ") {
-				e.preventDefault();
-				commandPaletteOpen = true;
-			}
-		}}
-	>
+	<div class="search-small-bar">
 		<Icon i="search" wh={15} />
-		<span>Search or jump to...</span>
-		<kbd>{isMac ? "⌘K" : "Ctrl+K"}</kbd>
+		<input
+			type="text"
+			placeholder={`${t("nav.search_placeholder")}...`}
+			bind:value={navSearchQuery}
+			onkeydown={handleSearchKeyDown}
+			onfocus={() => {
+				navSearchFocused = true;
+			}}
+		/>
+		<button
+			type="button"
+			class="plain search-small-go"
+			onclick={() => submitFullSearch()}
+			aria-label="Search"
+		>
+			<Icon i="arrow" wh={12} />
+		</button>
 	</div>
 </nav>
 
@@ -431,14 +681,14 @@
 		<Icon i="compass" wh={20} />
 		<span>{t("nav.discover")}</span>
 	</a>
-	<button
-		class="nav-tab plain {commandPaletteOpen ? 'active' : ''}"
-		onclick={() => (commandPaletteOpen = true)}
-		aria-label="Search and Commands"
+	<a
+		href={resolve("/search")}
+		class="nav-tab {page.url?.pathname.startsWith('/search') ? 'active' : ''}"
+		aria-label={t("nav.search")}
 	>
 		<Icon i="search" wh={20} />
 		<span>{t("nav.search")}</span>
-	</button>
+	</a>
 	<button
 		class="nav-tab plain {tagMenuShown ? 'active' : ''}"
 		onclick={() => {
@@ -475,11 +725,6 @@
 {#if page.state.handbook}
 	<HandbookModal onClose={() => history.back()} />
 {/if}
-
-<CommandPalette
-	bind:open={commandPaletteOpen}
-	onClose={() => (commandPaletteOpen = false)}
-/>
 
 <style lang="scss">
 	nav.top-nav {
@@ -624,16 +869,10 @@
 
 		.search {
 			width: 100%;
-			max-width: 360px;
+			max-width: 380px;
 			position: relative;
 			display: flex;
 			align-items: center;
-			cursor: pointer;
-
-			&:hover input {
-				border-color: rgba(99, 102, 241, 0.35);
-				background-color: var(--input-bg, rgba(255, 255, 255, 0.07));
-			}
 
 			.search-icon {
 				position: absolute;
@@ -645,6 +884,45 @@
 				color: $placeholder-color;
 				fill: $placeholder-color;
 				z-index: 2;
+			}
+
+			.search-spinner {
+				position: absolute;
+				right: 12px;
+				width: 14px;
+				height: 14px;
+				border: 2px solid rgba(255, 255, 255, 0.2);
+				border-top-color: $brand-color;
+				border-radius: 50%;
+				animation: spin 0.6s linear infinite;
+				z-index: 2;
+			}
+
+			@keyframes spin {
+				to {
+					transform: rotate(360deg);
+				}
+			}
+
+			.search-clear-btn {
+				position: absolute;
+				right: 10px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				width: 22px;
+				height: 22px;
+				border-radius: 50%;
+				background: rgba(255, 255, 255, 0.08);
+				color: $placeholder-color;
+				cursor: pointer;
+				z-index: 2;
+				transition: all 120ms ease;
+
+				&:hover {
+					background: rgba(255, 255, 255, 0.16);
+					color: #ffffff;
+				}
 			}
 
 			.search-kbd {
@@ -690,12 +968,194 @@
 
 				&:hover {
 					border-color: var(--card-border, rgba(255, 255, 255, 0.2));
+					background-color: var(--input-bg, rgba(255, 255, 255, 0.06));
 				}
 
 				&:focus {
 					background-color: var(--card-bg, $bg-color);
 					border-color: $brand-color;
 					box-shadow: 0 0 0 3px $brand-glow;
+				}
+			}
+
+			.search-preview-popover {
+				position: absolute;
+				top: calc(100% + 8px);
+				left: 0;
+				right: 0;
+				min-width: 320px;
+				max-height: 420px;
+				background: rgba(18, 21, 28, 0.98);
+				backdrop-filter: blur(20px);
+				-webkit-backdrop-filter: blur(20px);
+				border: 1px solid var(--card-border, rgba(255, 255, 255, 0.12));
+				border-radius: 12px;
+				box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+				z-index: 99995;
+				overflow: hidden;
+				display: flex;
+				flex-direction: column;
+
+				.preview-results-list {
+					display: flex;
+					flex-direction: column;
+					padding: 6px;
+					overflow-y: auto;
+					max-height: 350px;
+					gap: 2px;
+				}
+
+				.preview-item {
+					display: flex;
+					align-items: center;
+					gap: 12px;
+					padding: 6px 8px;
+					border-radius: 8px;
+					text-decoration: none;
+					color: $text-color;
+					transition: background-color 120ms ease;
+					cursor: pointer;
+
+					&:hover,
+					&.selected {
+						background-color: rgba(255, 255, 255, 0.08);
+					}
+
+					.preview-thumb {
+						width: 28px;
+						height: 40px;
+						border-radius: 4px;
+						overflow: hidden;
+						flex-shrink: 0;
+						background: rgba(255, 255, 255, 0.05);
+						border: 1px solid rgba(255, 255, 255, 0.08);
+
+						img {
+							width: 100%;
+							height: 100%;
+							object-fit: cover;
+						}
+
+						.preview-thumb-fallback {
+							width: 100%;
+							height: 100%;
+							display: flex;
+							align-items: center;
+							justify-content: center;
+							color: $placeholder-color;
+						}
+					}
+
+					.preview-info {
+						display: flex;
+						flex-direction: column;
+						min-width: 0;
+						flex: 1;
+						gap: 2px;
+
+						.preview-title-row {
+							display: flex;
+							align-items: center;
+							gap: 6px;
+
+							.preview-title {
+								font-size: 13px;
+								font-weight: 600;
+								color: $text-color;
+								white-space: nowrap;
+								overflow: hidden;
+								text-overflow: ellipsis;
+							}
+
+							.preview-watched-tag {
+								font-size: 9px;
+								font-weight: 700;
+								padding: 1px 5px;
+								border-radius: 9999px;
+								background: rgba(245, 158, 11, 0.2);
+								border: 1px solid rgba(245, 158, 11, 0.4);
+								color: $brand-color;
+								flex-shrink: 0;
+								text-transform: uppercase;
+							}
+						}
+
+						.preview-sub {
+							display: flex;
+							align-items: center;
+							gap: 6px;
+							font-size: 11px;
+							color: $text-color-accent;
+
+							.preview-badge {
+								font-size: 10px;
+								font-weight: 600;
+								padding: 1px 4px;
+								border-radius: 4px;
+								background: rgba(255, 255, 255, 0.08);
+								text-transform: uppercase;
+								letter-spacing: 0.02em;
+
+								&.movie {
+									color: #60a5fa;
+								}
+								&.tv {
+									color: #34d399;
+								}
+								&.game {
+									color: #c084fc;
+								}
+							}
+
+							.preview-year {
+								font-weight: 500;
+							}
+						}
+					}
+				}
+
+				.preview-footer {
+					padding: 6px 8px;
+					border-top: 1px solid rgba(255, 255, 255, 0.06);
+					background: rgba(0, 0, 0, 0.2);
+
+					.preview-view-all {
+						width: 100%;
+						display: flex;
+						align-items: center;
+						justify-content: space-between;
+						padding: 6px 10px;
+						border-radius: 6px;
+						font-size: 12px;
+						color: $text-color-accent;
+						cursor: pointer;
+						transition: all 120ms ease;
+
+						strong {
+							color: $text-color;
+						}
+
+						kbd {
+							font-size: 10px;
+							padding: 1px 5px;
+							border-radius: 4px;
+							background: rgba(255, 255, 255, 0.08);
+							border: 1px solid rgba(255, 255, 255, 0.1);
+							color: $brand-color;
+						}
+
+						&:hover {
+							background: rgba(255, 255, 255, 0.08);
+							color: #ffffff;
+						}
+					}
+				}
+
+				.preview-empty {
+					padding: 18px 12px;
+					text-align: center;
+					font-size: 12.5px;
+					color: $text-color-accent;
 				}
 			}
 
@@ -724,31 +1184,35 @@
 			width: 100%;
 			max-width: 340px;
 			margin: 4px auto 0 auto;
-			padding: 7px 16px;
+			padding: 4px 12px;
 			border-radius: 9999px;
 			border: 1px solid var(--input-border, rgba(255, 255, 255, 0.12));
 			background-color: var(--input-bg, rgba(255, 255, 255, 0.04));
-			color: $placeholder-color;
+			color: $text-color;
 			font-size: 13px;
 			font-weight: 500;
-			cursor: pointer;
-			user-select: none;
-			transition: all 140ms ease;
+			box-sizing: border-box;
 
-			kbd {
-				margin-left: auto;
-				padding: 1px 5px;
-				font-size: 10px;
-				border-radius: 4px;
-				background: rgba(255, 255, 255, 0.08);
-				border: 1px solid rgba(255, 255, 255, 0.1);
-				color: $text-color-accent;
+			input {
+				background: transparent;
+				border: none;
+				outline: none;
+				color: $text-color;
+				width: 100%;
+				font-size: 13px;
+
+				&::placeholder {
+					color: $placeholder-color;
+				}
 			}
 
-			&:hover {
-				border-color: rgba(99, 102, 241, 0.4);
-				background-color: rgba(255, 255, 255, 0.08);
-				color: #ffffff;
+			.search-small-go {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				padding: 4px;
+				color: $brand-color;
+				cursor: pointer;
 			}
 		}
 
