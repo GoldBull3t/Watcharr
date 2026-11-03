@@ -82,6 +82,10 @@ type UserSettings struct {
 	Country *string `gorm:"default:'US'" json:"country"`
 	// User's preferred language for TMDB metadata (e.g. en-US, de-DE, tr-TR, pt-BR).
 	Language *string `gorm:"default:'en-US'" json:"language"`
+	// User's preferred UI display language ("en", "pt").
+	UiLanguage *string `gorm:"default:'en'" json:"uiLanguage"`
+	// User's preferred theme ("system", "dark", "light").
+	Theme *string `gorm:"default:'system'" json:"theme"`
 	// Does the user want show, season and episode automations enabled.
 	AutomateShowStatuses *bool `gorm:"default:true" json:"automateShowStatuses"`
 	// Webhook URL for Calendar notifications (Discord, Slack, Ntfy, Generic)

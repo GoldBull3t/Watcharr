@@ -347,6 +347,8 @@ export interface UserSettings {
 	includePreviouslyWatched: boolean;
 	country: string;
 	language?: string;
+	uiLanguage?: "en" | "pt";
+	theme?: "system" | "dark" | "light";
 	automateShowStatuses: boolean;
 	calendarWebhookUrl?: string;
 	calendarWebhookEnabled?: boolean;
@@ -877,6 +879,7 @@ export interface ServerConfig {
 	METADATA_PROVIDER?: "tmdb" | "tvdb";
 	OMDB_KEY?: string;
 	MDBLIST_KEY?: string;
+	STEAM_KEY?: string;
 	PLEX_HOST?: string;
 	PLEX_MACHINE_ID?: string;
 	OVERSEERR_HOST?: string;

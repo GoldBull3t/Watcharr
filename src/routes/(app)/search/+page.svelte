@@ -32,12 +32,68 @@
 
 	let { data } = $props();
 
-	let searchInputText = $derived(data?.query || "");
+	let searchInputText = $state("");
 	let searchInputEl: HTMLInputElement | undefined = $state();
+	let liveDebounce: number;
+	let recentSearches = $state<string[]>([]);
+
+	$effect(() => {
+		const q = data?.query || "";
+		if (q !== searchInputText) {
+			searchInputText = q;
+		}
+	});
+
+	function loadRecentSearches() {
+		try {
+			const raw = localStorage.getItem("watcharr_recent_searches");
+			if (raw) {
+				recentSearches = JSON.parse(raw);
+			}
+		} catch {}
+	}
+
+	function saveRecentSearch(q: string) {
+		const trimmed = q.trim();
+		if (!trimmed) return;
+		try {
+			const list = recentSearches.filter((s) => s.toLowerCase() !== trimmed.toLowerCase());
+			list.unshift(trimmed);
+			const capped = list.slice(0, 8);
+			recentSearches = capped;
+			localStorage.setItem("watcharr_recent_searches", JSON.stringify(capped));
+		} catch {}
+	}
+
+	function clearRecentSearches() {
+		recentSearches = [];
+		try {
+			localStorage.removeItem("watcharr_recent_searches");
+		} catch {}
+	}
+
+	function removeRecentSearch(item: string) {
+		recentSearches = recentSearches.filter((s) => s !== item);
+		try {
+			localStorage.setItem("watcharr_recent_searches", JSON.stringify(recentSearches));
+		} catch {}
+	}
 
 	function clearSearchInput() {
 		searchInputText = "";
 		searchInputEl?.focus();
+	}
+
+	function handleDirectInput(val: string) {
+		searchInputText = val;
+		clearTimeout(liveDebounce);
+		const trimmed = val.trim();
+		if (!trimmed) return;
+		liveDebounce = window.setTimeout(() => {
+			if (trimmed !== (data?.query || "").trim()) {
+				applySearchQuery(trimmed);
+			}
+		}, 380);
 	}
 
 	function submitSearchInput(e: Event) {
@@ -165,6 +221,7 @@
 	}
 
 	onMount(() => {
+		loadRecentSearches();
 		if (!store.searchQuery && data?.query) {
 			store.searchQuery = data.query;
 		}
@@ -202,6 +259,7 @@
 	}
 
 	function applySearchQuery(q: string) {
+		saveRecentSearch(q);
 		store.searchQuery = q;
 		const curLocation = new URL(page.url);
 		curLocation.searchParams.set("query", q);
@@ -233,6 +291,7 @@
 			<input
 				bind:this={searchInputEl}
 				bind:value={searchInputText}
+				oninput={(e) => handleDirectInput((e.target as HTMLInputElement).value)}
 				type="text"
 				name="query"
 				placeholder="Search movies, TV shows, games, people..."
@@ -255,6 +314,44 @@
 			{/if}
 			<button type="submit" class="search-submit-btn">Search</button>
 		</form>
+
+		{#if !data?.query && recentSearches.length > 0}
+			<div class="recent-searches-box">
+				<div class="recent-searches-header">
+					<span class="recent-title">
+						<Icon i="clock" wh={14} /> Pesquisas Recentes
+					</span>
+					<button
+						type="button"
+						class="plain recent-clear-all"
+						onclick={clearRecentSearches}
+					>
+						Limpar histórico
+					</button>
+				</div>
+				<div class="recent-pills">
+					{#each recentSearches as item (item)}
+						<div class="recent-pill">
+							<button
+								type="button"
+								class="plain pill-query"
+								onclick={() => applySearchQuery(item)}
+							>
+								{item}
+							</button>
+							<button
+								type="button"
+								class="plain pill-remove"
+								onclick={() => removeRecentSearch(item)}
+								aria-label="Remover pesquisa"
+							>
+								<Icon i="close" wh={11} />
+							</button>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
 
 		{#if data?.query}
 			<!-- Users Search Results Rail -->
@@ -505,6 +602,87 @@
 		.inner {
 			width: 100%;
 			max-width: 1400px;
+		}
+	}
+
+	.recent-searches-box {
+		margin-bottom: 24px;
+		padding: 14px 16px;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 10px;
+
+		.recent-searches-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-bottom: 10px;
+
+			.recent-title {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				font-size: 12px;
+				font-weight: 600;
+				color: $text-color-accent;
+				text-transform: uppercase;
+				letter-spacing: 0.03em;
+			}
+
+			.recent-clear-all {
+				font-size: 11px;
+				color: $placeholder-color;
+				cursor: pointer;
+				transition: color 120ms ease;
+
+				&:hover {
+					color: $text-color;
+					text-decoration: underline;
+				}
+			}
+		}
+
+		.recent-pills {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+
+			.recent-pill {
+				display: inline-flex;
+				align-items: center;
+				background: rgba(255, 255, 255, 0.06);
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				border-radius: 9999px;
+				padding: 3px 8px 3px 12px;
+				transition: all 120ms ease;
+
+				&:hover {
+					background: rgba(255, 255, 255, 0.1);
+					border-color: rgba(245, 158, 11, 0.4);
+				}
+
+				.pill-query {
+					font-size: 12px;
+					font-weight: 500;
+					color: $text-color;
+					cursor: pointer;
+				}
+
+				.pill-remove {
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					margin-left: 6px;
+					padding: 2px;
+					border-radius: 50%;
+					color: $placeholder-color;
+					cursor: pointer;
+
+					&:hover {
+						color: #ef4444;
+					}
+				}
+			}
 		}
 	}
 

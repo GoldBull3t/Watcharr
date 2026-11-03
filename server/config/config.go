@@ -586,12 +586,22 @@ func (c *ServerConfig) Write() error {
 	if err != nil {
 		return err
 	}
+	if err := os.MkdirAll(DataPath, 0755); err != nil {
+		return err
+	}
 	cfgPath := path.Join(DataPath, "watcharr.json")
 	tmpPath := cfgPath + ".tmp"
 	if err := os.WriteFile(tmpPath, barej, 0600); err != nil {
 		return err
 	}
-	return os.Rename(tmpPath, cfgPath)
+	if err := os.Rename(tmpPath, cfgPath); err != nil {
+		_ = os.Remove(cfgPath)
+		if err2 := os.Rename(tmpPath, cfgPath); err2 != nil {
+			_ = os.Remove(tmpPath)
+			return os.WriteFile(cfgPath, barej, 0600)
+		}
+	}
+	return nil
 }
 
 func (c *ServerConfig) SaveTwitchConfig(newt igdb.IGDB) error {
@@ -679,6 +689,9 @@ func generateConfig() (*ServerConfig, error) {
 	}
 	barej, err := json.MarshalIndent(cfg, "", "\t")
 	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(DataPath, 0755); err != nil {
 		return nil, err
 	}
 	return &cfg, os.WriteFile(path.Join(DataPath, "watcharr.json"), barej, 0600)
