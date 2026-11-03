@@ -16,11 +16,11 @@
 		onChange,
 	}: Props = $props();
 
-	let mappedCountries: DropDownItem[] = $state([]);
+	let countriesPromise = getCountries();
 
-	async function getCountries() {
+	async function getCountries(): Promise<DropDownItem[]> {
 		const c = await req.get<TMDBRegions>(`/content/regions`);
-		mappedCountries = c.results
+		return (c?.results ?? [])
 			.map((cc) => {
 				return {
 					id: cc.iso_3166_1,
@@ -31,13 +31,22 @@
 	}
 </script>
 
-{#await getCountries() then}
+{#await countriesPromise}
+	<DropDown
+		placeholder="Select a country"
+		options={[]}
+		disabled={true}
+	/>
+{:then mappedCountries}
 	<DropDown
 		placeholder="Select a country"
 		bind:active={selectedCountry}
 		options={mappedCountries}
-		onChange={() => onChange(selectedCountry)}
+		onChange={() => {
+			if (selectedCountry) onChange(selectedCountry);
+		}}
 		isDropDownItem={true}
+		showActiveElementsInOptions={true}
 		{disabled}
 	/>
 {:catch err}

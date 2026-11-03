@@ -16,7 +16,6 @@
 		onChange,
 	}: Props = $props();
 
-	let mappedLanguages: DropDownItem[] = $state([]);
 	let languagesPromise = getLanguages();
 
 	function getLanguageLabel(code: string): string {
@@ -29,9 +28,9 @@
 		}
 	}
 
-	async function getLanguages() {
+	async function getLanguages(): Promise<DropDownItem[]> {
 		const langs = await req.get<string[]>(`/content/languages`);
-		mappedLanguages = langs
+		return (langs ?? [])
 			.map((code) => {
 				return {
 					id: code,
@@ -42,13 +41,22 @@
 	}
 </script>
 
-{#await languagesPromise then}
+{#await languagesPromise}
+	<DropDown
+		placeholder="Select a language"
+		options={[]}
+		disabled={true}
+	/>
+{:then mappedLanguages}
 	<DropDown
 		placeholder="Select a language"
 		bind:active={selectedLanguage}
 		options={mappedLanguages}
-		onChange={() => onChange(selectedLanguage)}
+		onChange={() => {
+			if (selectedLanguage) onChange(selectedLanguage);
+		}}
 		isDropDownItem={true}
+		showActiveElementsInOptions={true}
 		{disabled}
 	/>
 {:catch err}
