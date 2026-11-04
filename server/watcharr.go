@@ -31,6 +31,7 @@ import (
 	"github.com/sbondCo/Watcharr/database/entity"
 	"github.com/sbondCo/Watcharr/domain"
 	"github.com/sbondCo/Watcharr/feature/activity"
+	"github.com/sbondCo/Watcharr/feature/addon"
 	"github.com/sbondCo/Watcharr/feature/arr"
 	"github.com/sbondCo/Watcharr/feature/auth"
 	"github.com/sbondCo/Watcharr/feature/backup"
@@ -376,6 +377,8 @@ func main() {
 	calendar.NewRouter(br, calendarService).AddRoutes()
 	integrationService := integration.NewService(db, cfg, tmdbService, calendarService)
 	integration.NewRouter(br, integrationService).AddRoutes()
+	addonService := addon.NewService(db, cfg, tmdbService, watchedService, watchedEpisodeService, integrationService)
+	addon.NewRouter(br, addonService).AddRoutes()
 	franchiseService := franchise.NewService(db, cfg, tmdbService, watchedService)
 	franchise.NewRouter(br, franchiseService).AddRoutes()
 	pushService := push.NewService(db)

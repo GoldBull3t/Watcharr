@@ -41,6 +41,7 @@
 	import GenreDonutChart from "@/lib/profile/GenreDonutChart.svelte";
 	import BackupManagementModal from "@/lib/profile/BackupManagementModal.svelte";
 	import ActivityWebhookModal from "@/lib/profile/ActivityWebhookModal.svelte";
+	import NuvioAddonModal from "./modals/NuvioAddonModal.svelte";
 
 	let user = $derived(store.userInfo);
 	let settings = $derived(store.userSettings);
@@ -77,6 +78,7 @@
 	let calendarWebhookModalOpen = $state(false);
 	let activityWebhookModalOpen = $state(false);
 	let backupModalOpen = $state(false);
+	let nuvioModalOpen = $state(false);
 	let dashboardModalOpen = $state(false);
 	let clearLibraryModalOpen = $state(false);
 	let isWipingLibrary = $state(false);
@@ -1020,6 +1022,27 @@
 				</div>
 			</div>
 
+			<!-- Android TV (NuvioTV) Addon -->
+			<div class="settings-card nuvio-card">
+				<div class="webhook-settings-header">
+					<div>
+						<div class="card-title-row" style="display: flex; align-items: center; gap: 8px;">
+							<h4 class="card-title">Android TV & NuvioTV Addon</h4>
+							<span class="status-badge live" style="background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.4); font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">NATIVO</span>
+						</div>
+						<p class="card-desc">
+							Acede à tua biblioteca do Watcharr na Android TV sem instalar apps extras. Suporta sincronização automática de episódios e filmes vistos.
+						</p>
+					</div>
+					<button
+						class="btn-action primary-accent"
+						onclick={() => (nuvioModalOpen = true)}
+					>
+						<Icon i="tv" wh={16} /> Configurar Addon TV
+					</button>
+				</div>
+			</div>
+
 			<!-- Real-Time Activity Webhooks -->
 			<div class="settings-card">
 				<div class="webhook-settings-header">
@@ -1197,6 +1220,7 @@
 				/>
 			{/if}
 			<DashboardIntegrationModal bind:open={dashboardModalOpen} />
+			<NuvioAddonModal bind:open={nuvioModalOpen} onClose={() => (nuvioModalOpen = false)} />
 		</section>
 	</div>
 </div>
