@@ -208,3 +208,4 @@ func (r *Router) HandleSimklScrobble(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"result": "OK", "action": "scrobble_recorded"})
 }
+

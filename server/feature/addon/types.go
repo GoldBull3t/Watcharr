@@ -84,3 +84,4 @@ type ScrobblePayload struct {
 	EpisodeNumber int     `json:"episodeNumber"` // For TV
 	Progress      float64 `json:"progress"`      // 0 - 100 percentage
 }
+

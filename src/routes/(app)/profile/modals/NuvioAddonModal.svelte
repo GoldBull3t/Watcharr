@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import axios from "axios";
 	import Modal from "$lib/Modal.svelte";
 	import Icon from "$lib/Icon.svelte";
 	import { notify } from "$lib/util/notify";
@@ -25,9 +24,12 @@
 	async function fetchApiKey() {
 		loading = true;
 		try {
-			const res = await axios.get("/api/user/api-key");
-			if (res.data && res.data.apiKey) {
-				apiKey = res.data.apiKey;
+			const res = await fetch("/api/user/api-key");
+			if (res.ok) {
+				const data = await res.json();
+				if (data && data.apiKey) {
+					apiKey = data.apiKey;
+				}
 			}
 		} catch (err) {
 			console.error("Falha ao obter API Key:", err);
@@ -43,10 +45,15 @@
 		}
 		loading = true;
 		try {
-			const res = await axios.post("/api/user/api-key/regenerate");
-			if (res.data && res.data.apiKey) {
-				apiKey = res.data.apiKey;
-				notify({ text: "Nova chave de API gerada com sucesso!", type: "success" });
+			const res = await fetch("/api/user/api-key/regenerate", { method: "POST" });
+			if (res.ok) {
+				const data = await res.json();
+				if (data && data.apiKey) {
+					apiKey = data.apiKey;
+					notify({ text: "Nova chave de API gerada com sucesso!", type: "success" });
+				}
+			} else {
+				notify({ text: "Erro ao gerar nova chave de API.", type: "error" });
 			}
 		} catch (err) {
 			notify({ text: "Erro ao gerar nova chave de API.", type: "error" });

@@ -18,3 +18,4 @@ func TestGetManifest(t *testing.T) {
 	assert.Contains(t, m.Types, "series")
 	assert.True(t, len(m.Catalogs) >= 4)
 }
+
