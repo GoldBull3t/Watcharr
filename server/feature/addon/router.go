@@ -3,6 +3,7 @@ package addon
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -105,14 +106,34 @@ func (r *Router) GetCatalog(c *gin.Context) {
 	mediaType := c.Param("type")
 	catalogId := c.Param("id")
 	catalogId = strings.TrimSuffix(catalogId, ".json")
+	extra := c.Param("extra")
 
-	resp, err := r.s.GetCatalog(userId, mediaType, catalogId)
+	skip := parseSkip(extra, c.Query("skip"))
+
+	resp, err := r.s.GetCatalog(userId, mediaType, catalogId, skip)
 	if err != nil {
 		c.JSON(http.StatusOK, CatalogResponse{Metas: []MetaPreview{}})
 		return
 	}
 
 	c.JSON(http.StatusOK, resp)
+}
+
+func parseSkip(extra string, querySkip string) int {
+	if querySkip != "" {
+		if val, err := strconv.Atoi(querySkip); err == nil && val > 0 {
+			return val
+		}
+	}
+	extra = strings.TrimSuffix(extra, ".json")
+	for _, part := range strings.Split(extra, "&") {
+		if strings.HasPrefix(part, "skip=") {
+			if val, err := strconv.Atoi(strings.TrimPrefix(part, "skip=")); err == nil && val > 0 {
+				return val
+			}
+		}
+	}
+	return 0
 }
 
 func (r *Router) GetMeta(c *gin.Context) {

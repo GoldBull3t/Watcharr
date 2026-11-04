@@ -68,7 +68,7 @@ func (s *Service) GetManifest() ManifestResponse {
 		Background:  "https://raw.githubusercontent.com/sbondCo/Watcharr/main/docs/static/img/preview.png",
 		Resources:   []string{"catalog", "meta"},
 		Types:       []string{"movie", "series"},
-		IDPrefixes:  []string{"tmdb:", "tt"},
+		IDPrefixes:  []string{"tmdb:", "tmdb", "tt"},
 		BehaviorHints: &BehaviorHints{
 			Configurable:          false,
 			ConfigurationRequired: false,
@@ -110,7 +110,7 @@ func (s *Service) GetManifest() ManifestResponse {
 	}
 }
 
-func (s *Service) GetCatalog(userId uint, mediaType string, catalogId string) (CatalogResponse, error) {
+func (s *Service) GetCatalog(userId uint, mediaType string, catalogId string, skip int) (CatalogResponse, error) {
 	var status entity.WatchedStatus
 	var targetContentType entity.ContentType
 
@@ -127,19 +127,21 @@ func (s *Service) GetCatalog(userId uint, mediaType string, catalogId string) (C
 		status = entity.WATCHING
 	case "watcharr_planned_series", "watcharr_planned_movies":
 		status = entity.PLANNED
-	case "watcharr_history_series", "watcharr_history_movies":
-		status = entity.FINISHED
 	default:
 		return CatalogResponse{}, fmt.Errorf("unknown catalog id: %s", catalogId)
 	}
 
 	var items []entity.Watched
-	err := s.db.Model(&entity.Watched{}).
+	query := s.db.Model(&entity.Watched{}).
 		Preload("Content").
 		Where("user_id = ? AND status = ?", userId, status).
-		Order("updated_at DESC").
-		Limit(50).
-		Find(&items).Error
+		Order("updated_at DESC")
+
+	if skip > 0 {
+		query = query.Offset(skip)
+	}
+
+	err := query.Limit(50).Find(&items).Error
 	if err != nil {
 		return CatalogResponse{}, err
 	}
@@ -152,6 +154,7 @@ func (s *Service) GetCatalog(userId uint, mediaType string, catalogId string) (C
 
 		c := item.Content
 		poster := integration.BuildPosterURL(c.PosterPath)
+		backdrop := integration.BuildPosterURL(c.BackdropPath)
 
 		var relYear string
 		if c.ReleaseDate != nil {
@@ -179,6 +182,7 @@ func (s *Service) GetCatalog(userId uint, mediaType string, catalogId string) (C
 			Name:        c.Title,
 			Poster:      poster,
 			PosterShape: "poster",
+			Background:  backdrop,
 			Description: c.Overview,
 			ReleaseInfo: relYear,
 			ImdbRating:  fmt.Sprintf("%.1f", c.VoteAverage),

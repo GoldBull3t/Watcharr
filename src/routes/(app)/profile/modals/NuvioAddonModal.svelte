@@ -63,6 +63,10 @@
 		apiKey ? `${hostUrl}/api/addon/${apiKey}/manifest.json` : ""
 	);
 
+	let stremioUrl = $derived(
+		addonManifestUrl ? addonManifestUrl.replace(/^https?:\/\//, "stremio://") : ""
+	);
+
 	function copyUrl() {
 		if (!addonManifestUrl) return;
 		navigator.clipboard.writeText(addonManifestUrl);
@@ -75,14 +79,24 @@
 </script>
 
 {#if open}
-	<Modal title="Addon Watcharr para Android TV (NuvioTV)" desc="Instala a tua biblioteca Watcharr diretamente na tua Android TV" maxWidth="600px">
+	<Modal title="Addon Watcharr para Android TV (NuvioTV & Stremio)" desc="Sincroniza a tua biblioteca e progresso de episódios diretamente na Android TV" maxWidth="620px">
 		<div class="addon-modal-content">
 			<div class="banner">
-				<div class="badge">NATIVO & SEM TRAKT</div>
+				<div class="badge">NATIVO & SEM SERVIÇOS PAGOS</div>
 				<p class="desc">
-					O Watcharr atua como um Addon oficial para o <strong>NuvioTV</strong>.
-					As tuas séries a ver, filmes planeados e progresso sincronizam em tempo real entre a TV da sala e o teu servidor.
+					O Watcharr atua como um Addon oficial compatível com <strong>NuvioTV</strong> e <strong>Stremio</strong>.
+					As tuas séries a ver, filmes planeados e episódios sincronizam em tempo real entre a tua TV e o teu servidor.
 				</p>
+			</div>
+
+			<div class="catalogs-preview">
+				<span class="catalogs-title">Catálogos Sincronizados:</span>
+				<div class="tags-row">
+					<span class="tag">🎬 Séries A Ver</span>
+					<span class="tag">🍿 Filmes A Ver</span>
+					<span class="tag">⏳ Séries Para Ver</span>
+					<span class="tag">📋 Filmes Para Ver</span>
+				</div>
 			</div>
 
 			<div class="section">
@@ -100,19 +114,31 @@
 						{copied ? "Copiado!" : "Copiar"}
 					</button>
 				</div>
+				{#if addonManifestUrl}
+					<div class="links-row">
+						<a class="sub-link" href={addonManifestUrl} target="_blank" rel="noopener noreferrer">
+							<Icon i="globe" wh={13} />
+							Testar no Browser
+						</a>
+						<a class="sub-link" href={stremioUrl}>
+							<Icon i="play" wh={13} />
+							Instalar no Stremio (1-clique)
+						</a>
+					</div>
+				{/if}
 			</div>
 
 			<div class="instructions-card">
-				<h4>Como configurar na Android TV:</h4>
+				<h4>Como configurar na Android TV (NuvioTV):</h4>
 				<ol>
 					<li>
-						Abre o <strong>NuvioTV</strong> na Android TV e vai a <strong>Definições &rarr; Addons</strong> (ou abre a página web de configuração do Nuvio no teu telemóvel na rede local).
+						Abre o <strong>NuvioTV</strong> na Android TV e vai a <strong>Definições &rarr; Addons</strong> (ou cola na interface web do Nuvio no telemóvel).
 					</li>
 					<li>
 						Clica em <strong>Adicionar Addon por URL</strong> e cola o link acima.
 					</li>
 					<li>
-						<strong>Pronto!</strong> Na tela inicial do NuvioTV aparecerão os catálogos <em>Watcharr: Séries A Ver</em> e <em>Watcharr: Filmes Para Ver</em>.
+						Em <strong>Definições &rarr; Conteúdo e Descoberta &rarr; Reordenar Catálogos</strong>, ativa os catálogos do Watcharr para a Página Inicial.
 					</li>
 				</ol>
 			</div>
@@ -164,6 +190,40 @@
 		line-height: 1.4;
 	}
 
+	.catalogs-preview {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		background: var(--bg-surface-2, rgba(255, 255, 255, 0.02));
+		border: 1px solid var(--border-color);
+		padding: 10px 12px;
+		border-radius: 6px;
+	}
+
+	.catalogs-title {
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		color: var(--text-muted);
+	}
+
+	.tags-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+
+	.tag {
+		font-size: 12px;
+		background: rgba(99, 102, 241, 0.15);
+		color: var(--text-color);
+		border: 1px solid rgba(99, 102, 241, 0.3);
+		padding: 3px 8px;
+		border-radius: 4px;
+		font-weight: 500;
+	}
+
 	.section {
 		display: flex;
 		flex-direction: column;
@@ -190,6 +250,27 @@
 		font-size: 13px;
 		font-family: monospace;
 		border-radius: 6px;
+	}
+
+	.links-row {
+		display: flex;
+		gap: 16px;
+		margin-top: 4px;
+	}
+
+	.sub-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		font-size: 12px;
+		color: var(--primary-color, #6366f1);
+		text-decoration: none;
+		transition: opacity 0.15s ease;
+	}
+
+	.sub-link:hover {
+		text-decoration: underline;
+		opacity: 0.85;
 	}
 
 	.copy-btn {
