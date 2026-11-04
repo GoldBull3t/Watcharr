@@ -58,8 +58,9 @@ func TestSeerrRouter(t *testing.T) {
 	defer ts.Close()
 
 	cfg := &config.ServerConfig{
-		OVERSEERR_HOST: ts.URL,
-		OVERSEERR_KEY:  "test_key",
+		OVERSEERR_ENABLED: true,
+		OVERSEERR_HOST:    ts.URL,
+		OVERSEERR_KEY:     "test_key",
 	}
 
 	engine := gin.New()
@@ -136,6 +137,71 @@ func TestSeerrRouter(t *testing.T) {
 		}
 		if resp.ID != 77 {
 			t.Errorf("expected request id 77, got %d", resp.ID)
+		}
+	})
+
+	t.Run("GetStatus Handler returns configured false when disabled by default", func(t *testing.T) {
+		disabledCfg := &config.ServerConfig{
+			OVERSEERR_ENABLED: false,
+			OVERSEERR_HOST:    ts.URL,
+			OVERSEERR_KEY:     "test_key",
+		}
+		disabledRouter := NewRouter(&router.BaseRouter{
+			Router: &engine.RouterGroup,
+			Cfg:    disabledCfg,
+		})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Params = gin.Params{
+			{Key: "type", Value: "movie"},
+			{Key: "tmdbId", Value: "100"},
+		}
+		c.Request = httptest.NewRequest(http.MethodGet, "/status/movie/100", nil)
+
+		disabledRouter.GetStatus(c)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+		}
+		var resp seerr.ContentStatusResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal content status: %v", err)
+		}
+		if resp.Configured {
+			t.Errorf("expected configured false, got true")
+		}
+	})
+
+	t.Run("GetStatus Handler returns 200 UNKNOWN gracefully when upstream fails", func(t *testing.T) {
+		unreachableCfg := &config.ServerConfig{
+			OVERSEERR_ENABLED: true,
+			OVERSEERR_HOST:    "http://127.0.0.1:54321", // non-existent server
+			OVERSEERR_KEY:     "test_key",
+		}
+		unreachableRouter := NewRouter(&router.BaseRouter{
+			Router: &engine.RouterGroup,
+			Cfg:    unreachableCfg,
+		})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Params = gin.Params{
+			{Key: "type", Value: "movie"},
+			{Key: "tmdbId", Value: "100"},
+		}
+		c.Request = httptest.NewRequest(http.MethodGet, "/status/movie/100", nil)
+
+		unreachableRouter.GetStatus(c)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+		}
+		var resp seerr.ContentStatusResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to unmarshal content status: %v", err)
+		}
+		if !resp.Configured {
+			t.Errorf("expected configured true, got false")
+		}
+		if resp.StatusName != "UNKNOWN" {
+			t.Errorf("expected UNKNOWN status, got %s", resp.StatusName)
 		}
 	})
 }

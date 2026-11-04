@@ -68,6 +68,7 @@
 	let countryDisabled = $state(false);
 	let languageDisabled = $state(false);
 	let useEmbyDisabled = $state(false);
+	let overseerrEnabledDisabled = $state(false);
 	let overseerrHostDisabled = $state(false);
 	let overseerrKeyDisabled = $state(false);
 	let overseerrTesting = $state(false);
@@ -756,6 +757,23 @@
 						<div
 							style="display: flex; flex-direction: column; gap: 8px; width: 100%;"
 						>
+							<div
+								style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;"
+							>
+								<span style="font-size: 14px; font-weight: 500;">Enable Integration</span>
+								<Checkbox
+									name="OVERSEERR_ENABLED"
+									disabled={overseerrEnabledDisabled}
+									value={serverConfig.OVERSEERR_ENABLED ?? false}
+									toggled={(on) => {
+										overseerrEnabledDisabled = true;
+										updateServerConfig("OVERSEERR_ENABLED", on, () => {
+											overseerrEnabledDisabled = false;
+											getServerFeatures();
+										});
+									}}
+								/>
+							</div>
 							<input
 								type="text"
 								placeholder="Host (e.g. http://jellyseerr:5055 or https://requests.example.com)"

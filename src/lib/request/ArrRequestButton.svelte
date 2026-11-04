@@ -177,7 +177,7 @@
 				}
 			}
 		} catch (err) {
-			console.error("checkSeerrStatus error:", err);
+			console.warn("checkSeerrStatus:", err);
 		}
 		return false;
 	}

@@ -103,8 +103,15 @@ func (r *Router) GetStatus(c *gin.Context) {
 
 	media, err := client.GetMediaStatus(mediaType, tmdbId)
 	if err != nil {
-		slog.Error("Seerr GetMediaStatus error", "type", mediaType, "tmdbId", tmdbId, "error", err)
-		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: "failed to fetch status from Overseerr"})
+		slog.Warn("Seerr GetMediaStatus: failed to reach Overseerr/Jellyseerr", "type", mediaType, "tmdbId", tmdbId, "error", err)
+		c.JSON(http.StatusOK, seerr.ContentStatusResponse{
+			Configured:   true,
+			Status:       seerr.MediaStatusUnknown,
+			StatusName:   "UNKNOWN",
+			IsAvailable:  false,
+			IsProcessing: false,
+			IsPending:    false,
+		})
 		return
 	}
 

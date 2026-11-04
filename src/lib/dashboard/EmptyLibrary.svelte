@@ -21,7 +21,7 @@
 			const res = await req.get<PaginationResponse<Media, undefined>>(
 				"/discover",
 				{
-					params: { page: 1, type: "all", filter: "trending" },
+					params: { page: 1, type: "multi", filter: "trending" },
 				},
 			);
 			if (res?.results) {

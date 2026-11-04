@@ -127,7 +127,8 @@ type ServerConfig struct {
 	OIDC OIDCSetting `json:",omitempty"`
 
 	// Optional: Point to Jellyseerr or Overseerr install to enable media requests.
-	OVERSEERR_HOST string `json:",omitempty"`
+	OVERSEERR_ENABLED bool   `json:",omitempty"`
+	OVERSEERR_HOST    string `json:",omitempty"`
 	OVERSEERR_KEY  string `json:",omitempty"`
 
 	SONARR []cfgmodel.SonarrSettings `json:",omitempty"`
@@ -174,6 +175,7 @@ func (c *ServerConfig) GetSafe() ServerConfig {
 		STEAM_KEY:                c.STEAM_KEY,
 		PLEX_HOST:                c.PLEX_HOST,
 		PLEX_MACHINE_ID:          c.PLEX_MACHINE_ID,
+		OVERSEERR_ENABLED:        c.OVERSEERR_ENABLED,
 		OVERSEERR_HOST:           c.OVERSEERR_HOST,
 		OVERSEERR_KEY:            c.OVERSEERR_KEY,
 		BACKUP_ENABLED:           func() *bool { b := c.GetBackupEnabled(); return &b }(),
@@ -349,6 +351,8 @@ func (c *ServerConfig) Get(s string) (ServerConfigGetByName, error) {
 		return ServerConfigGetByName{Value: c.OIDC}, nil
 	case "DEBUG":
 		return ServerConfigGetByName{Value: c.DEBUG}, nil
+	case "OVERSEERR_ENABLED":
+		return ServerConfigGetByName{Value: c.OVERSEERR_ENABLED}, nil
 	case "OVERSEERR_HOST":
 		return ServerConfigGetByName{Value: c.OVERSEERR_HOST}, nil
 	case "OVERSEERR_KEY":
@@ -495,6 +499,13 @@ func (c *ServerConfig) UpdateConfig(k string, v any) error {
 			return errors.New("invalid value")
 		}
 		c.DEFAULT_LANGUAGE = str
+	case "OVERSEERR_ENABLED":
+		b, ok := v.(bool)
+		if !ok {
+			cfgMu.Unlock()
+			return errors.New("invalid value")
+		}
+		c.OVERSEERR_ENABLED = b
 	case "OVERSEERR_HOST":
 		str, ok := v.(string)
 		if !ok {
@@ -710,5 +721,5 @@ func Get() (*ServerConfig, error) {
 func (c *ServerConfig) OverseerrEnabled() bool {
 	cfgMu.RLock()
 	defer cfgMu.RUnlock()
-	return c.OVERSEERR_HOST != "" && c.OVERSEERR_KEY != ""
+	return c.OVERSEERR_ENABLED && c.OVERSEERR_HOST != "" && c.OVERSEERR_KEY != ""
 }

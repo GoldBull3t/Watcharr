@@ -882,6 +882,7 @@ export interface ServerConfig {
 	STEAM_KEY?: string;
 	PLEX_HOST?: string;
 	PLEX_MACHINE_ID?: string;
+	OVERSEERR_ENABLED?: boolean;
 	OVERSEERR_HOST?: string;
 	OVERSEERR_KEY?: string;
 	SONARR?: SonarrSettings[];
