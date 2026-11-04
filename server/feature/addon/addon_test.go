@@ -18,12 +18,12 @@ func TestGetManifest(t *testing.T) {
 
 	assert.Equal(t, "com.watcharr.nuvio.addon", m.ID)
 	assert.Equal(t, "Watcharr", m.Name)
-	assert.Equal(t, "1.1.0", m.Version)
+	assert.Equal(t, "1.2.0", m.Version)
 	assert.Contains(t, m.Resources, "catalog")
 	assert.Contains(t, m.Resources, "meta")
 	assert.Contains(t, m.Types, "movie")
 	assert.Contains(t, m.Types, "series")
-	assert.True(t, len(m.Catalogs) >= 4)
+	assert.Equal(t, 4, len(m.Catalogs))
 	assert.NotNil(t, m.BehaviorHints)
 
 	// Ensure each catalog strictly contains required Stremio fields
@@ -64,8 +64,8 @@ func TestRouterRoutesRegistration(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &manifest)
 	assert.NoError(t, err)
 	assert.Equal(t, "Watcharr", manifest.Name)
-	assert.Equal(t, "1.1.0", manifest.Version)
-	assert.True(t, len(manifest.Catalogs) > 0)
+	assert.Equal(t, "1.2.0", manifest.Version)
+	assert.Equal(t, 4, len(manifest.Catalogs))
 }
 
 
