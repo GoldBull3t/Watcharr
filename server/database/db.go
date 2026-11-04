@@ -105,7 +105,7 @@ func Open() (*gorm.DB, error) {
 		dsn := customDSN
 		if dsn == "" {
 			dsn = fmt.Sprintf(
-				"%s?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=cache_size(-2000)&_pragma=temp_store(FILE)&_pragma=mmap_size(0)",
+				"%s?_pragma=busy_timeout(10000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=cache_size(-2000)&_pragma=temp_store(FILE)&_pragma=mmap_size(0)",
 				path.Join(config.DataPath, "watcharr.db"),
 			)
 		}
@@ -187,12 +187,12 @@ func configure(db *gorm.DB) error {
 	}
 
 	if driverName == "sqlite" {
-		// Busy timeout: allow concurrent writers to wait up to 5000ms instead of immediately failing with SQLITE_BUSY
-		if res := db.Exec("PRAGMA busy_timeout = 5000"); res.Error != nil {
+		// Busy timeout: allow concurrent writers to wait up to 10000ms instead of immediately failing with SQLITE_BUSY
+		if res := db.Exec("PRAGMA busy_timeout = 10000"); res.Error != nil {
 			slog.Error("configure: Configuring busy_timeout failed!", "error", res.Error)
 			return res.Error
 		}
-		slog.Info("configure: Configured busy_timeout to 5000ms.")
+		slog.Info("configure: Configured busy_timeout to 10000ms.")
 
 		// Foreign Keys: SQLite disables foreign keys by default per connection. Enable them to enforce integrity and cascading.
 		if res := db.Exec("PRAGMA foreign_keys = ON"); res.Error != nil {

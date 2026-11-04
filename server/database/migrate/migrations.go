@@ -418,4 +418,28 @@ var migrations = []Migration{
 			return nil
 		},
 	},
+	{
+		// Optimization indexes for episode tracking, request status and content type
+		ID: "202611041130_0011",
+		Up: func(tx *gorm.DB) error {
+			migID := "202611041130_0011"
+			slog.Info("Migration is starting.", "mig", migID)
+
+			queries := []string{
+				"CREATE INDEX IF NOT EXISTS idx_watched_episodes_user_watched ON watched_episodes(user_id, watched_id);",
+				"CREATE INDEX IF NOT EXISTS idx_arr_requests_user_status ON arr_requests(user_id, status);",
+				"CREATE INDEX IF NOT EXISTS idx_contents_type ON contents(type);",
+			}
+
+			for _, q := range queries {
+				if res := tx.Exec(q); res.Error != nil {
+					slog.Error("Creating optimization index failed!", "mig", migID, "query", q, "error", res.Error)
+					return res.Error
+				}
+			}
+
+			slog.Info("Optimization indexes created successfully.", "mig", migID)
+			return nil
+		},
+	},
 }

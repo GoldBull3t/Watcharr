@@ -11,6 +11,7 @@ export default defineConfig({
 			strategies: "generateSW",
 			registerType: "autoUpdate",
 			workbox: {
+				importScripts: ["/sw-push.js"],
 				globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff,woff2}"],
 				navigateFallback: null,
 				navigateFallbackDenylist: [/^\/api\//],

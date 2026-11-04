@@ -48,6 +48,7 @@
 	let followingMenuShown = $state(false);
 	let tagMenuShown = $state(false);
 	let isMac = $state(false);
+	let isOffline = $state(false);
 	let scroll = window.scrollY;
 
 	// Enhanced live search state
@@ -352,6 +353,16 @@
 		isMac =
 			typeof navigator !== "undefined" &&
 			/Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+		isOffline = typeof navigator !== "undefined" ? !navigator.onLine : false;
+
+		const handleOnline = () => {
+			isOffline = false;
+		};
+		const handleOffline = () => {
+			isOffline = true;
+		};
+		window.addEventListener("online", handleOnline);
+		window.addEventListener("offline", handleOffline);
 
 		if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
 			navigator.serviceWorker
@@ -372,6 +383,8 @@
 			window.document.addEventListener("pointerdown", handleDocumentPointerDown);
 
 			return () => {
+				window.removeEventListener("online", handleOnline);
+				window.removeEventListener("offline", handleOffline);
 				window.removeEventListener("resize", decideOnNavSplit);
 				window.document.removeEventListener("scroll", docOnScroll);
 				window.document.removeEventListener("keydown", handleGlobalKeybind);
@@ -535,6 +548,17 @@
 			{/if}
 		</div>
 		<div class="btns">
+			{#if isOffline}
+				<div
+					class="offline-pill"
+					role="status"
+					aria-live="polite"
+					title="Offline - Modo de leitura a partir da cache"
+				>
+					<span class="offline-dot"></span>
+					<span>Offline</span>
+				</div>
+			{/if}
 			<!-- Tags menu -->
 			<div class="nav-item-wrap">
 				<button
@@ -1233,6 +1257,30 @@
 			justify-content: flex-end;
 			gap: 8px;
 			flex-shrink: 0;
+
+			.offline-pill {
+				display: inline-flex;
+				align-items: center;
+				gap: 5px;
+				padding: 2px 7px;
+				font-size: 11px;
+				font-weight: 600;
+				letter-spacing: 0.03em;
+				text-transform: uppercase;
+				color: #d97706;
+				background: rgba(217, 119, 6, 0.12);
+				border: 1px solid rgba(217, 119, 6, 0.28);
+				border-radius: 4px;
+				user-select: none;
+				white-space: nowrap;
+
+				.offline-dot {
+					width: 6px;
+					height: 6px;
+					border-radius: 50%;
+					background: #f59e0b;
+				}
+			}
 
 			.nav-item-wrap {
 				position: relative;

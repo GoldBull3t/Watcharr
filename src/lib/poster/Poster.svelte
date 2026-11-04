@@ -219,12 +219,25 @@
 				// show not on someone elses watched list.
 				return `${baseURL}/img${media.extPosterPath}`;
 			} else {
-				return `https://image.tmdb.org/t/p/w500${media.extPosterPath}`;
+				const size = small ? "w185" : "w342";
+				return `https://image.tmdb.org/t/p/${size}${media.extPosterPath}`;
 			}
 		} else if (media.type == MediaTypeE.igdbGame) {
 			return `https://images.igdb.com/igdb/image/upload/t_cover_big/${media.extPosterPath}.jpg`;
 		}
 	});
+	const posterSrcSet = $derived.by(() => {
+		if (
+			!media.poster?.path &&
+			media.extPosterPath &&
+			!watched &&
+			(media.type == MediaTypeE.tmdbMovie || media.type == MediaTypeE.tmdbShow)
+		) {
+			return `https://image.tmdb.org/t/p/w185${media.extPosterPath} 185w, https://image.tmdb.org/t/p/w342${media.extPosterPath} 342w, https://image.tmdb.org/t/p/w500${media.extPosterPath} 500w`;
+		}
+		return undefined;
+	});
+
 	const link = $derived<`${`/${SupportedMedia}/${string}`}` | undefined>(
 		meta?.id ? `/${meta.type}/${meta.id}` : undefined,
 	);
@@ -708,6 +721,8 @@
 				loading="lazy"
 				decoding="async"
 				src={poster}
+				srcset={posterSrcSet}
+				sizes={small ? "80px" : "(max-width: 600px) 160px, 240px"}
 				alt={media.name || "Poster"}
 				class:loaded={posterImgLoaded === 1}
 				onload={() => {
