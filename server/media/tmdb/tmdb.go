@@ -3,6 +3,7 @@ package tmdb
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,19 @@ import (
 	gocache "github.com/robfig/go-cache"
 	"github.com/sbondCo/Watcharr/database/entity"
 )
+
+type TMDBError struct {
+	StatusCode int    `json:"status_code"`
+	HTTPStatus int    `json:"http_status"`
+	Message    string `json:"status_message"`
+}
+
+func (e *TMDBError) Error() string {
+	if e.Message != "" {
+		return e.Message
+	}
+	return fmt.Sprintf("TMDB error (status %d)", e.HTTPStatus)
+}
 
 var ContentStore = gocache.New(time.Hour*24, time.Minute)
 
@@ -125,7 +139,15 @@ func (t *TMDB) apiRequest(ep string, p map[string]string) ([]byte, error) {
 
 	if res.StatusCode != 200 {
 		slog.Error("TMDB non 200 status code:", "status_code", res.StatusCode)
-		return nil, errors.New(string(body))
+		var tmdbErr TMDBError
+		if jsonErr := json.Unmarshal(body, &tmdbErr); jsonErr == nil && tmdbErr.Message != "" {
+			tmdbErr.HTTPStatus = res.StatusCode
+			return nil, &tmdbErr
+		}
+		return nil, &TMDBError{
+			HTTPStatus: res.StatusCode,
+			Message:    string(body),
+		}
 	}
 	return body, nil
 }

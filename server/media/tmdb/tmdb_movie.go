@@ -1,7 +1,6 @@
 package tmdb
 
 import (
-	"errors"
 	"log/slog"
 	"time"
 
@@ -35,8 +34,22 @@ func (t *TMDB) MovieDetails(o MovieDetailsOptions) (MovieDetails, error) {
 	}
 	err := t.req("/movie/"+o.ID, o.Params, &resp)
 	if err != nil {
+		if l, ok := o.Params["language"]; ok && l != "en-US" && l != "" {
+			slog.Warn("MovieDetails: Request with custom language failed, attempting en-US fallback", "language", l, "error", err)
+			fbParams := make(map[string]string)
+			for k, v := range o.Params {
+				fbParams[k] = v
+			}
+			fbParams["language"] = "en-US"
+			if fbErr := t.req("/movie/"+o.ID, fbParams, &resp); fbErr == nil {
+				slog.Info("MovieDetails: en-US fallback succeeded", "id", o.ID)
+				err = nil
+			}
+		}
+	}
+	if err != nil {
 		slog.Error("MovieDetails: Request failed!", "error", err)
-		return MovieDetails{}, errors.New("request failed")
+		return MovieDetails{}, err
 	}
 	reqLang := t.GetDefaultLanguage()
 	if l, ok := o.Params["language"]; ok && l != "" {
@@ -89,7 +102,7 @@ func (t *TMDB) MovieCredits(id string, optParams ...map[string]string) (ContentC
 	err := t.req("/movie/"+id+"/credits", params, &resp)
 	if err != nil {
 		slog.Error("MovieCredits: Request failed!", "error", err)
-		return ContentCredits{}, errors.New("request failed")
+		return ContentCredits{}, err
 	}
 	ContentStore.Set(cacheKey, resp, time.Hour*24)
 	return *resp, nil
@@ -111,7 +124,7 @@ func (t *TMDB) Collection(id string, optParams ...map[string]string) (TMDBCollec
 	err := t.req("/collection/"+id, params, &resp)
 	if err != nil {
 		slog.Error("Collection: Request failed!", "error", err)
-		return TMDBCollection{}, errors.New("request failed")
+		return TMDBCollection{}, err
 	}
 	reqLang := t.GetDefaultLanguage()
 	if l, ok := params["language"]; ok && l != "" {

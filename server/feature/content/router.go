@@ -1,6 +1,7 @@
 package content
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 	"sort"
@@ -97,6 +98,16 @@ func (r *Router) AddRoutes() {
 	content.POST("/:type/:id/refresh", usermiddleware.WithUser(r.br.DB), router.WhereaboutsRequired(r.br.Cfg), router.LanguageRequired(r.br.Cfg), r.RefreshContent)
 }
 
+func tmdbErrorStatus(err error) int {
+	var tmdbErr *tmdb.TMDBError
+	if errors.As(err, &tmdbErr) {
+		if tmdbErr.HTTPStatus != 0 {
+			return tmdbErr.HTTPStatus
+		}
+	}
+	return http.StatusBadRequest
+}
+
 func (r *Router) GetMovieDetails(c *gin.Context) {
 	userId := c.MustGet("userId").(uint)
 	if c.Param("id") == "" {
@@ -113,7 +124,7 @@ func (r *Router) GetMovieDetails(c *gin.Context) {
 		},
 	})
 	if err != nil {
-		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		c.JSON(tmdbErrorStatus(err), router.ErrorResponse{Error: err.Error()})
 		return
 	}
 	contentAsMedia := content.AsMedia()
@@ -187,7 +198,7 @@ func (r *Router) GetMovieCredits(c *gin.Context) {
 		"language": c.MustGet("userLanguage").(string),
 	})
 	if err != nil {
-		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		c.JSON(tmdbErrorStatus(err), router.ErrorResponse{Error: err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, content)
@@ -210,7 +221,7 @@ func (r *Router) GetTvDetails(c *gin.Context) {
 		},
 	})
 	if err != nil {
-		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		c.JSON(tmdbErrorStatus(err), router.ErrorResponse{Error: err.Error()})
 		return
 	}
 	contentAsMedia := content.AsMedia()
@@ -329,7 +340,7 @@ func (r *Router) GetTvCredits(c *gin.Context) {
 		"language": c.MustGet("userLanguage").(string),
 	})
 	if err != nil {
-		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		c.JSON(tmdbErrorStatus(err), router.ErrorResponse{Error: err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, content)
@@ -346,7 +357,7 @@ func (r *Router) GetSeasonDetails(c *gin.Context) {
 		"language": c.MustGet("userLanguage").(string),
 	})
 	if err != nil {
-		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		c.JSON(tmdbErrorStatus(err), router.ErrorResponse{Error: err.Error()})
 		return
 	}
 	// If a `watchedId` is passed, we should update it with this season

@@ -1,7 +1,6 @@
 package tmdb
 
 import (
-	"errors"
 	"log/slog"
 	"time"
 
@@ -35,8 +34,22 @@ func (t *TMDB) ShowDetails(o ShowDetailsOptions) (ShowDetails, error) {
 	}
 	err := t.req("/tv/"+o.ID, o.Params, &resp)
 	if err != nil {
+		if l, ok := o.Params["language"]; ok && l != "en-US" && l != "" {
+			slog.Warn("ShowDetails: Request with custom language failed, attempting en-US fallback", "language", l, "error", err)
+			fbParams := make(map[string]string)
+			for k, v := range o.Params {
+				fbParams[k] = v
+			}
+			fbParams["language"] = "en-US"
+			if fbErr := t.req("/tv/"+o.ID, fbParams, &resp); fbErr == nil {
+				slog.Info("ShowDetails: en-US fallback succeeded", "id", o.ID)
+				err = nil
+			}
+		}
+	}
+	if err != nil {
 		slog.Error("ShowDetails: Request failed!", "error", err)
-		return ShowDetails{}, errors.New("request failed")
+		return ShowDetails{}, err
 	}
 	reqLang := t.GetDefaultLanguage()
 	if l, ok := o.Params["language"]; ok && l != "" {
@@ -96,7 +109,7 @@ func (t *TMDB) ShowCredits(id string, optParams ...map[string]string) (ContentCr
 	err := t.req("/tv/"+id+"/credits", params, &resp)
 	if err != nil {
 		slog.Error("ShowCredits: Request failed!", "error", err)
-		return ContentCredits{}, errors.New("request failed")
+		return ContentCredits{}, err
 	}
 	ContentStore.Set(cacheKey, resp, time.Hour*24)
 	return *resp, nil
@@ -124,8 +137,22 @@ func (t *TMDB) SeasonDetails(
 		params,
 		&resp)
 	if err != nil {
+		if l, ok := params["language"]; ok && l != "en-US" && l != "" {
+			slog.Warn("SeasonDetails: Request with custom language failed, attempting en-US fallback", "language", l, "error", err)
+			fbParams := make(map[string]string)
+			for k, v := range params {
+				fbParams[k] = v
+			}
+			fbParams["language"] = "en-US"
+			if fbErr := t.req("/tv/"+showId+"/season/"+seasonNumber, fbParams, &resp); fbErr == nil {
+				slog.Info("SeasonDetails: en-US fallback succeeded", "show_id", showId, "season_number", seasonNumber)
+				err = nil
+			}
+		}
+	}
+	if err != nil {
 		slog.Error("SeasonDetails: Request failed!", "error", err)
-		return SeasonDetails{}, errors.New("request failed")
+		return SeasonDetails{}, err
 	}
 	reqLang := t.GetDefaultLanguage()
 	if l, ok := params["language"]; ok && l != "" {
