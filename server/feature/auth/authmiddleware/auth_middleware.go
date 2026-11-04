@@ -12,6 +12,7 @@ import (
 	"github.com/sbondCo/Watcharr/database/entity"
 	"github.com/sbondCo/Watcharr/feature/auth/permission"
 	"github.com/sbondCo/Watcharr/feature/user/usermiddleware"
+	"github.com/sbondCo/Watcharr/router"
 )
 
 // Precomputed cutoff date to avoid parsing static date string on every authenticated request
@@ -25,7 +26,7 @@ func AuthRequired(cfg *config.ServerConfig) gin.HandlerFunc {
 		// Make sure auth header isn't empty
 		if atoken == "" {
 			slog.Warn("Returning 401, Authorization header not provided")
-			c.AbortWithStatus(401)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, router.ErrorResponse{Error: "Authorization required"})
 			return
 		}
 		// Parse token
@@ -37,7 +38,7 @@ func AuthRequired(cfg *config.ServerConfig) gin.HandlerFunc {
 		})
 		if err != nil {
 			slog.Error("AuthRequired failed to parse token", "error", err)
-			c.AbortWithStatus(401)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, router.ErrorResponse{Error: "Invalid or expired token"})
 			return
 		}
 		// If token is valid, go to next handler
@@ -47,7 +48,7 @@ func AuthRequired(cfg *config.ServerConfig) gin.HandlerFunc {
 			// since new changes require the user login again.
 			if claims.IssuedAt.Before(timeOfNewLoginRequired) {
 				slog.Info("Token is from before timeOfNewLoginRequired.. returning 401", "token_issued_at", claims.IssuedAt, "time_of_new_login_required", timeOfNewLoginRequired)
-				c.AbortWithStatus(401)
+				c.AbortWithStatusJSON(http.StatusUnauthorized, router.ErrorResponse{Error: "Token expired, please login again"})
 				return
 			}
 			slog.Debug("Token is valid", "claims", claims)
@@ -56,7 +57,7 @@ func AuthRequired(cfg *config.ServerConfig) gin.HandlerFunc {
 			c.Next()
 		} else {
 			slog.Error("Token is **not** valid")
-			c.AbortWithStatus(401)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, router.ErrorResponse{Error: "Invalid token"})
 			return
 		}
 	}
@@ -80,6 +81,6 @@ func PermRequired(perm int) gin.HandlerFunc {
 		}
 		slog.Info("PermRequired: User denied permission!",
 			"user_id", userId, "required_perm", perm)
-		c.AbortWithStatus(http.StatusForbidden)
+		c.AbortWithStatusJSON(http.StatusForbidden, router.ErrorResponse{Error: "You don't have permission for this action."})
 	}
 }

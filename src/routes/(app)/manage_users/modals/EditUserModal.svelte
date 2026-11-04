@@ -17,43 +17,61 @@
 
 	interface Props {
 		user: ManagedUser;
-		onClose: () => void;
+		onClose: (saved?: boolean) => void;
 	}
 
-	let { user = $bindable(), onClose }: Props = $props();
+	let { user, onClose }: Props = $props();
 
 	let error: string | undefined = $state();
+	let saving = $state(false);
 
-	// Things we have changed
-	let changedPerms = false;
-	let originalUser = structuredClone(user);
+	const initialPerms = user.permissions;
+	const initialType = user.type;
+
+	let adminPerm = $state(userHasPermission(user.permissions, UserPermission.PERM_ADMIN));
+	let requestContentPerm = $state(userHasPermission(user.permissions, UserPermission.PERM_REQUEST_CONTENT));
+	let autoApprovePerm = $state(userHasPermission(user.permissions, UserPermission.PERM_REQUEST_CONTENT_AUTO_APPROVE));
+	let selectedType = $state<UserType>(user.type);
+
+	function computePermissions(): number {
+		let p = UserPermission.PERM_NONE;
+		if (adminPerm) p |= UserPermission.PERM_ADMIN;
+		if (requestContentPerm) p |= UserPermission.PERM_REQUEST_CONTENT;
+		if (autoApprovePerm) p |= UserPermission.PERM_REQUEST_CONTENT_AUTO_APPROVE;
+		return p;
+	}
 
 	async function save() {
-		const changedType = user.type !== originalUser.type;
-		// If nothing changed.. error
+		error = undefined;
+		const computedPerms = computePermissions();
+		const changedPerms = computedPerms !== initialPerms;
+		const changedType = selectedType !== initialType;
+
 		if (!changedPerms && !changedType) {
 			error = "Nothing has been changed";
 			return;
 		}
-		if (!error) {
-			try {
-				const toUpdate: UpdateUserRequest = {};
-				if (changedPerms) {
-					toUpdate["permissions"] = user.permissions;
-				}
-				if (changedType) {
-					toUpdate["type"] = user.type;
-				}
-				await req.post(`/server/users/${user.id}`, toUpdate);
-				notify({
-					type: "success",
-					text: "Changes saved!",
-				});
-				onClose();
-			} catch (err) {
-				console.error("Failed to save user!", err);
-				error = ReqerError.getMsg(err, "Failed to save");
+
+		saving = true;
+		try {
+			const toUpdate: UpdateUserRequest = {};
+			if (changedPerms) {
+				toUpdate.permissions = computedPerms;
 			}
+			if (changedType) {
+				toUpdate.type = selectedType;
+			}
+			await req.post(`/server/users/${user.id}`, toUpdate);
+			notify({
+				type: "success",
+				text: "Changes saved!",
+			});
+			onClose(true);
+		} catch (err) {
+			console.error("Failed to save user!", err);
+			error = ReqerError.getMsg(err, "Failed to save");
+		} finally {
+			saving = false;
 		}
 	}
 
@@ -67,7 +85,7 @@
 		try {
 			await req.delete(`/server/users/${user.id}`);
 			notify({ type: "success", text: `User ${user.username} deleted` });
-			onClose();
+			onClose(true);
 		} catch (err) {
 			console.error("Failed to delete user!", err);
 			error = ReqerError.getMsg(err, "Failed to delete user");
@@ -76,18 +94,13 @@
 			deleting = false;
 		}
 	}
-
-	function userTogglePermission(perm: UserPermission) {
-		user.permissions ^= perm;
-		changedPerms = true;
-	}
 </script>
 
 <Modal
 	title="Edit User"
 	desc={`Configuring ${user.username}`}
 	maxWidth="500px"
-	{onClose}
+	onClose={() => onClose(false)}
 >
 	{#if error}
 		<span class="error">{error}!</span>
@@ -103,9 +116,9 @@
 		>
 			<Checkbox
 				name="USER_PERM_ADMIN"
-				value={userHasPermission(user.permissions, UserPermission.PERM_ADMIN)}
+				bind:value={adminPerm}
 				toggled={() => {
-					userTogglePermission(UserPermission.PERM_ADMIN);
+					error = undefined;
 				}}
 			/>
 		</Setting>
@@ -117,12 +130,9 @@
 		>
 			<Checkbox
 				name="USER_PERM_REQUEST_CONTENT"
-				value={userHasPermission(
-					user.permissions,
-					UserPermission.PERM_REQUEST_CONTENT,
-				)}
+				bind:value={requestContentPerm}
 				toggled={() => {
-					userTogglePermission(UserPermission.PERM_REQUEST_CONTENT);
+					error = undefined;
 				}}
 			/>
 		</Setting>
@@ -134,14 +144,9 @@
 		>
 			<Checkbox
 				name="PERM_REQUEST_CONTENT_AUTO_APPROVE"
-				value={userHasPermission(
-					user.permissions,
-					UserPermission.PERM_REQUEST_CONTENT_AUTO_APPROVE,
-				)}
+				bind:value={autoApprovePerm}
 				toggled={() => {
-					userTogglePermission(
-						UserPermission.PERM_REQUEST_CONTENT_AUTO_APPROVE,
-					);
+					error = undefined;
 				}}
 			/>
 		</Setting>
@@ -155,26 +160,22 @@
 			{#if !user.type || user.type === UserType.Proxy}
 				<DropDown
 					placeholder="Unknown"
-					bind:active={user.type}
+					bind:active={selectedType}
 					options={[
 						{
-							id: 0,
+							id: UserType.Watcharr,
 							value: "Watcharr",
 						},
-						// {
-						//   id: UserType.Jellyfin,
-						//   value: "Jellyfin",
-						// },
-						// {
-						//   id: UserType.Plex,
-						//   value: "Plex",
-						// },
 						{
 							id: UserType.Proxy,
 							value: "Proxy",
 						},
 					]}
 					isDropDownItem={true}
+					showActiveElementsInOptions={true}
+					onChange={() => {
+						error = undefined;
+					}}
 				/>
 			{:else}
 				<p>This option is not supported for this user type yet.</p>
@@ -204,7 +205,9 @@
 		</Setting>
 
 		<div class="btns">
-			<button onclick={() => save()}>Save</button>
+			<button disabled={saving} onclick={() => save()}>
+				{saving ? "Saving..." : "Save"}
+			</button>
 		</div>
 	</SettingsList>
 </Modal>

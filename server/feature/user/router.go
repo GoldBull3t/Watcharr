@@ -49,7 +49,7 @@ func (r *Router) GetUserInfo(c *gin.Context) {
 	userId := c.MustGet("userId").(uint)
 	response, err := r.service.GetUserInfo(userId)
 	if err != nil {
-		c.JSON(http.StatusForbidden, router.ErrorResponse{Error: err.Error()})
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, response)
@@ -63,7 +63,7 @@ func (r *Router) UpdateSettings(c *gin.Context) {
 	if err == nil {
 		response, err := r.service.UserUpdate(userId, ur)
 		if err != nil {
-			c.JSON(http.StatusForbidden, router.ErrorResponse{Error: err.Error()})
+			c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
 			return
 		}
 		c.JSON(http.StatusOK, response)
@@ -77,7 +77,7 @@ func (r *Router) GetSettings(c *gin.Context) {
 	userId := c.MustGet("userId").(uint)
 	response, err := r.service.UserGetSettings(userId)
 	if err != nil {
-		c.JSON(http.StatusForbidden, router.ErrorResponse{Error: err.Error()})
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, response)
@@ -93,7 +93,7 @@ func (r *Router) GetSearchUsers(c *gin.Context) {
 	}
 	response, err := r.service.UserSearch(userId, query)
 	if err != nil {
-		c.JSON(http.StatusForbidden, router.ErrorResponse{Error: err.Error()})
+		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, response)
@@ -103,12 +103,12 @@ func (r *Router) GetSearchUsers(c *gin.Context) {
 func (r *Router) GetUserPublicInfo(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("pubUserId"))
 	if err != nil {
-		c.Status(400)
+		c.Status(http.StatusBadRequest)
 		return
 	}
 	response, err := r.service.GetUserPublicInfo(uint(id), c.Param("pubUsername"))
 	if err != nil {
-		c.JSON(http.StatusForbidden, router.ErrorResponse{Error: err.Error()})
+		c.JSON(http.StatusNotFound, router.ErrorResponse{Error: err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, response)

@@ -23,86 +23,77 @@ func NewService(db *gorm.DB) *Service {
 // Update user settings
 func (s *Service) UserUpdate(userId uint, ur entity.UserSettings) (entity.UserSettings, error) {
 	slog.Debug("user update request running", "user_id", userId, "ur", ur)
-	var user entity.User
-	res := s.db.Where("id = ?", userId).Take(&user)
-	if res.Error != nil {
-		slog.Error("user update failed", "user_id", userId, "error", res.Error)
-		return entity.UserSettings{}, errors.New("failed to retrieve user")
-	}
+	toUpdate := make(map[string]interface{})
+
 	if ur.HideSpoilers != nil {
-		user.HideSpoilers = ur.HideSpoilers
+		toUpdate["hide_spoilers"] = *ur.HideSpoilers
 	}
 	if ur.Private != nil {
-		user.Private = ur.Private
+		toUpdate["private"] = *ur.Private
 	}
 	if ur.PrivateThoughts != nil {
-		user.PrivateThoughts = ur.PrivateThoughts
+		toUpdate["private_thoughts"] = *ur.PrivateThoughts
 	}
 	if ur.IncludePreviouslyWatched != nil {
-		user.IncludePreviouslyWatched = ur.IncludePreviouslyWatched
+		toUpdate["include_previously_watched"] = *ur.IncludePreviouslyWatched
 	}
 	if ur.AutomateShowStatuses != nil {
-		user.AutomateShowStatuses = ur.AutomateShowStatuses
+		toUpdate["automate_show_statuses"] = *ur.AutomateShowStatuses
 	}
 	if ur.Country != nil {
-		user.Country = ur.Country
+		toUpdate["country"] = *ur.Country
 	}
 	if ur.Language != nil {
-		user.Language = ur.Language
+		toUpdate["language"] = *ur.Language
 	}
 	if ur.UiLanguage != nil {
-		user.UiLanguage = ur.UiLanguage
+		toUpdate["ui_language"] = *ur.UiLanguage
 	}
 	if ur.Theme != nil {
-		user.Theme = ur.Theme
+		toUpdate["theme"] = *ur.Theme
 	}
 	if ur.RatingSystem != nil {
-		user.RatingSystem = ur.RatingSystem
+		toUpdate["rating_system"] = *ur.RatingSystem
 	}
 	if ur.RatingStep != nil {
-		user.RatingStep = ur.RatingStep
+		toUpdate["rating_step"] = *ur.RatingStep
 	}
 	if ur.CalendarWebhookUrl != nil {
-		user.CalendarWebhookUrl = ur.CalendarWebhookUrl
+		toUpdate["calendar_webhook_url"] = *ur.CalendarWebhookUrl
 	}
 	if ur.CalendarWebhookEnabled != nil {
-		user.CalendarWebhookEnabled = ur.CalendarWebhookEnabled
+		toUpdate["calendar_webhook_enabled"] = *ur.CalendarWebhookEnabled
 	}
 	if ur.CalendarWebhookFilter != nil {
-		user.CalendarWebhookFilter = ur.CalendarWebhookFilter
+		toUpdate["calendar_webhook_filter"] = *ur.CalendarWebhookFilter
 	}
 	if ur.ActivityWebhookUrl != nil {
-		user.ActivityWebhookUrl = ur.ActivityWebhookUrl
+		toUpdate["activity_webhook_url"] = *ur.ActivityWebhookUrl
 	}
 	if ur.ActivityWebhookEnabled != nil {
-		user.ActivityWebhookEnabled = ur.ActivityWebhookEnabled
+		toUpdate["activity_webhook_enabled"] = *ur.ActivityWebhookEnabled
 	}
 	if ur.ActivityWebhookFilter != nil {
-		user.ActivityWebhookFilter = ur.ActivityWebhookFilter
+		toUpdate["activity_webhook_filter"] = *ur.ActivityWebhookFilter
 	}
-	if err := s.db.Save(&user).Error; err != nil {
-		slog.Error("user update save failed", "user_id", userId, "error", err)
-		return entity.UserSettings{}, errors.New("failed to save user settings")
+
+	if len(toUpdate) > 0 {
+		res := s.db.Model(&entity.User{}).Where("id = ?", userId).Updates(toUpdate)
+		if res.Error != nil {
+			slog.Error("user update save failed", "user_id", userId, "error", res.Error)
+			return entity.UserSettings{}, errors.New("failed to save user settings")
+		}
+		if res.RowsAffected == 0 {
+			var count int64
+			s.db.Model(&entity.User{}).Where("id = ?", userId).Count(&count)
+			if count == 0 {
+				slog.Error("user update failed: user not found", "user_id", userId)
+				return entity.UserSettings{}, errors.New("user not found")
+			}
+		}
 	}
-	return entity.UserSettings{
-		Private:                  user.Private,
-		PrivateThoughts:          user.PrivateThoughts,
-		HideSpoilers:             user.HideSpoilers,
-		IncludePreviouslyWatched: user.IncludePreviouslyWatched,
-		AutomateShowStatuses:     user.AutomateShowStatuses,
-		Country:                  user.Country,
-		Language:                 user.Language,
-		UiLanguage:               user.UiLanguage,
-		Theme:                    user.Theme,
-		RatingSystem:             user.RatingSystem,
-		RatingStep:               user.RatingStep,
-		CalendarWebhookUrl:       user.CalendarWebhookUrl,
-		CalendarWebhookEnabled:   user.CalendarWebhookEnabled,
-		CalendarWebhookFilter:   user.CalendarWebhookFilter,
-		ActivityWebhookUrl:       user.ActivityWebhookUrl,
-		ActivityWebhookEnabled:   user.ActivityWebhookEnabled,
-		ActivityWebhookFilter:   user.ActivityWebhookFilter,
-	}, nil
+
+	return s.UserGetSettings(userId)
 }
 
 func (s *Service) UserGetSettings(userId uint) (entity.UserSettings, error) {

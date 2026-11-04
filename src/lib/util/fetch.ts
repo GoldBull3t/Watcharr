@@ -263,10 +263,21 @@ export class Reqer {
 					clearWatcharrData();
 					goto(resolve("/login?again=1"));
 				} else if (err.response?.status === 403) {
+					const serverMsg =
+						ReqerError.withBody(err) && err.hasErrorInBody()
+							? err.body.error
+							: undefined;
+					console.warn(`[Reqer 403 Forbidden] ${p}:`, serverMsg || "Action forbidden");
 					notify({
-						text: "You don't have permission for this action.",
+						text: serverMsg || "You don't have permission for this action.",
 						type: "error",
 					});
+				} else if (err.response?.status === 500) {
+					const serverMsg =
+						ReqerError.withBody(err) && err.hasErrorInBody()
+							? err.body.error
+							: undefined;
+					console.error(`[Reqer 500 Internal Error] ${p}:`, serverMsg || err.message);
 				}
 				throw err;
 			} else if (err instanceof Error) {
