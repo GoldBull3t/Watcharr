@@ -102,6 +102,11 @@ func tmdbErrorStatus(err error) int {
 	var tmdbErr *tmdb.TMDBError
 	if errors.As(err, &tmdbErr) {
 		if tmdbErr.HTTPStatus != 0 {
+			// Never return 401/403 to frontend for upstream TMDB errors!
+			// Status 401 triggers client-side session termination and forced logout!
+			if tmdbErr.HTTPStatus == http.StatusUnauthorized || tmdbErr.HTTPStatus == http.StatusForbidden {
+				return http.StatusBadGateway
+			}
 			return tmdbErr.HTTPStatus
 		}
 	}

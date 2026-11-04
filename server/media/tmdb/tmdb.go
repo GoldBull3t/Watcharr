@@ -113,6 +113,29 @@ func (t *TMDB) apiRequest(ep string, p map[string]string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	// If custom key failed with 401 Unauthorized, retry with default Watcharr key
+	defaultKey := "d047fa61d926371f277e7a83c9c4ff2c"
+	if res.StatusCode == http.StatusUnauthorized && t.GetKey() != defaultKey {
+		slog.Warn("TMDB returned 401 with custom TMDB_KEY; retrying with default Watcharr key")
+		params.Set("api_key", defaultKey)
+		base.RawQuery = params.Encode()
+		resRetry, errRetry := client.Get(base.String())
+		if errRetry == nil {
+			defer resRetry.Body.Close()
+			if resRetry.StatusCode == 200 {
+				bodyRetry, errRetryBody := io.ReadAll(resRetry.Body)
+				if errRetryBody == nil {
+					return bodyRetry, nil
+				}
+			} else {
+				res = resRetry
+				if b, errB := io.ReadAll(resRetry.Body); errB == nil {
+					body = b
+				}
+			}
+		}
+	}
+
 	// Check for rate limit (429) and retry once after backing off
 	if res.StatusCode == http.StatusTooManyRequests {
 		retryAfter := 1 * time.Second

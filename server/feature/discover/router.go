@@ -1,6 +1,7 @@
 package discover
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/sbondCo/Watcharr/feature/auth/authmiddleware"
 	"github.com/sbondCo/Watcharr/feature/user/usermiddleware"
 	"github.com/sbondCo/Watcharr/feature/watched/addedtocontent"
+	"github.com/sbondCo/Watcharr/media/tmdb"
 	"github.com/sbondCo/Watcharr/router"
 	"github.com/sbondCo/Watcharr/util"
 )
@@ -73,7 +75,16 @@ func (r *Router) GetDiscover(c *gin.Context) {
 		Language:   c.MustGet("userLanguage").(string),
 	})
 	if err != nil {
-		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
+		status := http.StatusBadRequest
+		var tmdbErr *tmdb.TMDBError
+		if errors.As(err, &tmdbErr) {
+			if tmdbErr.HTTPStatus == http.StatusUnauthorized || tmdbErr.HTTPStatus == http.StatusForbidden {
+				status = http.StatusBadGateway
+			} else if tmdbErr.HTTPStatus != 0 {
+				status = tmdbErr.HTTPStatus
+			}
+		}
+		c.JSON(status, router.ErrorResponse{Error: err.Error()})
 		return
 	}
 	ww := domain.DiscoverResponse{}

@@ -163,7 +163,7 @@ func (s *Service) discoverMultiTrending(
 	tmdbRes, err := s.tmdb.Trending(t, meta.PageParams.Page, meta.Region, meta.Language)
 	if err != nil {
 		slog.Error("discoverMulti: Failed to search tmdb!", "error", err)
-		return errors.New("content request failed")
+		return err
 	}
 	for _, v := range tmdbRes.Results {
 		resp.Results = append(
