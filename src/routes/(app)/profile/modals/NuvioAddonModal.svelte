@@ -3,10 +3,15 @@
 	import Modal from "$lib/Modal.svelte";
 	import Icon from "$lib/Icon.svelte";
 	import { notify } from "$lib/util/notify";
+	import { req } from "$lib/util/api";
 
 	interface Props {
 		open: boolean;
 		onClose: () => void;
+	}
+
+	interface ApiKeyResponse {
+		apiKey: string;
 	}
 
 	let { open = $bindable(false), onClose }: Props = $props();
@@ -24,12 +29,9 @@
 	async function fetchApiKey() {
 		loading = true;
 		try {
-			const res = await fetch("/api/user/api-key");
-			if (res.ok) {
-				const data = await res.json();
-				if (data && data.apiKey) {
-					apiKey = data.apiKey;
-				}
+			const res = await req.get<ApiKeyResponse>("/user/api-key");
+			if (res && res.apiKey) {
+				apiKey = res.apiKey;
 			}
 		} catch (err) {
 			console.error("Falha ao obter API Key:", err);
@@ -45,15 +47,10 @@
 		}
 		loading = true;
 		try {
-			const res = await fetch("/api/user/api-key/regenerate", { method: "POST" });
-			if (res.ok) {
-				const data = await res.json();
-				if (data && data.apiKey) {
-					apiKey = data.apiKey;
-					notify({ text: "Nova chave de API gerada com sucesso!", type: "success" });
-				}
-			} else {
-				notify({ text: "Erro ao gerar nova chave de API.", type: "error" });
+			const res = await req.post<ApiKeyResponse>("/user/api-key/regenerate");
+			if (res && res.apiKey) {
+				apiKey = res.apiKey;
+				notify({ text: "Nova chave de API gerada com sucesso!", type: "success" });
 			}
 		} catch (err) {
 			notify({ text: "Erro ao gerar nova chave de API.", type: "error" });
@@ -96,7 +93,7 @@
 						class="url-input"
 						type="text"
 						readonly
-						value={loading ? "A carregar..." : addonManifestUrl}
+						value={loading ? "A carregar chave..." : addonManifestUrl}
 					/>
 					<button class="copy-btn" onclick={copyUrl} disabled={loading || !apiKey} type="button">
 						<Icon i={copied ? "check" : "clipboard"} wh={16} />
