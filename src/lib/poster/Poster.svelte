@@ -195,6 +195,14 @@
 			}
 		}
 
+		if (watched) {
+			watched = {
+				...watched,
+				watchedEpisodes: [...(watched.watchedEpisodes || [])],
+				watchedSeasons: [...(watched.watchedSeasons || [])],
+			};
+		}
+
 		if (onUpdated) onUpdated();
 	}
 

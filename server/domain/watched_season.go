@@ -31,6 +31,8 @@ type (
 		StatusChangedHookResponse SeasonStatusChangedHookResponse `json:"statusChangedHookResponse,omitzero"`
 		// Updated episodes for season if modified
 		WatchedEpisodes []entity.WatchedEpisode `json:"watchedEpisodes,omitempty"`
+		// Next season if automatically planned
+		NextSeason *entity.WatchedSeason `json:"nextSeason,omitempty"`
 	}
 
 	SeasonStatusChangedHookResponse struct {
@@ -42,6 +44,8 @@ type (
 		Errors []string `json:"errors,omitempty"`
 		// Updated episodes for season if modified
 		WatchedEpisodes []entity.WatchedEpisode `json:"watchedEpisodes,omitempty"`
+		// Next season if automatically planned
+		NextSeason *entity.WatchedSeason `json:"nextSeason,omitempty"`
 	}
 
 	// Set Watched Season provider.

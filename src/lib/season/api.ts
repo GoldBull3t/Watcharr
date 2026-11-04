@@ -109,6 +109,27 @@ export async function updateWatchedSeason(
 					watchedItem.status = hookResp.newShowStatus;
 				}
 			}
+
+			// Merge next planned season if returned from automation hook
+			const nextS = r?.nextSeason || hookResp?.nextSeason;
+			if (nextS) {
+				if (!watchedItem.watchedSeasons) {
+					watchedItem.watchedSeasons = [nextS];
+				} else {
+					const nextIdx = watchedItem.watchedSeasons.findIndex(
+						(s) => s.id === nextS.id || s.seasonNumber === nextS.seasonNumber,
+					);
+					if (nextIdx !== -1) {
+						watchedItem.watchedSeasons[nextIdx] = nextS;
+					} else {
+						watchedItem.watchedSeasons.push(nextS);
+					}
+				}
+			}
+
+			if (watchedItem.watchedSeasons) {
+				watchedItem.watchedSeasons = [...watchedItem.watchedSeasons];
+			}
 		} catch (err) {
 			console.error("Failed to process statusChangedHookResponse", err);
 			notify({
@@ -252,6 +273,27 @@ export async function updateWatchedEpisode(
 				if (hookResp.newShowStatus) {
 					watchedItem.status = hookResp.newShowStatus;
 				}
+			}
+
+			// Merge next planned season if returned from automation hook
+			const nextS = r?.nextSeason || hookResp?.nextSeason;
+			if (nextS) {
+				if (!watchedItem.watchedSeasons) {
+					watchedItem.watchedSeasons = [nextS];
+				} else {
+					const nextIdx = watchedItem.watchedSeasons.findIndex(
+						(s) => s.id === nextS.id || s.seasonNumber === nextS.seasonNumber,
+					);
+					if (nextIdx !== -1) {
+						watchedItem.watchedSeasons[nextIdx] = nextS;
+					} else {
+						watchedItem.watchedSeasons.push(nextS);
+					}
+				}
+			}
+
+			if (watchedItem.watchedSeasons) {
+				watchedItem.watchedSeasons = [...watchedItem.watchedSeasons];
 			}
 		} catch (err) {
 			console.error("Failed to process episode StatusChangedHookResponse", err);

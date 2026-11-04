@@ -263,6 +263,7 @@ export interface WatchedSeasonSetResponse {
 	addedActivities?: Activity[];
 	statusChangedHookResponse?: SeasonStatusChangedHookResponse;
 	watchedEpisodes?: WatchedEpisode[];
+	nextSeason?: WatchedSeason;
 }
 
 export interface WatchedEpisodeSetResponse {
@@ -270,6 +271,7 @@ export interface WatchedEpisodeSetResponse {
 	update: boolean;
 	addedActivities?: Activity[];
 	statusChangedHookResponse?: EpisodeStatusChangedHookResponse;
+	nextSeason?: WatchedSeason;
 }
 
 export interface EpisodeStatusChangedHookResponse {
@@ -277,6 +279,7 @@ export interface EpisodeStatusChangedHookResponse {
 	watchedSeason?: WatchedSeason;
 	addedActivities?: Activity[];
 	errors?: string[];
+	nextSeason?: WatchedSeason;
 }
 
 export interface SeasonStatusChangedHookResponse {
@@ -284,6 +287,7 @@ export interface SeasonStatusChangedHookResponse {
 	addedActivities?: Activity[];
 	errors?: string[];
 	watchedEpisodes?: WatchedEpisode[];
+	nextSeason?: WatchedSeason;
 }
 
 export interface RecentActivityItem {

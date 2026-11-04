@@ -80,7 +80,7 @@ func (t *TMDB) ShowDetails(o ShowDetailsOptions) (ShowDetails, error) {
 	// We don't want this to linger around (in cache) since we have the
 	// transformed version now..
 	resp.WatchProviders = nil
-	if !o.DontRunDBCache {
+	if t.contentProvider != nil && !o.DontRunDBCache {
 		go t.contentProvider.CacheContentShow(*resp, true)
 	}
 	ContentStore.Set(cacheKey, resp, time.Hour*24)

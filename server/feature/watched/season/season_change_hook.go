@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/sbondCo/Watcharr/activity"
 	"github.com/sbondCo/Watcharr/database/entity"
@@ -46,7 +47,18 @@ func (s *Service) hookStatusChanged(
 		return hookResponse
 	}
 
-	newShowStatus, addedActivity, err := s.hookStatusChangedSetShowStatus(
+	// When a season is marked as FINISHED, automatically mark all its episodes as FINISHED in db first
+	if newSeasonStatus == entity.FINISHED {
+		eps, err := s.completeAllEpisodesForSeason(userID, watchedID, watchedEntry.Content.TmdbID, seasonNum)
+		if err != nil {
+			slog.Error("hookStatusChanged: Failed to complete episodes for season", "error", err)
+			hookResponse.Errors = append(hookResponse.Errors, "failed to complete episodes for season")
+		} else {
+			hookResponse.WatchedEpisodes = eps
+		}
+	}
+
+	newShowStatus, nextSeason, addedActivities, err := s.hookStatusChangedSetShowStatus(
 		userID,
 		watchedID,
 		watchedEntry.Content.TmdbID,
@@ -60,20 +72,10 @@ func (s *Service) hookStatusChanged(
 		hookResponse.Errors = append(hookResponse.Errors, "failed to update show")
 	} else {
 		hookResponse.NewShowStatus = newShowStatus
-		if addedActivity.ID != 0 {
+		hookResponse.NextSeason = nextSeason
+		if len(addedActivities) > 0 {
 			hookResponse.AddedActivities = append(
-				hookResponse.AddedActivities, addedActivity)
-		}
-	}
-
-	// When a season is marked as FINISHED, automatically mark all its episodes as FINISHED in db
-	if newSeasonStatus == entity.FINISHED {
-		eps, err := s.completeAllEpisodesForSeason(userID, watchedID, watchedEntry.Content.TmdbID, seasonNum)
-		if err != nil {
-			slog.Error("hookStatusChanged: Failed to complete episodes for season", "error", err)
-			hookResponse.Errors = append(hookResponse.Errors, "failed to complete episodes for season")
-		} else {
-			hookResponse.WatchedEpisodes = eps
+				hookResponse.AddedActivities, addedActivities...)
 		}
 	}
 
@@ -134,7 +136,7 @@ func (s *Service) completeAllEpisodesForSeason(
 }
 
 // Set top level watched entry status.
-// Returns newShowStatus, addedActivity.
+// Returns newShowStatus, nextSeason, addedActivities, error.
 func (s *Service) hookStatusChangedSetShowStatus(
 	userID uint,
 	watchedID uint,
@@ -142,106 +144,192 @@ func (s *Service) hookStatusChangedSetShowStatus(
 	showWatchedStatus entity.WatchedStatus,
 	seasonNum int,
 	newSeasonStatus entity.WatchedStatus,
-) (entity.WatchedStatus, entity.Activity, error) {
+) (entity.WatchedStatus, *entity.WatchedSeason, []entity.Activity, error) {
 	var newShowStatus entity.WatchedStatus
+	var nextSeasonPtr *entity.WatchedSeason
+	var addedActivities []entity.Activity
 	var reason string
 
-	// If newSeasonStatus is WATCHING or FINISHED & the show is PLANNED, then
-	// show status should be set to WATCHING (unless checks below change that).
-	if (newSeasonStatus == entity.WATCHING || newSeasonStatus == entity.FINISHED) &&
-		(showWatchedStatus == "" || showWatchedStatus == entity.PLANNED) {
-		newShowStatus = entity.WATCHING
-		reason = fmt.Sprintf(
-			"Season %d was set to %s.",
-			seasonNum,
-			newSeasonStatus,
-		)
-	}
-
-	// If show was marked FINISHED but a season was set to PLANNED or WATCHING, reopen show to WATCHING
-	if (newSeasonStatus == entity.WATCHING || newSeasonStatus == entity.PLANNED) &&
-		showWatchedStatus == entity.FINISHED {
-		newShowStatus = entity.WATCHING
-		reason = fmt.Sprintf(
-			"Season %d was set to %s (reopened from finished).",
-			seasonNum,
-			newSeasonStatus,
-		)
-	}
-
-	// If all seasons are finished, the show status needs to be set to:
-	// - PLANNED (if show is continuing)
-	// - FINISHED (if show is ended/cancelled)
-	if newSeasonStatus == entity.FINISHED {
-		// NOTE: We only need to do this check if newSeasonStatus is FINISHED, since
-		// if it was anything else, not all seasons can be FINISHED.
-		allSeasonsFinished, err := s.allSeasonsCompletedForShow(
-			userID, watchedID, tmdbID)
-		if err != nil {
-			slog.Error("hookStatusChangedSetShowStatus: Seasons completion check failed.",
-				"error", err)
-			return "", entity.Activity{}, err
+	// 1. Season was set to WATCHING:
+	// Transition show status to WATCHING if not already WATCHING.
+	if newSeasonStatus == entity.WATCHING {
+		if showWatchedStatus != entity.WATCHING {
+			newShowStatus = entity.WATCHING
+			reason = fmt.Sprintf("Season %d was set to %s.", seasonNum, newSeasonStatus)
 		}
-		if allSeasonsFinished {
+	} else if newSeasonStatus == entity.PLANNED {
+		// 2. Season was set to PLANNED:
+		// Check if any other season is currently WATCHING.
+		watchingCount, err := s.getNumberOfWatchedSeasonsInShow(userID, watchedID, []entity.WatchedStatus{entity.WATCHING})
+		if err != nil {
+			slog.Error("hookStatusChangedSetShowStatus: Failed to get watching count", "error", err)
+		}
+		if watchingCount == 0 && showWatchedStatus != entity.PLANNED {
+			newShowStatus = entity.PLANNED
+			reason = fmt.Sprintf("Season %d was set to %s.", seasonNum, newSeasonStatus)
+		}
+	} else if newSeasonStatus == entity.FINISHED {
+		// 3. Season was set to FINISHED:
+		// Check if any other season is currently WATCHING.
+		watchingCount, err := s.getNumberOfWatchedSeasonsInShow(userID, watchedID, []entity.WatchedStatus{entity.WATCHING})
+		if err != nil {
+			slog.Error("hookStatusChangedSetShowStatus: Failed to get watching count", "error", err)
+		}
+
+		if watchingCount > 0 {
+			// Another season is still actively being watched; show stays WATCHING
+			slog.Debug("hookStatusChangedSetShowStatus: Another season is WATCHING; keeping show status WATCHING.")
+		} else {
+			// No season is actively WATCHING. Check TMDB for next seasons and overall show status.
 			content, err := s.tmdb.ShowDetails(tmdb.ShowDetailsOptions{
 				ID: strconv.Itoa(tmdbID),
 			})
 			if err != nil {
-				slog.Error("hookStatusChangedSetShowStatus: Couldn't get ShowDetails",
-					"error", err)
-				return "", entity.Activity{}, err
+				slog.Error("hookStatusChangedSetShowStatus: Couldn't get ShowDetails", "error", err)
+				return "", nil, nil, err
 			}
 
-			if content.Status == tmdb.ShowStatusCanceled ||
-				content.Status == tmdb.ShowStatusEnded {
+			// Find next uncompleted regular season
+			var nextUncompletedSeason int = 0
+			if seasonNum > 0 && content.NumberOfSeasons > 0 {
+				for nextS := seasonNum + 1; nextS <= int(content.NumberOfSeasons); nextS++ {
+					var ws entity.WatchedSeason
+					err := s.db.Where("user_id = ? AND watched_id = ? AND season_number = ?", userID, watchedID, nextS).First(&ws).Error
+					if err != nil {
+						// Does not exist in WatchedSeason yet -> this is the next season to plan
+						nextUncompletedSeason = nextS
+						break
+					}
+					if ws.Status != entity.FINISHED && ws.Status != entity.DROPPED {
+						// Exists and not finished/dropped -> this is the next season to plan
+						nextUncompletedSeason = nextS
+						break
+					}
+				}
+			}
 
-				newShowStatus = entity.FINISHED
-				reason = "All seasons were completed and the show is not continuing."
+			if nextUncompletedSeason > 0 {
+				// We found an upcoming season: plan it automatically!
+				var nextSeason entity.WatchedSeason
+				err := s.db.Where("user_id = ? AND watched_id = ? AND season_number = ?", userID, watchedID, nextUncompletedSeason).First(&nextSeason).Error
+				if err != nil {
+					// Create new WatchedSeason as PLANNED
+					nextSeason = entity.WatchedSeason{
+						UserID:       userID,
+						WatchedID:    watchedID,
+						SeasonNumber: nextUncompletedSeason,
+						Status:       entity.PLANNED,
+					}
+					if createErr := s.db.Create(&nextSeason).Error; createErr == nil {
+						nextSeasonPtr = &nextSeason
+						act, actErr := activity.NewCreator(
+							s.db,
+							userID,
+							watchedID,
+							entity.SEASON_ADDED,
+							false,
+							entity.ActivityCreatedByWatcharr,
+						).SetDataJSON(map[string]any{
+							"season": nextUncompletedSeason,
+							"status": entity.PLANNED,
+						}).SetReason(fmt.Sprintf("Automatically planned after Season %d completed.", seasonNum)).Create()
+						if actErr == nil && act.ID != 0 {
+							addedActivities = append(addedActivities, act)
+						}
+					} else {
+						slog.Error("hookStatusChangedSetShowStatus: Failed to create next planned season", "error", createErr)
+					}
+				} else if nextSeason.Status != entity.PLANNED {
+					nextSeason.Status = entity.PLANNED
+					if saveErr := s.db.Save(&nextSeason).Error; saveErr == nil {
+						nextSeasonPtr = &nextSeason
+						act, actErr := activity.NewCreator(
+							s.db,
+							userID,
+							watchedID,
+							entity.SEASON_STATUS_CHANGED,
+							false,
+							entity.ActivityCreatedByWatcharr,
+						).SetDataJSON(map[string]any{
+							"season": nextUncompletedSeason,
+							"status": entity.PLANNED,
+						}).SetReason(fmt.Sprintf("Automatically planned after Season %d completed.", seasonNum)).Create()
+						if actErr == nil && act.ID != 0 {
+							addedActivities = append(addedActivities, act)
+						}
+					} else {
+						slog.Error("hookStatusChangedSetShowStatus: Failed to save next planned season", "error", saveErr)
+					}
+				} else {
+					nextSeasonPtr = &nextSeason
+				}
+
+				newShowStatus = entity.PLANNED
+				reason = fmt.Sprintf("Season %d was completed. Next season (Season %d) set to Planned.", seasonNum, nextUncompletedSeason)
 			} else {
-				newShowStatus = entity.FINISHED
-				reason = "All available seasons were completed."
+				// No more uncompleted seasons found up to NumberOfSeasons
+				allSeasonsFinished, err := s.allSeasonsCompletedForShow(userID, watchedID, tmdbID)
+				if err != nil {
+					slog.Error("hookStatusChangedSetShowStatus: Seasons completion check failed.", "error", err)
+				}
+				if allSeasonsFinished {
+					if content.Status == tmdb.ShowStatusCanceled || content.Status == tmdb.ShowStatusEnded {
+						newShowStatus = entity.FINISHED
+						reason = "All seasons were completed and the show is not continuing."
+					} else {
+						newShowStatus = entity.PLANNED
+						reason = "All available seasons were completed and the show is continuing."
+					}
+				} else {
+					// In case some previous season was skipped
+					newShowStatus = entity.PLANNED
+					reason = fmt.Sprintf("Season %d was completed.", seasonNum)
+				}
 			}
 		}
 	}
 
-	// Finally save the newShowStatus
+	// Save newShowStatus if it changed and reason is set
+	if newShowStatus != "" && reason != "" && newShowStatus != showWatchedStatus {
+		res := s.db.
+			Model(&entity.Watched{}).
+			Where("user_id = ? AND id = ?", userID, watchedID).
+			Updates(map[string]any{
+				"status":     newShowStatus,
+				"updated_at": time.Now(),
+			})
+		if res.Error != nil {
+			slog.Error("hookStatusChanged: Failed to update show status!",
+				"error", res.Error)
+			return "", nil, nil, errors.New("failed to update db")
+		}
+		if res.RowsAffected == 0 {
+			slog.Error("hookStatusChanged: Nothing matched to update.")
+			return "", nil, nil, errors.New("watched entry does not exist")
+		}
 
-	if newShowStatus == "" || reason == "" {
-		slog.Info("hookStatusChangedSetShowStatus: No new status or reason set. Not saving.")
-		return "", entity.Activity{}, nil
+		addedActivity, err := activity.
+			NewCreator(
+				s.db,
+				userID,
+				watchedID,
+				entity.STATUS_CHANGED,
+				false,
+				entity.ActivityCreatedByWatcharr,
+			).
+			SetDataJSON(map[string]any{
+				"status": newShowStatus,
+			}).
+			SetReason(reason).
+			Create()
+		if err != nil {
+			slog.Error("hookStatusChangedSetShowStatus: Failed to create activity", "error", err)
+		} else if addedActivity.ID != 0 {
+			addedActivities = append(addedActivities, addedActivity)
+		}
+	} else if newShowStatus == showWatchedStatus {
+		newShowStatus = ""
 	}
 
-	res := s.db.
-		Model(&entity.Watched{}).
-		Where("user_id = ? AND id = ?", userID, watchedID).
-		Update("status", newShowStatus)
-	if res.Error != nil {
-		slog.Error("hookStatusChanged: Failed to update show status!",
-			"error", res.Error)
-		return "", entity.Activity{}, errors.New("failed to update db")
-	}
-	if res.RowsAffected == 0 {
-		slog.Error("hookStatusChanged: Nothing matched to update.")
-		return "", entity.Activity{}, errors.New("watched entry does not exist")
-	}
-
-	addedActivity, err := activity.
-		NewCreator(
-			s.db,
-			userID,
-			watchedID,
-			entity.STATUS_CHANGED,
-			false,
-			entity.ActivityCreatedByWatcharr,
-		).
-		SetDataJSON(map[string]any{
-			"status": newShowStatus,
-		}).
-		SetReason(reason).
-		Create()
-	if err != nil {
-		slog.Error("hookStatusChangedSetShowStatus: Failed to create activity", "error", err)
-	}
-
-	return newShowStatus, addedActivity, nil
+	return newShowStatus, nextSeasonPtr, addedActivities, nil
 }

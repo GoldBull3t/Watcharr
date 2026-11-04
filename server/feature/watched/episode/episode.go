@@ -236,6 +236,9 @@ func (s *Service) SetWatchedEpisode(
 				ar.EpisodeNumber,
 				ar.Status,
 			)
+		if resp.StatusChangedHookResponse.NextSeason != nil {
+			resp.NextSeason = resp.StatusChangedHookResponse.NextSeason
+		}
 
 		go func() {
 			var w entity.Watched

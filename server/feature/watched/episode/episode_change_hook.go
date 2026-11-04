@@ -91,12 +91,18 @@ func (s *Service) hookStatusChanged(
 			hookResponse.AddedActivities = append(hookResponse.AddedActivities,
 				seasonSetResp.AddedActivities...)
 		}
+		if seasonSetResp.NextSeason != nil {
+			hookResponse.NextSeason = seasonSetResp.NextSeason
+		}
 
 		// Set stuff from SetSeason status change hook
 		h := seasonSetResp.StatusChangedHookResponse
 		if len(h.AddedActivities) > 0 {
 			hookResponse.AddedActivities = append(hookResponse.AddedActivities,
 				h.AddedActivities...)
+		}
+		if h.NextSeason != nil {
+			hookResponse.NextSeason = h.NextSeason
 		}
 		if h.NewShowStatus != "" {
 			seasonSetRespSetNewShowStatus = true

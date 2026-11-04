@@ -223,6 +223,9 @@ func (s *Service) SetWatchedSeason(
 		if len(resp.StatusChangedHookResponse.WatchedEpisodes) > 0 {
 			resp.WatchedEpisodes = resp.StatusChangedHookResponse.WatchedEpisodes
 		}
+		if resp.StatusChangedHookResponse.NextSeason != nil {
+			resp.NextSeason = resp.StatusChangedHookResponse.NextSeason
+		}
 	}
 
 	return resp, nil

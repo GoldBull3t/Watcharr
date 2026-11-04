@@ -51,6 +51,10 @@ func NewTMDB(key string) *TMDB {
 	}
 }
 
+func (t *TMDB) SetClient(c *http.Client) {
+	t.client = c
+}
+
 func (t *TMDB) AddContentProvider(contentProvider ContentProvider) {
 	t.contentProvider = contentProvider
 }
