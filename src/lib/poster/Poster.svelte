@@ -21,7 +21,7 @@
 		type SeasonProgressStats,
 	} from "./lib";
 	import { removeWatchedSeason, updateWatchedSeason } from "@/lib/season/api";
-	import { decode } from "blurhash";
+	import { getOrDecodeBlurHash } from "./blurHashCache";
 	import { resolve } from "$app/paths";
 	import Icon from "../Icon.svelte";
 	import { formatPublicRating, formatVoteCount } from "../rating/helpers";
@@ -245,19 +245,43 @@
 
 	function handleStarClick(r: number) {
 		if (r == watched?.rating || !meta?.id) return;
-		updateWatched(watched, {
+		const prevWatched = watched;
+		if (watched) {
+			updateWatchedVar({ ...watched, rating: r });
+		} else {
+			updateWatchedVar({
+				id: 0,
+				status: "PLANNED",
+				rating: r,
+				contentId: meta.id,
+				contentType: meta.type,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			} as unknown as Watched);
+		}
+		if (typeof onUpdated === "function") {
+			onUpdated();
+			runPosterMouseLeaveIfNeeded();
+		}
+		updateWatched(prevWatched, {
 			contentId: meta.id,
 			contentType: meta.type,
 			rating: r,
-		}).then((w) => {
-			if (typeof onUpdated === "function") {
-				onUpdated();
-				runPosterMouseLeaveIfNeeded();
-			}
-			// If watched was just added, we need to assign
-			// it to our `watched` var to get the update.
-			updateWatchedVar(w);
-		});
+		})
+			.then((w) => {
+				updateWatchedVar(w);
+				if (typeof onUpdated === "function") {
+					onUpdated();
+				}
+			})
+			.catch((err) => {
+				console.error("Failed to update rating:", err);
+				updateWatchedVar(prevWatched);
+				notify({ text: "Failed to update rating", type: "error" });
+				if (typeof onUpdated === "function") {
+					onUpdated();
+				}
+			});
 	}
 
 	function handleStatusClick(type: WatchedStatus | "DELETE") {
@@ -307,19 +331,43 @@
 
 	function executeStatusClick(type: WatchedStatus) {
 		if (type == watched?.status || !meta?.id) return;
-		updateWatched(watched, {
+		const prevWatched = watched;
+		if (watched) {
+			updateWatchedVar({ ...watched, status: type });
+		} else {
+			updateWatchedVar({
+				id: 0,
+				status: type,
+				rating: 0,
+				contentId: meta.id,
+				contentType: meta.type,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			} as unknown as Watched);
+		}
+		if (typeof onUpdated === "function") {
+			onUpdated();
+			runPosterMouseLeaveIfNeeded();
+		}
+		updateWatched(prevWatched, {
 			contentId: meta.id,
 			contentType: meta.type,
 			status: type,
-		}).then((w) => {
-			if (typeof onUpdated === "function") {
-				onUpdated();
-				runPosterMouseLeaveIfNeeded();
-			}
-			// If watched was just added, we need to assign
-			// it to our `watched` var to get the update.
-			updateWatchedVar(w);
-		});
+		})
+			.then((w) => {
+				updateWatchedVar(w);
+				if (typeof onUpdated === "function") {
+					onUpdated();
+				}
+			})
+			.catch((err) => {
+				console.error("Failed to update status:", err);
+				updateWatchedVar(prevWatched);
+				notify({ text: "Failed to update status", type: "error" });
+				if (typeof onUpdated === "function") {
+					onUpdated();
+				}
+			});
 	}
 
 	function handleInnerKeyUp(e: KeyboardEvent) {
@@ -426,25 +474,22 @@
 			}
 		}
 
-		// Show blurhash if needed (optimized 32x48 decode with smooth GPU upscaling)
+		// Show blurhash if needed (cached and optimized 32x48 decode)
 		if (
 			media.poster?.path &&
 			media.poster?.blurHash &&
 			bhCanvas &&
 			posterImgLoaded === 0
 		) {
+			const hash = media.poster.blurHash;
 			requestAnimationFrame(() => {
 				if (posterImgLoaded === 1 || !bhCanvas) return;
-				try {
-					const pixels = decode(media.poster!.blurHash, 32, 48);
+				const imgData = getOrDecodeBlurHash(hash, 32, 48);
+				if (imgData && bhCanvas) {
 					const ctx = bhCanvas.getContext("2d");
 					if (ctx) {
-						const imageData = ctx.createImageData(32, 48);
-						imageData.data.set(pixels);
-						ctx.putImageData(imageData, 0, 0);
+						ctx.putImageData(imgData, 0, 0);
 					}
-				} catch (e) {
-					console.warn("Poster: Failed to decode blurhash:", e);
 				}
 			});
 		}

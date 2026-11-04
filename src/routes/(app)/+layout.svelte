@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { afterNavigate, goto } from "$app/navigation";
+	import { afterNavigate, goto, onNavigate } from "$app/navigation";
 	import { resolve } from "$app/paths";
 	import { page } from "$app/state";
 	import Error from "@/lib/Error.svelte";
@@ -31,6 +31,16 @@
 	}
 
 	let { children }: Props = $props();
+
+	onNavigate((navigation) => {
+		if (!document.startViewTransition) return;
+		return new Promise((resolve) => {
+			document.startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+		});
+	});
 
 	let navEl: HTMLElement | undefined = $state();
 	let mainSearchEl: HTMLInputElement | undefined = $state();
@@ -1406,6 +1416,27 @@
 	@media screen and (max-width: 768px) {
 		:global(body) {
 			padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+		}
+	}
+
+	:global {
+		@media (prefers-reduced-motion: no-preference) {
+			::view-transition-old(root) {
+				animation: 140ms cubic-bezier(0.16, 1, 0.3, 1) both vt-fade-out;
+			}
+			::view-transition-new(root) {
+				animation: 160ms cubic-bezier(0.16, 1, 0.3, 1) both vt-fade-in;
+			}
+		}
+
+		@keyframes vt-fade-out {
+			from { opacity: 1; }
+			to { opacity: 0; }
+		}
+
+		@keyframes vt-fade-in {
+			from { opacity: 0; }
+			to { opacity: 1; }
 		}
 	}
 </style>
