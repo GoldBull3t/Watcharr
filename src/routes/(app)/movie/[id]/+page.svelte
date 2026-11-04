@@ -52,6 +52,16 @@
 	let galleryOpen = $state(false);
 	let isRefreshing = $state(false);
 
+	const quickStreamProviders = $derived.by(() => {
+		if (!movie?.providers || movie.providers.length === 0) return [];
+		const streamOnly = movie.providers.filter(
+			(p) => !p.type || p.type === "flatrate" || p.type === "free",
+		);
+		return streamOnly.length > 0
+			? streamOnly.slice(0, 5)
+			: movie.providers.slice(0, 4);
+	});
+
 	async function refreshMetadata() {
 		if (!data.movieId || isRefreshing) return;
 		isRefreshing = true;
@@ -216,6 +226,39 @@
 						</span>
 
 						<ExternalRatingsBar media={movie} />
+
+						{#if quickStreamProviders.length > 0}
+							<div class="quick-streaming-feature" role="region" aria-label="Onde assistir em streaming">
+								<span class="stream-label">
+									<Icon i="film" wh={12} />
+									<span>Stream:</span>
+								</span>
+								<div class="stream-badges">
+									{#each quickStreamProviders as prov (prov.name)}
+										<a
+											href={prov.link || movie.providersFullListLink || "#"}
+											target="_blank"
+											rel="noreferrer noopener external"
+											class="stream-pill"
+											title={`${prov.name} - Ver no serviço`}
+										>
+											<span>{prov.name}</span>
+										</a>
+									{/each}
+									{#if movie.providersFullListLink}
+										<a
+											href={movie.providersFullListLink}
+											target="_blank"
+											rel="noreferrer noopener external"
+											class="stream-more-link"
+											title="Ver catálogo completo de provedores"
+										>
+											<span>+ Todos</span>
+										</a>
+									{/if}
+								</div>
+							</div>
+						{/if}
 
 						<ExpandableText text={movie.summary} style="margin-bottom: 18px;" />
 
@@ -453,6 +496,71 @@
 					border: 1px solid rgba(255, 255, 255, 0.12);
 					border-radius: 6px;
 					padding: 3px 8px;
+				}
+			}
+
+			.quick-streaming-feature {
+				display: flex;
+				align-items: center;
+				flex-wrap: wrap;
+				gap: 8px;
+				margin: 10px 0 14px 0;
+				padding: 7px 12px;
+				background: rgba(255, 255, 255, 0.03);
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				border-radius: 8px;
+				font-size: 12px;
+
+				.stream-label {
+					display: inline-flex;
+					align-items: center;
+					gap: 5px;
+					color: rgba(255, 255, 255, 0.6);
+					font-weight: 600;
+					text-transform: uppercase;
+					letter-spacing: 0.04em;
+					font-size: 11px;
+				}
+
+				.stream-badges {
+					display: inline-flex;
+					align-items: center;
+					flex-wrap: wrap;
+					gap: 6px;
+				}
+
+				.stream-pill {
+					display: inline-flex;
+					align-items: center;
+					gap: 4px;
+					padding: 2.5px 8px;
+					background: rgba(16, 185, 129, 0.12);
+					border: 1px solid rgba(16, 185, 129, 0.3);
+					border-radius: 5px;
+					color: #10b981;
+					font-weight: 600;
+					font-size: 11.5px;
+					text-decoration: none;
+					transition: background 0.15s ease, border-color 0.15s ease;
+
+					&:hover {
+						background: rgba(16, 185, 129, 0.22);
+						border-color: rgba(16, 185, 129, 0.45);
+					}
+				}
+
+				.stream-more-link {
+					display: inline-flex;
+					align-items: center;
+					gap: 2px;
+					color: rgba(255, 255, 255, 0.55);
+					font-size: 11px;
+					text-decoration: none;
+					margin-left: 2px;
+
+					&:hover {
+						color: rgba(255, 255, 255, 0.9);
+					}
 				}
 			}
 

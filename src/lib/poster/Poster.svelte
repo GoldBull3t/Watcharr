@@ -733,6 +733,18 @@
 				}}
 			/>
 		{/if}
+		{#if watched && seasonProgress && seasonProgress.percentage > 0 && seasonProgress.percentage < 100 && !posterActive}
+			<div
+				class="poster-season-progress"
+				title={`Progresso: ${seasonProgress.percentage}% (${seasonProgress.finishedSeasons.length}/${seasonProgress.totalSeasons} temporadas)`}
+				role="progressbar"
+				aria-valuenow={seasonProgress.percentage}
+				aria-valuemin="0"
+				aria-valuemax="100"
+			>
+				<div class="progress-fill" style={`width: ${seasonProgress.percentage}%;`}></div>
+			</div>
+		{/if}
 		{#if publicRating && !posterActive}
 			<div
 				class="public-rating"
@@ -1116,6 +1128,24 @@
 				100% {
 					background-position: 50% 0%;
 				}
+			}
+		}
+
+		.poster-season-progress {
+			position: absolute;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			height: 3px;
+			background: rgba(0, 0, 0, 0.65);
+			z-index: 3;
+			pointer-events: none;
+			overflow: hidden;
+
+			.progress-fill {
+				height: 100%;
+				background: #10b981;
+				transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 			}
 		}
 

@@ -143,6 +143,18 @@
 		return airDate.getTime() > Date.now();
 	});
 
+	const unairedCountdown = $derived.by(() => {
+		if (!airDate || !isUnaired) return undefined;
+		const now = new Date();
+		const diffMs = airDate.getTime() - now.getTime();
+		const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+		if (diffDays <= 0) return "Estreia hoje";
+		if (diffDays === 1) return "Estreia amanhã";
+		if (diffDays <= 60) return `Estreia em ${diffDays} dias`;
+		return `Estreia a ${airDate.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}`;
+	});
+
 	async function markAsWatched() {
 		if (!watchedItem || !targetNext || markingWatched) return;
 		markingWatched = true;
@@ -262,7 +274,10 @@
 							</button>
 						{/if}
 						{#if isUnaired}
-							<span class="unaired-pill"> Unaired episode </span>
+							<span class="unaired-pill">
+								<Icon i="calendar" wh={13} />
+								<span>{unairedCountdown || "Episódio por estrear"}</span>
+							</span>
 						{/if}
 					</div>
 				</div>
@@ -525,13 +540,16 @@
 			}
 
 			.unaired-pill {
+				display: inline-flex;
+				align-items: center;
+				gap: 5px;
 				font-size: 12px;
 				padding: 4px 10px;
 				border-radius: 999px;
 				background: rgba(251, 191, 36, 0.12);
 				border: 1px solid rgba(251, 191, 36, 0.28);
 				color: #fbbf24;
-				font-weight: 500;
+				font-weight: 600;
 			}
 		}
 	}

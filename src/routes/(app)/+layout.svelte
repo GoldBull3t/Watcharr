@@ -59,6 +59,25 @@
 	let navSelectedIndex = $state(-1);
 	let navSearchDebounce: number;
 
+	function getHighlightedParts(
+		text: string,
+		query: string,
+	): { str: string; match: boolean }[] {
+		if (!query || !query.trim() || !text) {
+			return [{ str: text || "", match: false }];
+		}
+		const trimmed = query.trim();
+		const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+		const regex = new RegExp(`(${escaped})`, "gi");
+		const parts = text.split(regex);
+		return parts
+			.filter((p) => p.length > 0)
+			.map((p) => ({
+				str: p,
+				match: p.toLowerCase() === trimmed.toLowerCase(),
+			}));
+	}
+
 	function performNavSearch(query: string) {
 		clearTimeout(navSearchDebounce);
 		if (!query || query.trim().length < 2) {
@@ -512,7 +531,15 @@
 									</div>
 									<div class="preview-info">
 										<div class="preview-title-row">
-											<span class="preview-title">{item.name || "Untitled"}</span>
+											<span class="preview-title">
+												{#each getHighlightedParts(item.name || "Untitled", navSearchQuery) as part}
+													{#if part.match}
+														<mark class="search-match">{part.str}</mark>
+													{:else}
+														{part.str}
+													{/if}
+												{/each}
+											</span>
 											{#if item.watched}
 												<span class="preview-watched-tag">Na Lista</span>
 											{/if}
@@ -1099,6 +1126,14 @@
 								white-space: nowrap;
 								overflow: hidden;
 								text-overflow: ellipsis;
+
+								.search-match {
+									background: rgba(245, 158, 11, 0.24);
+									color: #fbbf24;
+									font-weight: 700;
+									border-radius: 2px;
+									padding: 0 1px;
+								}
 							}
 
 							.preview-watched-tag {
