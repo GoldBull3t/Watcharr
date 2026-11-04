@@ -129,6 +129,7 @@ func (s *Service) GetWatchedPage(
 		Joins("Content").
 		Joins("Game").
 		Preload("Game.Poster").
+		Preload("WatchedSeasons").
 		Preload("Tags").
 		// Apply filters first.
 		Scopes(watchedRefineFilter(wr, &userSettings)).
@@ -190,6 +191,7 @@ func (s *Service) getPublicWatched(
 		Joins("Content").
 		Joins("Game").
 		Preload("Game.Poster").
+		Preload("WatchedSeasons").
 		Preload("Tags").
 		// Apply filters first.
 		Scopes(watchedRefineFilter(wr, nil)).
@@ -1327,6 +1329,7 @@ func (s *Service) PickRoulette(userId uint, req domain.RoulettePickRequest) (dom
 		Joins("Content").
 		Joins("Game").
 		Preload("Game.Poster").
+		Preload("WatchedSeasons").
 		Preload("Tags").
 		Find(&allWatched).Error
 	if err != nil {
