@@ -62,55 +62,65 @@ func (s *Service) GetManifest() ManifestResponse {
 	return ManifestResponse{
 		ID:          "com.watcharr.nuvio.addon",
 		Name:        "Watcharr",
-		Version:     "1.0.0",
+		Version:     "1.1.0",
 		Description: "Acede à tua biblioteca pessoal, séries a ver e filmes planeados do Watcharr diretamente na Android TV.",
 		Logo:        "https://raw.githubusercontent.com/sbondCo/Watcharr/main/docs/static/img/watcharr_logo.png",
 		Background:  "https://raw.githubusercontent.com/sbondCo/Watcharr/main/docs/static/img/preview.png",
 		Resources:   []string{"catalog", "meta"},
 		Types:       []string{"movie", "series"},
 		IDPrefixes:  []string{"tmdb:", "tt"},
+		BehaviorHints: &BehaviorHints{
+			Configurable:          false,
+			ConfigurationRequired: false,
+		},
 		Catalogs: []CatalogDescriptor{
 			{
-				Type:       "series",
-				ID:         "watcharr_watching_series",
-				Name:       "Watcharr: Séries A Ver",
-				PageSize:   20,
-				ShowInHome: true,
+				Type:           "series",
+				ID:             "watcharr_watching_series",
+				Name:           "Watcharr: Séries A Ver",
+				Extra:          []Extra{{Name: "skip"}},
+				ExtraSupported: []string{"skip"},
+				Genres:         []string{},
 			},
 			{
-				Type:       "movie",
-				ID:         "watcharr_watching_movies",
-				Name:       "Watcharr: Filmes A Ver",
-				PageSize:   20,
-				ShowInHome: true,
+				Type:           "movie",
+				ID:             "watcharr_watching_movies",
+				Name:           "Watcharr: Filmes A Ver",
+				Extra:          []Extra{{Name: "skip"}},
+				ExtraSupported: []string{"skip"},
+				Genres:         []string{},
 			},
 			{
-				Type:       "series",
-				ID:         "watcharr_planned_series",
-				Name:       "Watcharr: Séries Para Ver",
-				PageSize:   20,
-				ShowInHome: true,
+				Type:           "series",
+				ID:             "watcharr_planned_series",
+				Name:           "Watcharr: Séries Para Ver",
+				Extra:          []Extra{{Name: "skip"}},
+				ExtraSupported: []string{"skip"},
+				Genres:         []string{},
 			},
 			{
-				Type:       "movie",
-				ID:         "watcharr_planned_movies",
-				Name:       "Watcharr: Filmes Para Ver",
-				PageSize:   20,
-				ShowInHome: true,
+				Type:           "movie",
+				ID:             "watcharr_planned_movies",
+				Name:           "Watcharr: Filmes Para Ver",
+				Extra:          []Extra{{Name: "skip"}},
+				ExtraSupported: []string{"skip"},
+				Genres:         []string{},
 			},
 			{
-				Type:       "series",
-				ID:         "watcharr_history_series",
-				Name:       "Watcharr: Histórico Séries",
-				PageSize:   20,
-				ShowInHome: false,
+				Type:           "series",
+				ID:             "watcharr_history_series",
+				Name:           "Watcharr: Histórico Séries",
+				Extra:          []Extra{{Name: "skip"}},
+				ExtraSupported: []string{"skip"},
+				Genres:         []string{},
 			},
 			{
-				Type:       "movie",
-				ID:         "watcharr_history_movies",
-				Name:       "Watcharr: Histórico Filmes",
-				PageSize:   20,
-				ShowInHome: false,
+				Type:           "movie",
+				ID:             "watcharr_history_movies",
+				Name:           "Watcharr: Histórico Filmes",
+				Extra:          []Extra{{Name: "skip"}},
+				ExtraSupported: []string{"skip"},
+				Genres:         []string{},
 			},
 		},
 	}
@@ -122,7 +132,7 @@ func (s *Service) GetCatalog(userId uint, mediaType string, catalogId string) (C
 
 	if mediaType == "movie" {
 		targetContentType = entity.MOVIE
-	} else if mediaType == "series" {
+	} else if mediaType == "series" || mediaType == "tv" || mediaType == "show" {
 		targetContentType = entity.SHOW
 	} else {
 		return CatalogResponse{}, errors.New("unsupported type")
@@ -250,7 +260,7 @@ func (s *Service) GetMeta(userId uint, mediaType string, id string) (MetaDetailR
 	}
 
 	// If series, populate video entries
-	if mediaType == "series" && content.Type == entity.SHOW {
+	if (mediaType == "series" || mediaType == "tv" || mediaType == "show") && content.Type == entity.SHOW {
 		var videos []Video
 		for sNum := 1; sNum <= int(content.NumberOfSeasons); sNum++ {
 			// Estimate episodes or fallback to standard 24 if seasons not cached

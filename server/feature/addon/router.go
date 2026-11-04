@@ -75,14 +75,16 @@ func (r *Router) AddRoutes() {
 	})
 
 	{
-		// 1. Manifest
-		addonGroup.GET("/manifest.json", authMw, r.GetManifest)
+		// 1. Manifest (public metadata - never 401s so NuvioTV can always read the catalog list)
+		addonGroup.GET("/manifest.json", r.GetManifest)
 
-		// 2. Catalog (matches both /catalog/series/watcharr_watching_series and with .json)
+		// 2. Catalog (supports /catalog/:type/:id.json and /catalog/:type/:id/:extra.json)
 		addonGroup.GET("/catalog/:type/:id", authMw, r.GetCatalog)
+		addonGroup.GET("/catalog/:type/:id/:extra", authMw, r.GetCatalog)
 
-		// 3. Meta (matches both /meta/series/tmdb:123 and with .json)
+		// 3. Meta (matches both /meta/:type/:id and with extra)
 		addonGroup.GET("/meta/:type/:id", authMw, r.GetMeta)
+		addonGroup.GET("/meta/:type/:id/:extra", authMw, r.GetMeta)
 
 		// 4. Scrobble / Playback hook
 		addonGroup.POST("/scrobble", authMw, r.HandleScrobble)

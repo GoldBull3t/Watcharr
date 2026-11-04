@@ -3,25 +3,31 @@ package addon
 // Stremio / Nuvio Manifest Specification DTOs
 
 type ManifestResponse struct {
-	ID          string              `json:"id"`
-	Name        string              `json:"name"`
-	Version     string              `json:"version"`
-	Description string              `json:"description,omitempty"`
-	Logo        string              `json:"logo,omitempty"`
-	Background  string              `json:"background,omitempty"`
-	Resources   []string            `json:"resources"`
-	Types       []string            `json:"types"`
-	Catalogs    []CatalogDescriptor `json:"catalogs"`
-	IDPrefixes  []string            `json:"idPrefixes,omitempty"`
+	ID            string              `json:"id"`
+	Name          string              `json:"name"`
+	Version       string              `json:"version"`
+	Description   string              `json:"description,omitempty"`
+	Logo          string              `json:"logo,omitempty"`
+	Background    string              `json:"background,omitempty"`
+	Resources     []string            `json:"resources"`
+	Types         []string            `json:"types"`
+	Catalogs      []CatalogDescriptor `json:"catalogs"`
+	IDPrefixes    []string            `json:"idPrefixes,omitempty"`
+	BehaviorHints *BehaviorHints      `json:"behaviorHints,omitempty"`
+}
+
+type BehaviorHints struct {
+	Configurable          bool `json:"configurable,omitempty"`
+	ConfigurationRequired bool `json:"configurationRequired,omitempty"`
 }
 
 type CatalogDescriptor struct {
-	Type        string   `json:"type"`
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	PageSize    int      `json:"pageSize,omitempty"`
-	ShowInHome  bool     `json:"showInHome,omitempty"`
-	Extra       []Extra  `json:"extra,omitempty"`
+	Type           string   `json:"type"`
+	ID             string   `json:"id"`
+	Name           string   `json:"name"`
+	Extra          []Extra  `json:"extra,omitempty"`
+	ExtraSupported []string `json:"extraSupported,omitempty"`
+	Genres         []string `json:"genres,omitempty"`
 }
 
 type Extra struct {
