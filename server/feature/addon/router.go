@@ -78,13 +78,11 @@ func (r *Router) AddRoutes() {
 		// 1. Manifest
 		addonGroup.GET("/manifest.json", authMw, r.GetManifest)
 
-		// 2. Catalog
+		// 2. Catalog (matches both /catalog/series/watcharr_watching_series and with .json)
 		addonGroup.GET("/catalog/:type/:id", authMw, r.GetCatalog)
-		addonGroup.GET("/catalog/:type/:id.json", authMw, r.GetCatalog)
 
-		// 3. Meta
+		// 3. Meta (matches both /meta/series/tmdb:123 and with .json)
 		addonGroup.GET("/meta/:type/:id", authMw, r.GetMeta)
-		addonGroup.GET("/meta/:type/:id.json", authMw, r.GetMeta)
 
 		// 4. Scrobble / Playback hook
 		addonGroup.POST("/scrobble", authMw, r.HandleScrobble)
