@@ -442,4 +442,27 @@ var migrations = []Migration{
 			return nil
 		},
 	},
+	{
+		// Composite lookup indexes for episode and season O(1) resolution
+		ID: "202611051200_0012",
+		Up: func(tx *gorm.DB) error {
+			migID := "202611051200_0012"
+			slog.Info("Migration is starting.", "mig", migID)
+
+			queries := []string{
+				"CREATE INDEX IF NOT EXISTS idx_watched_episodes_lookup ON watched_episodes(user_id, watched_id, season_number, episode_number);",
+				"CREATE INDEX IF NOT EXISTS idx_watched_seasons_lookup ON watched_seasons(user_id, watched_id, season_number);",
+			}
+
+			for _, q := range queries {
+				if res := tx.Exec(q); res.Error != nil {
+					slog.Error("Creating composite lookup index failed!", "mig", migID, "query", q, "error", res.Error)
+					return res.Error
+				}
+			}
+
+			slog.Info("Composite lookup indexes created successfully.", "mig", migID)
+			return nil
+		},
+	},
 }

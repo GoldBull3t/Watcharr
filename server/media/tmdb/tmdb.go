@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	gocache "github.com/robfig/go-cache"
@@ -30,6 +31,54 @@ func (e *TMDBError) Error() string {
 
 var ContentStore = gocache.New(time.Hour*24, time.Minute)
 
+// TokenBucket provides a thread-safe token bucket rate limiter.
+type TokenBucket struct {
+	capacity   float64
+	tokens     float64
+	refillRate float64 // tokens per second
+	lastRefill time.Time
+	mu         sync.Mutex
+}
+
+func NewTokenBucket(capacity float64, refillRate float64) *TokenBucket {
+	return &TokenBucket{
+		capacity:   capacity,
+		tokens:     capacity,
+		refillRate: refillRate,
+		lastRefill: time.Now(),
+	}
+}
+
+func (tb *TokenBucket) Wait() {
+	if tb == nil {
+		return
+	}
+	for {
+		tb.mu.Lock()
+		now := time.Now()
+		elapsed := now.Sub(tb.lastRefill).Seconds()
+		tb.tokens += elapsed * tb.refillRate
+		if tb.tokens > tb.capacity {
+			tb.tokens = tb.capacity
+		}
+		tb.lastRefill = now
+
+		if tb.tokens >= 1.0 {
+			tb.tokens -= 1.0
+			tb.mu.Unlock()
+			return
+		}
+
+		missing := 1.0 - tb.tokens
+		waitTime := time.Duration((missing / tb.refillRate) * float64(time.Second))
+		tb.mu.Unlock()
+
+		if waitTime > 0 {
+			time.Sleep(waitTime)
+		}
+	}
+}
+
 type ContentProvider interface {
 	CacheContentShow(content ShowDetails, onlyUpdate bool) (entity.Content, error)
 	CacheContentMovie(content MovieDetails, onlyUpdate bool) (entity.Content, error)
@@ -40,6 +89,7 @@ type TMDB struct {
 	DefaultLanguage func() string
 	contentProvider ContentProvider
 	client          *http.Client
+	limiter         *TokenBucket
 }
 
 func NewTMDB(key string) *TMDB {
@@ -48,6 +98,7 @@ func NewTMDB(key string) *TMDB {
 		client: &http.Client{
 			Timeout: 15 * time.Second,
 		},
+		limiter: NewTokenBucket(40, 4.0), // 40 max burst, 4 tokens/sec refill rate
 	}
 }
 
@@ -108,6 +159,12 @@ func (t *TMDB) apiRequest(ep string, p map[string]string) ([]byte, error) {
 	if client == nil {
 		client = &http.Client{Timeout: 15 * time.Second}
 	}
+
+	// Wait for token from rate limiter
+	if t.limiter != nil {
+		t.limiter.Wait()
+	}
+
 	res, err := client.Get(base.String())
 	if err != nil {
 		return nil, err
@@ -123,6 +180,9 @@ func (t *TMDB) apiRequest(ep string, p map[string]string) ([]byte, error) {
 		slog.Warn("TMDB returned 401 with custom TMDB_KEY; retrying with default Watcharr key")
 		params.Set("api_key", defaultKey)
 		base.RawQuery = params.Encode()
+		if t.limiter != nil {
+			t.limiter.Wait()
+		}
 		resRetry, errRetry := client.Get(base.String())
 		if errRetry == nil {
 			defer resRetry.Body.Close()
@@ -152,6 +212,9 @@ func (t *TMDB) apiRequest(ep string, p map[string]string) ([]byte, error) {
 		time.Sleep(retryAfter)
 
 		// Retry request
+		if t.limiter != nil {
+			t.limiter.Wait()
+		}
 		resRetry, errRetry := client.Get(base.String())
 		if errRetry == nil {
 			defer resRetry.Body.Close()

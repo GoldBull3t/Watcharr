@@ -66,7 +66,7 @@ func (r *Router) AddRoutes() {
 	addonGroup := r.br.Router.Group("/addon/:token")
 	addonGroup.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, If-None-Match")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(http.StatusNoContent)
@@ -87,10 +87,14 @@ func (r *Router) AddRoutes() {
 		addonGroup.GET("/meta/:type/:id", authMw, r.GetMeta)
 		addonGroup.GET("/meta/:type/:id/:extra", authMw, r.GetMeta)
 
-		// 4. Scrobble / Playback hook
+		// 4. Stream - Active Scrobble playback intercept (matches both /stream/:type/:id and with extra)
+		addonGroup.GET("/stream/:type/:id", authMw, r.GetStream)
+		addonGroup.GET("/stream/:type/:id/:extra", authMw, r.GetStream)
+
+		// 5. Scrobble / Playback hook
 		addonGroup.POST("/scrobble", authMw, r.HandleScrobble)
 
-		// 5. Simkl-compatible scrobble endpoint for NuvioTV native fallback
+		// 6. Simkl-compatible scrobble endpoint for NuvioTV native fallback
 		addonGroup.POST("/scrobble/stop", authMw, r.HandleSimklScrobble)
 		addonGroup.POST("/scrobble/start", authMw, r.HandleSimklScrobble)
 	}
@@ -110,9 +114,18 @@ func (r *Router) GetCatalog(c *gin.Context) {
 
 	skip := parseSkip(extra, c.Query("skip"))
 
-	resp, err := r.s.GetCatalog(userId, mediaType, catalogId, skip)
+	resp, etag, err := r.s.GetCatalog(userId, mediaType, catalogId, skip)
 	if err != nil {
 		c.JSON(http.StatusOK, CatalogResponse{Metas: []MetaPreview{}})
+		return
+	}
+
+	c.Header("ETag", etag)
+	c.Header("Cache-Control", "private, no-cache")
+
+	ifNoneMatch := c.GetHeader("If-None-Match")
+	if ifNoneMatch != "" && ifNoneMatch == etag {
+		c.Status(http.StatusNotModified)
 		return
 	}
 
@@ -153,6 +166,20 @@ func (r *Router) GetMeta(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// GetStream intercepts Stremio stream requests to record playback start in real time,
+// returning an empty stream array so standard stream providers handle media delivery.
+func (r *Router) GetStream(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+	mediaType := c.Param("type")
+	id := c.Param("id")
+	id = strings.TrimSuffix(id, ".json")
+
+	// Intercept stream in background/non-blocking for video player
+	_ = r.s.HandleStreamPlayback(userId, mediaType, id)
+
+	c.JSON(http.StatusOK, StreamResponse{Streams: []Stream{}})
+}
+
 func (r *Router) HandleScrobble(c *gin.Context) {
 	userId := c.MustGet("userId").(uint)
 	var payload ScrobblePayload
@@ -173,7 +200,6 @@ func (r *Router) HandleScrobble(c *gin.Context) {
 func (r *Router) HandleSimklScrobble(c *gin.Context) {
 	userId := c.MustGet("userId").(uint)
 
-	// Simkl scrobble body structure
 	var simklBody struct {
 		Movie *struct {
 			Title string `json:"title"`
@@ -199,7 +225,6 @@ func (r *Router) HandleSimklScrobble(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&simklBody); err != nil {
-		// Non-blocking response
 		c.JSON(http.StatusOK, gin.H{"result": "OK"})
 		return
 	}
@@ -229,4 +254,3 @@ func (r *Router) HandleSimklScrobble(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"result": "OK", "action": "scrobble_recorded"})
 }
-

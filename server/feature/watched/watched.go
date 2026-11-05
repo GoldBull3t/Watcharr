@@ -21,7 +21,28 @@ import (
 	"github.com/sbondCo/Watcharr/media/tmdb"
 	"github.com/sbondCo/Watcharr/util"
 	"gorm.io/gorm"
+	gocache "github.com/robfig/go-cache"
 )
+
+
+var (
+	watchedPageCache    = gocache.New(5*time.Minute, 10*time.Minute)
+	userCacheVersions   = make(map[uint]int64)
+	userCacheVersionsMu sync.RWMutex
+)
+
+func getUserCacheVersion(userId uint) int64 {
+	userCacheVersionsMu.RLock()
+	defer userCacheVersionsMu.RUnlock()
+	return userCacheVersions[userId]
+}
+
+// InvalidateUserWatchedCache increments user's cache version, invalidating all cached pages for the user.
+func InvalidateUserWatchedCache(userId uint) {
+	userCacheVersionsMu.Lock()
+	userCacheVersions[userId]++
+	userCacheVersionsMu.Unlock()
+}
 
 type ContentProvider interface {
 	GetOrCacheContent(contentType entity.ContentType, tmdbId int) (entity.Content, error)
@@ -856,6 +877,7 @@ func (s *Service) UpdateWatched(
 		})
 	}()
 
+	InvalidateUserWatchedCache(userId)
 	return domain.WatchedUpdateResponse{NewActivities: newActivities}, nil
 }
 
@@ -918,6 +940,7 @@ func (s *Service) removeWatched(
 	if err != nil {
 		return domain.WatchedRemoveResponse{}, err
 	}
+	InvalidateUserWatchedCache(userId)
 	return domain.WatchedRemoveResponse{NewActivity: addedActivity}, nil
 }
 
@@ -985,6 +1008,7 @@ func (s *Service) bulkRemoveWatched(
 	// Reclaim memory back to OS in background after batch operation
 	go debug.FreeOSMemory()
 
+	InvalidateUserWatchedCache(userId)
 	return domain.WatchedBulkRemoveResponse{Count: deletedCount}, nil
 }
 
@@ -1073,6 +1097,7 @@ func (s *Service) bulkUpdateWatched(
 		return domain.WatchedBulkUpdateResponse{}, err
 	}
 
+	InvalidateUserWatchedCache(userId)
 	return domain.WatchedBulkUpdateResponse{Count: updatedCount}, nil
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/sbondCo/Watcharr/domain"
 	"github.com/sbondCo/Watcharr/media/tmdb"
 	"github.com/sbondCo/Watcharr/util"
+	"github.com/sbondCo/Watcharr/feature/watched"
 )
 
 // Called after season status is changed.
@@ -79,10 +80,11 @@ func (s *Service) hookStatusChanged(
 		}
 	}
 
+	watched.InvalidateUserWatchedCache(userID)
 	return hookResponse
 }
 
-// Marks all episodes of a season as FINISHED in the database.
+// Marks all episodes of a season as FINISHED in the database using batch operations.
 func (s *Service) completeAllEpisodesForSeason(
 	userID uint,
 	watchedID uint,
@@ -98,16 +100,33 @@ func (s *Service) completeAllEpisodesForSeason(
 		return nil, nil
 	}
 
-	var updatedEpisodes []entity.WatchedEpisode
-	for _, ep := range sDetails.Episodes {
-		var we entity.WatchedEpisode
-		err := s.db.Where(
-			"user_id = ? AND watched_id = ? AND season_number = ? AND episode_number = ?",
-			userID, watchedID, seasonNum, ep.EpisodeNumber,
-		).First(&we).Error
+	var existingEpisodes []entity.WatchedEpisode
+	err = s.db.Where(
+		"user_id = ? AND watched_id = ? AND season_number = ?",
+		userID, watchedID, seasonNum,
+	).Find(&existingEpisodes).Error
+	if err != nil {
+		slog.Error("completeAllEpisodesForSeason: Failed to find existing episodes", "error", err)
+		return nil, err
+	}
 
-		if err != nil {
-			// Record doesn't exist, create it as FINISHED
+	existingMap := make(map[int]*entity.WatchedEpisode, len(existingEpisodes))
+	for i := range existingEpisodes {
+		existingMap[existingEpisodes[i].EpisodeNumber] = &existingEpisodes[i]
+	}
+
+	var toCreate []entity.WatchedEpisode
+	var toUpdateIDs []uint
+	var updatedEpisodes []entity.WatchedEpisode
+
+	for _, ep := range sDetails.Episodes {
+		if we, found := existingMap[ep.EpisodeNumber]; found {
+			if we.Status != entity.FINISHED {
+				we.Status = entity.FINISHED
+				toUpdateIDs = append(toUpdateIDs, we.ID)
+			}
+			updatedEpisodes = append(updatedEpisodes, *we)
+		} else {
 			newEp := entity.WatchedEpisode{
 				UserID:        userID,
 				WatchedID:     watchedID,
@@ -115,20 +134,22 @@ func (s *Service) completeAllEpisodesForSeason(
 				EpisodeNumber: ep.EpisodeNumber,
 				Status:        entity.FINISHED,
 			}
-			if createErr := s.db.Create(&newEp).Error; createErr == nil {
-				updatedEpisodes = append(updatedEpisodes, newEp)
-			} else {
-				slog.Error("completeAllEpisodesForSeason: Failed to create episode", "error", createErr)
-			}
-		} else if we.Status != entity.FINISHED {
-			we.Status = entity.FINISHED
-			if saveErr := s.db.Save(&we).Error; saveErr == nil {
-				updatedEpisodes = append(updatedEpisodes, we)
-			} else {
-				slog.Error("completeAllEpisodesForSeason: Failed to save episode", "error", saveErr)
-			}
-		} else {
-			updatedEpisodes = append(updatedEpisodes, we)
+			toCreate = append(toCreate, newEp)
+		}
+	}
+
+	if len(toCreate) > 0 {
+		if err := s.db.Create(&toCreate).Error; err != nil {
+			slog.Error("completeAllEpisodesForSeason: Failed to batch create episodes", "error", err)
+			return nil, err
+		}
+		updatedEpisodes = append(updatedEpisodes, toCreate...)
+	}
+
+	if len(toUpdateIDs) > 0 {
+		if err := s.db.Model(&entity.WatchedEpisode{}).Where("id IN ?", toUpdateIDs).Update("status", entity.FINISHED).Error; err != nil {
+			slog.Error("completeAllEpisodesForSeason: Failed to batch update episodes", "error", err)
+			return nil, err
 		}
 	}
 

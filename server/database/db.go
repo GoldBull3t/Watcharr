@@ -292,6 +292,13 @@ func optimize(db *gorm.DB) error {
 	slog.Info("optimize: Optimize pragma succeeded.",
 		"took", time.Since(timeBeforeQuery))
 
+	// Incremental vacuum: reclaim unused database pages if auto_vacuum is active
+	if res := db.Exec("PRAGMA incremental_vacuum(500)"); res.Error != nil {
+		slog.Debug("TaskOptimize: incremental_vacuum returned", "error", res.Error)
+	} else {
+		slog.Info("TaskOptimize: Incremental vacuum completed.")
+	}
+
 	// Shrink memory: return unused page cache to the operating system
 	if res := db.Exec("PRAGMA shrink_memory"); res.Error != nil {
 		slog.Warn("optimize: shrink_memory failed!", "error", res.Error)
@@ -333,6 +340,13 @@ func TaskOptimize(db *gorm.DB) error {
 	}
 	slog.Info("TaskOptimize: Optimize pragma succeeded.",
 		"took", time.Since(timeBeforeQuery))
+
+	// Incremental vacuum: reclaim unused database pages if auto_vacuum is active
+	if res := db.Exec("PRAGMA incremental_vacuum(500)"); res.Error != nil {
+		slog.Debug("TaskOptimize: incremental_vacuum returned", "error", res.Error)
+	} else {
+		slog.Info("TaskOptimize: Incremental vacuum completed.")
+	}
 
 	// Shrink memory: return unused page cache to the operating system
 	if res := db.Exec("PRAGMA shrink_memory"); res.Error != nil {

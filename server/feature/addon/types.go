@@ -59,17 +59,17 @@ type MetaDetailResponse struct {
 }
 
 type MetaDetail struct {
-	ID          string    `json:"id"`
-	Type        string    `json:"type"`
-	Name        string    `json:"name"`
-	Genres      []string  `json:"genres,omitempty"`
-	Poster      string    `json:"poster,omitempty"`
-	Background  string    `json:"background,omitempty"`
-	Logo        string    `json:"logo,omitempty"`
-	Description string    `json:"description,omitempty"`
-	ReleaseInfo string    `json:"releaseInfo,omitempty"`
-	ImdbRating  string    `json:"imdbRating,omitempty"`
-	Videos      []Video   `json:"videos,omitempty"`
+	ID          string   `json:"id"`
+	Type        string   `json:"type"`
+	Name        string   `json:"name"`
+	Genres      []string `json:"genres,omitempty"`
+	Poster      string   `json:"poster,omitempty"`
+	Background  string   `json:"background,omitempty"`
+	Logo        string   `json:"logo,omitempty"`
+	Description string   `json:"description,omitempty"`
+	ReleaseInfo string   `json:"releaseInfo,omitempty"`
+	ImdbRating  string   `json:"imdbRating,omitempty"`
+	Videos      []Video  `json:"videos,omitempty"`
 }
 
 type Video struct {
@@ -78,6 +78,16 @@ type Video struct {
 	Season   int    `json:"season"`
 	Episode  int    `json:"number"`
 	Released string `json:"released,omitempty"`
+}
+
+// Stremio / Nuvio Stream response for active scrobble interception
+type StreamResponse struct {
+	Streams []Stream `json:"streams"`
+}
+
+type Stream struct {
+	Title string `json:"title,omitempty"`
+	URL   string `json:"url,omitempty"`
 }
 
 // Scrobble / Playback Payload from Nuvio / Player
@@ -90,4 +100,3 @@ type ScrobblePayload struct {
 	EpisodeNumber int     `json:"episodeNumber"` // For TV
 	Progress      float64 `json:"progress"`      // 0 - 100 percentage
 }
-

@@ -62,11 +62,11 @@ func (s *Service) GetManifest() ManifestResponse {
 	return ManifestResponse{
 		ID:          "com.watcharr.nuvio.addon",
 		Name:        "Watcharr",
-		Version:     "1.2.0",
-		Description: "Acede à tua biblioteca pessoal, séries a ver e filmes planeados do Watcharr diretamente na Android TV.",
+		Version:     "1.3.0",
+		Description: "Acede à tua biblioteca pessoal, séries a ver e filmes planeados do Watcharr diretamente na Android TV com scrobble bidirecional ativo.",
 		Logo:        "https://raw.githubusercontent.com/sbondCo/Watcharr/main/docs/static/img/watcharr_logo.png",
 		Background:  "https://raw.githubusercontent.com/sbondCo/Watcharr/main/docs/static/img/preview.png",
-		Resources:   []string{"catalog", "meta"},
+		Resources:   []string{"catalog", "meta", "stream"},
 		Types:       []string{"movie", "series"},
 		IDPrefixes:  []string{"tmdb:", "tmdb", "tt"},
 		BehaviorHints: &BehaviorHints{
@@ -110,7 +110,7 @@ func (s *Service) GetManifest() ManifestResponse {
 	}
 }
 
-func (s *Service) GetCatalog(userId uint, mediaType string, catalogId string, skip int) (CatalogResponse, error) {
+func (s *Service) GetCatalog(userId uint, mediaType string, catalogId string, skip int) (CatalogResponse, string, error) {
 	var status entity.WatchedStatus
 	var targetContentType entity.ContentType
 
@@ -119,7 +119,7 @@ func (s *Service) GetCatalog(userId uint, mediaType string, catalogId string, sk
 	} else if mediaType == "series" || mediaType == "tv" || mediaType == "show" {
 		targetContentType = entity.SHOW
 	} else {
-		return CatalogResponse{}, errors.New("unsupported type")
+		return CatalogResponse{}, "", errors.New("unsupported type")
 	}
 
 	switch catalogId {
@@ -128,7 +128,7 @@ func (s *Service) GetCatalog(userId uint, mediaType string, catalogId string, sk
 	case "watcharr_planned_series", "watcharr_planned_movies":
 		status = entity.PLANNED
 	default:
-		return CatalogResponse{}, fmt.Errorf("unknown catalog id: %s", catalogId)
+		return CatalogResponse{}, "", fmt.Errorf("unknown catalog id: %s", catalogId)
 	}
 
 	var items []entity.Watched
@@ -143,11 +143,16 @@ func (s *Service) GetCatalog(userId uint, mediaType string, catalogId string, sk
 
 	err := query.Limit(50).Find(&items).Error
 	if err != nil {
-		return CatalogResponse{}, err
+		return CatalogResponse{}, "", err
 	}
 
+	var maxUpdatedAt int64 = 0
 	metas := make([]MetaPreview, 0)
 	for _, item := range items {
+		if item.UpdatedAt.Unix() > maxUpdatedAt {
+			maxUpdatedAt = item.UpdatedAt.Unix()
+		}
+
 		if item.Content == nil || item.Content.Type != targetContentType {
 			continue
 		}
@@ -190,7 +195,8 @@ func (s *Service) GetCatalog(userId uint, mediaType string, catalogId string, sk
 		})
 	}
 
-	return CatalogResponse{Metas: metas}, nil
+	etag := fmt.Sprintf("\"w-%d-%s-%d\"", maxUpdatedAt, catalogId, skip)
+	return CatalogResponse{Metas: metas}, etag, nil
 }
 
 func (s *Service) GetMeta(userId uint, mediaType string, id string) (MetaDetailResponse, error) {
@@ -269,6 +275,134 @@ func (s *Service) GetMeta(userId uint, mediaType string, id string) (MetaDetailR
 	return MetaDetailResponse{Meta: meta}, nil
 }
 
+// ParseStreamID parses a Stremio / Nuvio resource ID format
+// Examples:
+// - tt1234567:1:2 -> imdbID: tt1234567, season: 1, episode: 2
+// - tmdb:12345:1:2 -> tmdbID: 12345, season: 1, episode: 2
+// - tmdb:12345 -> tmdbID: 12345
+// - tt1234567 -> imdbID: tt1234567
+func ParseStreamID(id string) (tmdbID int, imdbID string, seasonNum int, epNum int) {
+	id = strings.TrimSuffix(id, ".json")
+	parts := strings.Split(id, ":")
+
+	if len(parts) >= 3 {
+		if parts[0] == "tmdb" {
+			if len(parts) == 4 {
+				tmdbID, _ = strconv.Atoi(parts[1])
+				seasonNum, _ = strconv.Atoi(parts[2])
+				epNum, _ = strconv.Atoi(parts[3])
+			} else {
+				tmdbID, _ = strconv.Atoi(parts[1])
+			}
+		} else if strings.HasPrefix(parts[0], "tt") && len(parts) == 3 {
+			imdbID = parts[0]
+			seasonNum, _ = strconv.Atoi(parts[1])
+			epNum, _ = strconv.Atoi(parts[2])
+		}
+	} else if len(parts) == 2 && parts[0] == "tmdb" {
+		tmdbID, _ = strconv.Atoi(parts[1])
+	} else if strings.HasPrefix(id, "tt") {
+		imdbID = id
+	}
+	return
+}
+
+// HandleStreamPlayback intercepts playback start from Stremio / Nuvio
+func (s *Service) HandleStreamPlayback(userId uint, mediaType string, rawId string) error {
+	slog.Info("Addon Stream Playback intercept", "userId", userId, "mediaType", mediaType, "id", rawId)
+	tmdbID, imdbID, seasonNum, epNum := ParseStreamID(rawId)
+	if tmdbID == 0 && imdbID == "" {
+		return errors.New("cannot parse id from stream request")
+	}
+
+	// 1. Resolve content in local database
+	var content entity.Content
+	query := s.db.Model(&entity.Content{})
+	if tmdbID > 0 {
+		query = query.Where("tmdb_id = ?", tmdbID)
+	} else if imdbID != "" {
+		query = query.Where("imdb_id = ?", imdbID)
+	}
+
+	if err := query.First(&content).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) && tmdbID > 0 {
+			// Not cached locally yet, add it as WATCHING
+			supportedMedia := util.SupportedMediaMovie
+			if mediaType == "series" || mediaType == "tv" || seasonNum > 0 {
+				supportedMedia = util.SupportedMediaShow
+			}
+			_, _ = s.watchedService.AddWatched(userId, domain.WatchedAddRequest{
+				Status:      entity.WATCHING,
+				ContentType: supportedMedia,
+				TMDBID:      tmdbID,
+			}, domain.WatchedAddExtraProps{})
+			return nil
+		}
+		return err
+	}
+
+	now := time.Now().UTC()
+
+	// 2. Find existing watched record for user
+	var watched entity.Watched
+	err := s.db.Model(&entity.Watched{}).
+		Where("user_id = ? AND content_id = ?", userId, content.ID).
+		First(&watched).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		supportedMedia := util.SupportedMediaMovie
+		if content.Type == entity.SHOW {
+			supportedMedia = util.SupportedMediaShow
+		}
+		createdWatched, addErr := s.watchedService.AddWatched(userId, domain.WatchedAddRequest{
+			Status:      entity.WATCHING,
+			ContentType: supportedMedia,
+			TMDBID:      content.TmdbID,
+		}, domain.WatchedAddExtraProps{})
+		if addErr != nil {
+			return addErr
+		}
+		watched = createdWatched
+	} else if err == nil {
+		// Update watched status to WATCHING if not already WATCHING or if it was PLANNED
+		updates := map[string]any{
+			"updated_at": now,
+		}
+		if watched.Status == entity.PLANNED {
+			updates["status"] = entity.WATCHING
+		}
+		if seasonNum > 0 {
+			updates["last_viewed_season"] = seasonNum
+		}
+		_ = s.db.Model(&entity.Watched{}).Where("id = ?", watched.ID).Updates(updates).Error
+	}
+
+	// 3. If TV show episode is played, update episode to WATCHING
+	if content.Type == entity.SHOW && seasonNum > 0 && epNum > 0 {
+		var ep entity.WatchedEpisode
+		err := s.db.Where("user_id = ? AND watched_id = ? AND season_number = ? AND episode_number = ?",
+			userId, watched.ID, seasonNum, epNum).First(&ep).Error
+		if err != nil {
+			// Create episode as WATCHING
+			newEp := entity.WatchedEpisode{
+				UserID:        userId,
+				WatchedID:     watched.ID,
+				SeasonNumber:  seasonNum,
+				EpisodeNumber: epNum,
+				Status:        entity.WATCHING,
+			}
+			_ = s.db.Create(&newEp).Error
+		} else if ep.Status != entity.FINISHED {
+			_ = s.db.Model(&entity.WatchedEpisode{}).Where("id = ?", ep.ID).Updates(map[string]any{
+				"status":     entity.WATCHING,
+				"updated_at": now,
+			}).Error
+		}
+	}
+
+	return nil
+}
+
 func (s *Service) HandleScrobble(userId uint, p ScrobblePayload) error {
 	slog.Info("Addon Scrobble received",
 		"userId", userId,
@@ -278,6 +412,8 @@ func (s *Service) HandleScrobble(userId uint, p ScrobblePayload) error {
 		"season", p.SeasonNumber,
 		"episode", p.EpisodeNumber,
 		"progress", p.Progress)
+
+	now := time.Now().UTC()
 
 	// We trigger watched status when progress is >= 80% or event is "stop" with progress >= 80%
 	if p.Progress < 80.0 && p.Event != "stop" {
@@ -345,12 +481,12 @@ func (s *Service) HandleScrobble(userId uint, p ScrobblePayload) error {
 		_, upErr := s.watchedService.UpdateWatched(userId, watched.ID, domain.WatchedUpdateRequest{
 			Status: entity.FINISHED,
 		})
+		_ = s.db.Model(&entity.Watched{}).Where("id = ?", watched.ID).Update("updated_at", now).Error
 		return upErr
 	}
 
 	// 4. Mark Episode as Finished for TV Show
 	if content.Type == entity.SHOW && p.SeasonNumber > 0 && p.EpisodeNumber > 0 {
-		now := time.Now()
 		_, epErr := s.episodeService.SetWatchedEpisode(userId, domain.WatchedEpisodeSetRequest{
 			WatchedID:     watched.ID,
 			SeasonNumber:  p.SeasonNumber,
@@ -362,12 +498,13 @@ func (s *Service) HandleScrobble(userId uint, p ScrobblePayload) error {
 			return epErr
 		}
 
-		// Keep series in WATCHING status and update timestamp
+		// Keep series in WATCHING status and synchronize real timestamp
 		_ = s.db.Model(&entity.Watched{}).
 			Where("id = ?", watched.ID).
 			Updates(map[string]any{
-				"status":     entity.WATCHING,
-				"updated_at": now,
+				"status":             entity.WATCHING,
+				"last_viewed_season": p.SeasonNumber,
+				"updated_at":         now,
 			}).Error
 	}
 

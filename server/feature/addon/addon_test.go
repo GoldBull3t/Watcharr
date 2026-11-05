@@ -18,9 +18,10 @@ func TestGetManifest(t *testing.T) {
 
 	assert.Equal(t, "com.watcharr.nuvio.addon", m.ID)
 	assert.Equal(t, "Watcharr", m.Name)
-	assert.Equal(t, "1.2.0", m.Version)
+	assert.Equal(t, "1.3.0", m.Version)
 	assert.Contains(t, m.Resources, "catalog")
 	assert.Contains(t, m.Resources, "meta")
+	assert.Contains(t, m.Resources, "stream")
 	assert.Contains(t, m.Types, "movie")
 	assert.Contains(t, m.Types, "series")
 	assert.Equal(t, 4, len(m.Catalogs))
@@ -64,8 +65,31 @@ func TestRouterRoutesRegistration(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &manifest)
 	assert.NoError(t, err)
 	assert.Equal(t, "Watcharr", manifest.Name)
-	assert.Equal(t, "1.2.0", manifest.Version)
+	assert.Equal(t, "1.3.0", manifest.Version)
 	assert.Equal(t, 4, len(manifest.Catalogs))
+	assert.Contains(t, manifest.Resources, "stream")
 }
 
+func TestParseStreamID(t *testing.T) {
+	tmdbID, imdbID, sNum, epNum := ParseStreamID("tt0903747:1:2")
+	assert.Equal(t, "tt0903747", imdbID)
+	assert.Equal(t, 1, sNum)
+	assert.Equal(t, 2, epNum)
+	assert.Equal(t, 0, tmdbID)
 
+	tmdbID, imdbID, sNum, epNum = ParseStreamID("tmdb:1396:2:5.json")
+	assert.Equal(t, 1396, tmdbID)
+	assert.Equal(t, 2, sNum)
+	assert.Equal(t, 5, epNum)
+	assert.Equal(t, "", imdbID)
+
+	tmdbID, imdbID, sNum, epNum = ParseStreamID("tmdb:550")
+	assert.Equal(t, 550, tmdbID)
+	assert.Equal(t, 0, sNum)
+	assert.Equal(t, 0, epNum)
+
+	tmdbID, imdbID, sNum, epNum = ParseStreamID("tt0137523")
+	assert.Equal(t, "tt0137523", imdbID)
+	assert.Equal(t, 0, sNum)
+	assert.Equal(t, 0, epNum)
+}
