@@ -18,25 +18,24 @@ func AutoFinishCompletedMovies(db *gorm.DB) (int64, error) {
 		return 0, nil
 	}
 
-	var watchingMovies []entity.Watched
+	var watchingEntries []entity.Watched
 	err := db.Model(&entity.Watched{}).
 		Preload("Content").
-		Joins("INNER JOIN contents Content ON watcheds.content_id = Content.id").
-		Where("watcheds.status = ? AND Content.type = ?", entity.WATCHING, entity.MOVIE).
-		Find(&watchingMovies).Error
+		Where("status = ?", entity.WATCHING).
+		Find(&watchingEntries).Error
 	if err != nil {
-		slog.Error("AutoFinishCompletedMovies: Failed to fetch watching movies", "error", err)
+		slog.Error("AutoFinishCompletedMovies: Failed to fetch watching entries", "error", err)
 		return 0, err
 	}
 
-	if len(watchingMovies) == 0 {
+	if len(watchingEntries) == 0 {
 		return 0, nil
 	}
 
 	now := time.Now().UTC()
 	var finishedCount int64
 
-	for _, w := range watchingMovies {
+	for _, w := range watchingEntries {
 		if w.Content == nil || w.Content.Type != entity.MOVIE {
 			continue
 		}

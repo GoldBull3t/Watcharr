@@ -248,7 +248,12 @@ func (r *Router) HandleSimklScrobble(c *gin.Context) {
 		}
 	}
 
-	if payload.Progress >= 80.0 {
+	// Normalize ratio 0.0 - 1.0 to percentage 0 - 100
+	if payload.Progress > 0 && payload.Progress <= 1.0 {
+		payload.Progress = payload.Progress * 100.0
+	}
+
+	if payload.Progress >= 80.0 || payload.Progress == 0 {
 		_ = r.s.HandleScrobble(userId, payload)
 	}
 

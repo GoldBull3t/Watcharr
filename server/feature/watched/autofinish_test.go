@@ -68,3 +68,4 @@ func TestAutoFinishCompletedMovies(t *testing.T) {
 	db.First(&checked2, w2.ID)
 	assert.Equal(t, entity.WATCHING, checked2.Status)
 }
+
