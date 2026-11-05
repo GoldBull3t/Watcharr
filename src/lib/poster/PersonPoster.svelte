@@ -95,7 +95,7 @@
 		<div class="inner">
 			<h2>
 				{#if link}
-					<a data-sveltekit-preload-data="tap" href={resolve(link)}>
+					<a data-sveltekit-preload-data="hover" href={resolve(link)}>
 						{name}
 					</a>
 				{:else}

@@ -86,7 +86,7 @@
 					width: 100%;
 					min-width: 0;
 					content-visibility: auto;
-					contain-intrinsic-size: 170px 256px;
+					contain-intrinsic-size: auto 170px auto 256px;
 				}
 
 				:global(.container) {
@@ -123,7 +123,7 @@
 					width: 100%;
 					min-width: 0;
 					content-visibility: auto;
-					contain-intrinsic-size: 120px 180px;
+					contain-intrinsic-size: auto 120px auto 180px;
 				}
 
 				:global(.container) {
@@ -161,7 +161,7 @@
 					width: 100%;
 					min-width: 0;
 					content-visibility: auto;
-					contain-intrinsic-size: 250px 375px;
+					contain-intrinsic-size: auto 250px auto 375px;
 				}
 
 				:global(.container) {

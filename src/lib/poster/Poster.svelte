@@ -178,32 +178,84 @@
 	) {
 		if (!watched || disableInteraction) return;
 
-		if (currentStatus === "UNWATCHED") {
-			await updateWatchedSeason(watched, seasonNum, { status: "PLANNED" });
-		} else if (currentStatus === "PLANNED") {
-			await updateWatchedSeason(watched, seasonNum, { status: "WATCHING" });
-		} else if (currentStatus === "WATCHING") {
-			await updateWatchedSeason(watched, seasonNum, { status: "FINISHED" });
-		} else if (currentStatus === "FINISHED") {
-			const ws = watched.watchedSeasons?.find(
-				(s) => s.seasonNumber === seasonNum,
-			);
-			if (ws && ws.id) {
-				await removeWatchedSeason(watched, ws.id);
+		// 1. Save snapshot for optimistic rollback
+		const prevWatched = {
+			...watched,
+			watchedSeasons: watched.watchedSeasons ? [...watched.watchedSeasons] : [],
+			watchedEpisodes: watched.watchedEpisodes ? [...watched.watchedEpisodes] : [],
+		};
+
+		// 2. Compute target optimistic status
+		let targetStatus: WatchedStatus | undefined;
+		if (currentStatus === "UNWATCHED") targetStatus = "PLANNED";
+		else if (currentStatus === "PLANNED") targetStatus = "WATCHING";
+		else if (currentStatus === "WATCHING") targetStatus = "FINISHED";
+		else if (currentStatus === "FINISHED") targetStatus = undefined;
+
+		// 3. Immediately mutate local state in 0ms
+		const existingSeasons = watched.watchedSeasons ? [...watched.watchedSeasons] : [];
+		const sIdx = existingSeasons.findIndex((s) => s.seasonNumber === seasonNum);
+
+		if (targetStatus) {
+			if (sIdx !== -1) {
+				existingSeasons[sIdx] = { ...existingSeasons[sIdx], status: targetStatus };
 			} else {
-				await updateWatchedSeason(watched, seasonNum, { status: "PLANNED" });
+				existingSeasons.push({
+					id: 0,
+					watchedId: watched.id,
+					seasonNumber: seasonNum,
+					status: targetStatus,
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				});
+			}
+			if (targetStatus === "WATCHING") {
+				watched.status = "WATCHING";
+			}
+		} else {
+			if (sIdx !== -1) {
+				existingSeasons.splice(sIdx, 1);
 			}
 		}
 
-		if (watched) {
-			watched = {
-				...watched,
-				watchedEpisodes: [...(watched.watchedEpisodes || [])],
-				watchedSeasons: [...(watched.watchedSeasons || [])],
-			};
-		}
-
+		watched = {
+			...watched,
+			watchedSeasons: existingSeasons,
+		};
 		if (onUpdated) onUpdated();
+
+		// 4. Dispatch background API call with graceful rollback on error
+		try {
+			if (currentStatus === "UNWATCHED") {
+				await updateWatchedSeason(watched, seasonNum, { status: "PLANNED" });
+			} else if (currentStatus === "PLANNED") {
+				await updateWatchedSeason(watched, seasonNum, { status: "WATCHING" });
+			} else if (currentStatus === "WATCHING") {
+				await updateWatchedSeason(watched, seasonNum, { status: "FINISHED" });
+			} else if (currentStatus === "FINISHED") {
+				const ws = prevWatched.watchedSeasons?.find(
+					(s) => s.seasonNumber === seasonNum,
+				);
+				if (ws && ws.id) {
+					await removeWatchedSeason(watched, ws.id);
+				} else {
+					await updateWatchedSeason(watched, seasonNum, { status: "PLANNED" });
+				}
+			}
+
+			if (watched) {
+				watched = {
+					...watched,
+					watchedEpisodes: [...(watched.watchedEpisodes || [])],
+					watchedSeasons: [...(watched.watchedSeasons || [])],
+				};
+			}
+			if (onUpdated) onUpdated();
+		} catch (err) {
+			console.error("Optimistic season toggle failed, rolling back:", err);
+			watched = prevWatched;
+			if (onUpdated) onUpdated();
+		}
 	}
 
 	const poster = $derived.by(() => {
@@ -800,7 +852,7 @@
 			class="inner poster-body"
 		>
 			<a
-				data-sveltekit-preload-data="tap"
+				data-sveltekit-preload-data="hover"
 				href={link ? resolve(link) : undefined}
 				class="small-scrollbar"
 			>

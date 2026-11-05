@@ -14,7 +14,7 @@ func TestAutoFinishCompletedMovies(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	assert.NoError(t, err)
 
-	err = db.AutoMigrate(&entity.Content{}, &entity.Watched{}, &entity.Activity{})
+	err = db.AutoMigrate(&entity.Content{}, &entity.Watched{}, &entity.WatchedEpisode{}, &entity.Activity{})
 	assert.NoError(t, err)
 
 	// Create Movie 1: 90 min runtime, started 120 min ago (Should be auto-finished)
@@ -69,3 +69,54 @@ func TestAutoFinishCompletedMovies(t *testing.T) {
 	assert.Equal(t, entity.WATCHING, checked2.Status)
 }
 
+func TestAutoFinishSeries_AutoAdvance(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	assert.NoError(t, err)
+
+	err = db.AutoMigrate(&entity.Content{}, &entity.Watched{}, &entity.WatchedEpisode{}, &entity.Activity{})
+	assert.NoError(t, err)
+
+	// Create TV Show with 40 min episodes
+	show := entity.Content{
+		TmdbID:  201,
+		Title:   "Couch Series",
+		Type:    entity.SHOW,
+		Runtime: 40,
+	}
+	db.Create(&show)
+
+	wShow := entity.Watched{
+		UserID:    1,
+		ContentID: &show.ID,
+		Status:    entity.WATCHING,
+	}
+	db.Create(&wShow)
+
+	// Episode 1 was started 60 min ago (40 min runtime + 10 min margin = 50 min threshold)
+	oneHourAgo := time.Now().UTC().Add(-60 * time.Minute)
+	ep1 := entity.WatchedEpisode{
+		UserID:        1,
+		WatchedID:     wShow.ID,
+		SeasonNumber:  1,
+		EpisodeNumber: 1,
+		Status:        entity.WATCHING,
+	}
+	db.Create(&ep1)
+	db.Model(&ep1).Update("updated_at", oneHourAgo)
+
+	// Run auto finish
+	count, err := AutoFinishWatcharrMedia(db)
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1), count)
+
+	// Check Ep 1 is now FINISHED
+	var ep1Check entity.WatchedEpisode
+	db.First(&ep1Check, ep1.ID)
+	assert.Equal(t, entity.FINISHED, ep1Check.Status)
+
+	// Check Ep 2 was automatically created/set to WATCHING
+	var ep2Check entity.WatchedEpisode
+	err = db.Where("watched_id = ? AND season_number = 1 AND episode_number = 2", wShow.ID).First(&ep2Check).Error
+	assert.NoError(t, err)
+	assert.Equal(t, entity.WATCHING, ep2Check.Status)
+}
