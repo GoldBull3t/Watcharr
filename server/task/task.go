@@ -13,6 +13,7 @@ import (
 	"github.com/sbondCo/Watcharr/feature/arr"
 	"github.com/sbondCo/Watcharr/image"
 	"github.com/sbondCo/Watcharr/token"
+	"github.com/sbondCo/Watcharr/feature/watched"
 	"gorm.io/gorm"
 )
 
@@ -106,6 +107,13 @@ func SetupTasks(cfg *config.ServerConfig, db *gorm.DB, calendarNotifier Calendar
 				slog.Debug("Memory Scavenger: Returned unused memory pages to OS")
 			},
 			dd: 3 * time.Minute,
+		},
+		"Auto Finish Completed Movies": {
+			f: func() {
+				slog.Debug("Running Auto Finish Completed Movies task")
+				_, _ = watched.AutoFinishCompletedMovies(db)
+			},
+			dd: 2 * time.Minute,
 		},
 	}
 
