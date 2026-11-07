@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/sbondCo/Watcharr/database/entity"
 	"github.com/sbondCo/Watcharr/domain"
@@ -72,7 +73,10 @@ func (s *Service) importWithName(
 	}
 
 	// Process results
-	if len(results) > 1 {
+	if len(results) == 0 {
+		slog.Debug("importWithName: returning IMPORT_NOTFOUND after filtering people")
+		return domain.ImportResponse{Type: domain.IMPORT_NOTFOUND}, nil
+	} else if len(results) > 1 {
 		slog.Debug("importWithName: Multiple results found")
 		return s.importWithNameHandleMultipleResultsFound(userId, ar, results)
 	} else {
@@ -131,7 +135,7 @@ func (s *Service) importWithNameHandleMultipleResultsFound(
 	}
 
 	// If one perfect match found, import it
-	if len(perfectMatches) == 1 && perfectMatches[0].IDs.TMDB != 0 {
+	if len(perfectMatches) == 1 && (perfectMatches[0].IDs.TMDB != 0 || perfectMatches[0].IDs.IGDB != 0) {
 		slog.Debug("importWithName: importing from perfect match")
 		props, err := domain.NewSuccessfulImportPropsFromMedia(&perfectMatches[0])
 		if err != nil {
@@ -169,7 +173,7 @@ func (s *Service) importWithIMDBID(
 				// will fail if watched entry isn't imported first or already exists (we won't make it here).
 				w, e := s.wp.GetWatchedItemByTmdbId(userId, uint(onlyResult.ShowId), "tv")
 				if e != nil {
-					slog.Error("import: imdb match: Failed to add watched episode (failed to find watched item, it must exist!).", "rq", ar, "error", err)
+					slog.Error("import: imdb match: Failed to add watched episode (failed to find watched item, it must exist!).", "rq", ar, "error", e)
 					return domain.ImportResponse{Type: domain.IMPORT_FAILED}, nil
 				}
 				_, err := s.wep.SetWatchedEpisode(userId, domain.WatchedEpisodeSetRequest{
@@ -178,7 +182,7 @@ func (s *Service) importWithIMDBID(
 					EpisodeNumber:   onlyResult.EpisodeNumber,
 					Status:          ar.Status,
 					Rating:          int8(ar.Rating),
-					AddActivityDate: *ar.RatingCustomDate,
+					AddActivityDate: util.Deref(ar.RatingCustomDate, time.Time{}),
 				})
 				if err != nil {
 					slog.Error("import: imdb match: Failed to add watched episode.", "rq", ar, "error", err)

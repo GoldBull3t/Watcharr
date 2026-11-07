@@ -16,14 +16,25 @@ import (
 
 	"github.com/sbondCo/Watcharr/config"
 	"github.com/sbondCo/Watcharr/database"
+	"github.com/sbondCo/Watcharr/database/entity"
 	"gorm.io/gorm"
 )
 
+const maxDecompressedBackupBytes = 500 << 20 // 500 MB max decompressed size
+
 type Service struct {
-	db        *gorm.DB
-	cfg       *config.ServerConfig
-	backupDir string
-	mu        sync.Mutex
+	db             *gorm.DB
+	cfg            *config.ServerConfig
+	backupDir      string
+	mu             sync.Mutex
+	rescheduleTask func(seconds int) error
+}
+
+// SetTaskRescheduler wires task.RescheduleTask for "Automated Database Backup" without creating package cycles.
+func (s *Service) SetTaskRescheduler(fn func(seconds int) error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.rescheduleTask = fn
 }
 
 func NewService(db *gorm.DB, cfg *config.ServerConfig) *Service {
@@ -213,10 +224,11 @@ func (s *Service) createSQLiteBackup(finalGzFilename string) error {
 	defer os.Remove(tempRaw)
 
 	// Try VACUUM INTO for zero-lock, defragmented consistent snapshot
-	vacRes := s.db.Exec(fmt.Sprintf("VACUUM INTO '%s'", tempRaw))
+	escapedTempRaw := strings.ReplaceAll(tempRaw, "'", "''")
+	vacRes := s.db.Exec(fmt.Sprintf("VACUUM INTO '%s'", escapedTempRaw))
 	if vacRes.Error != nil {
 		slog.Warn("createSQLiteBackup: VACUUM INTO failed, falling back to direct copy", "error", vacRes.Error)
-		srcPath := database.GetSQLiteDBPath()
+		srcPath := s.getActiveSQLiteDBPath()
 		if err := copyFile(srcPath, tempRaw); err != nil {
 			return fmt.Errorf("failed to copy sqlite source db: %w", err)
 		}
@@ -232,48 +244,200 @@ func (s *Service) createSQLiteBackup(finalGzFilename string) error {
 	return nil
 }
 
+func (s *Service) getActiveSQLiteDBPath() string {
+	type dbListEntry struct {
+		Seq  int
+		Name string
+		File string
+	}
+	var entries []dbListEntry
+	if err := s.db.Raw("PRAGMA database_list").Scan(&entries).Error; err == nil {
+		for _, e := range entries {
+			if e.Name == "main" && e.File != "" {
+				return e.File
+			}
+		}
+	}
+	return database.GetSQLiteDBPath()
+}
+
 func (s *Service) createJSONBackup(finalGzFilename string) error {
 	dump := UniversalBackupDump{
-		Version:    "1.0",
-		ExportedAt: time.Now(),
-		Driver:     s.db.Dialector.Name(),
+		Version:        "1.0",
+		ExportedAt:     time.Now(),
+		Driver:         s.db.Dialector.Name(),
+		PasswordHashes: make(map[uint]string),
 	}
 
-	if err := s.db.Find(&dump.Users).Error; err != nil {
+	var users []entity.User
+	if err := s.db.Find(&users).Error; err != nil {
 		return fmt.Errorf("createJSONBackup: failed to dump users: %w", err)
 	}
-	if err := s.db.Find(&dump.UserServices).Error; err != nil {
+	type userPassRow struct {
+		ID       uint
+		Password string
+	}
+	var passRows []userPassRow
+	if err := s.db.Table("users").Select("id, password").Scan(&passRows).Error; err != nil {
+		return fmt.Errorf("createJSONBackup: failed to dump user password hashes: %w", err)
+	}
+	for _, pr := range passRows {
+		dump.PasswordHashes[pr.ID] = pr.Password
+	}
+	dump.Users = make([]UserBackup, len(users))
+	for i, u := range users {
+		pwHash := dump.PasswordHashes[u.ID]
+		u.Password = pwHash
+		dump.Users[i] = UserBackup{
+			User:         u,
+			PasswordHash: pwHash,
+			AvatarID:     u.AvatarID,
+			Permissions:  u.Permissions,
+		}
+	}
+
+	var userServices []entity.UserServices
+	if err := s.db.Find(&userServices).Error; err != nil {
 		return fmt.Errorf("createJSONBackup: failed to dump user services: %w", err)
 	}
+	dump.UserServices = make([]UserServicesBackup, len(userServices))
+	for i, us := range userServices {
+		dump.UserServices[i] = UserServicesBackup{
+			UserServices: us,
+			Name:         us.Name,
+			ClientID:     us.ClientID,
+			AuthToken:    us.AuthToken,
+			AuthToken2:   us.AuthToken2,
+			UserID:       us.UserID,
+		}
+	}
+
 	if err := s.db.Find(&dump.Content).Error; err != nil {
 		return fmt.Errorf("createJSONBackup: failed to dump content: %w", err)
 	}
-	if err := s.db.Find(&dump.Watched).Error; err != nil {
+
+	var watchedList []entity.Watched
+	if err := s.db.Find(&watchedList).Error; err != nil {
 		return fmt.Errorf("createJSONBackup: failed to dump watched: %w", err)
 	}
-	if err := s.db.Find(&dump.Seasons).Error; err != nil {
+	dump.Watched = make([]WatchedBackup, len(watchedList))
+	for i, w := range watchedList {
+		dump.Watched[i] = WatchedBackup{
+			Watched:   w,
+			UserID:    w.UserID,
+			ContentID: w.ContentID,
+			GameID:    w.GameID,
+		}
+	}
+
+	if err := s.db.Table("watched_tags").Select("watched_id, tag_id").Scan(&dump.WatchedTags).Error; err != nil {
+		return fmt.Errorf("createJSONBackup: failed to dump watched_tags: %w", err)
+	}
+
+	var seasons []entity.WatchedSeason
+	if err := s.db.Find(&seasons).Error; err != nil {
 		return fmt.Errorf("createJSONBackup: failed to dump seasons: %w", err)
 	}
-	if err := s.db.Find(&dump.Episodes).Error; err != nil {
+	dump.Seasons = make([]WatchedSeasonBackup, len(seasons))
+	for i, ws := range seasons {
+		dump.Seasons[i] = WatchedSeasonBackup{
+			WatchedSeason: ws,
+			UserID:        ws.UserID,
+			WatchedID:     ws.WatchedID,
+		}
+	}
+
+	var episodes []entity.WatchedEpisode
+	if err := s.db.Find(&episodes).Error; err != nil {
 		return fmt.Errorf("createJSONBackup: failed to dump episodes: %w", err)
 	}
-	if err := s.db.Find(&dump.Activity).Error; err != nil {
+	dump.Episodes = make([]WatchedEpisodeBackup, len(episodes))
+	for i, we := range episodes {
+		dump.Episodes[i] = WatchedEpisodeBackup{
+			WatchedEpisode: we,
+			UserID:         we.UserID,
+			WatchedID:      we.WatchedID,
+		}
+	}
+
+	var activities []entity.Activity
+	if err := s.db.Find(&activities).Error; err != nil {
 		return fmt.Errorf("createJSONBackup: failed to dump activity: %w", err)
 	}
-	if err := s.db.Find(&dump.Follow).Error; err != nil {
+	dump.Activity = make([]ActivityBackup, len(activities))
+	for i, a := range activities {
+		dump.Activity[i] = ActivityBackup{
+			Activity: a,
+			UserID:   a.UserID,
+		}
+	}
+
+	var follows []entity.Follow
+	if err := s.db.Find(&follows).Error; err != nil {
 		return fmt.Errorf("createJSONBackup: failed to dump follow: %w", err)
 	}
-	if err := s.db.Find(&dump.Images).Error; err != nil {
+	dump.Follow = make([]FollowBackup, len(follows))
+	for i, f := range follows {
+		dump.Follow[i] = FollowBackup{
+			Follow:         f,
+			UpdatedAt:      f.UpdatedAt,
+			UserID:         f.UserID,
+			FollowedUserID: f.FollowedUserID,
+		}
+	}
+
+	var images []entity.Image
+	if err := s.db.Find(&images).Error; err != nil {
 		return fmt.Errorf("createJSONBackup: failed to dump images: %w", err)
 	}
-	if err := s.db.Find(&dump.Games).Error; err != nil {
+	dump.Images = make([]ImageBackup, len(images))
+	for i, img := range images {
+		dump.Images[i] = ImageBackup{
+			Image: img,
+			ID:    img.ID,
+			Hash:  img.Hash,
+		}
+	}
+
+	var games []entity.Game
+	if err := s.db.Find(&games).Error; err != nil {
 		return fmt.Errorf("createJSONBackup: failed to dump games: %w", err)
 	}
-	if err := s.db.Find(&dump.ArrRequests).Error; err != nil {
+	dump.Games = make([]GameBackup, len(games))
+	for i, g := range games {
+		dump.Games[i] = GameBackup{
+			Game:     g,
+			PosterID: g.PosterID,
+		}
+	}
+
+	var arrRequests []entity.ArrRequest
+	if err := s.db.Find(&arrRequests).Error; err != nil {
 		return fmt.Errorf("createJSONBackup: failed to dump arr requests: %w", err)
 	}
-	if err := s.db.Find(&dump.Tags).Error; err != nil {
+	dump.ArrRequests = make([]ArrRequestBackup, len(arrRequests))
+	for i, ar := range arrRequests {
+		dump.ArrRequests[i] = ArrRequestBackup{
+			ArrRequest: ar,
+			UserID:     ar.UserID,
+			ContentID:  ar.ContentID,
+		}
+	}
+
+	var tags []entity.Tag
+	if err := s.db.Find(&tags).Error; err != nil {
 		return fmt.Errorf("createJSONBackup: failed to dump tags: %w", err)
+	}
+	dump.Tags = make([]TagBackup, len(tags))
+	for i, t := range tags {
+		dump.Tags[i] = TagBackup{
+			Tag:    t,
+			UserID: t.UserID,
+		}
+	}
+
+	if err := s.db.Find(&dump.PushSubscriptions).Error; err != nil {
+		return fmt.Errorf("createJSONBackup: failed to dump push subscriptions: %w", err)
 	}
 
 	jsonData, err := json.Marshal(dump)
@@ -483,26 +647,22 @@ func (s *Service) restoreSQLite(archivePath string) error {
 		}
 	}
 
-	// Checkpoint WAL
+	// Checkpoint WAL before live copy so all frames are flushed and WAL is truncated cleanly
 	if res := s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); res.Error != nil {
-		slog.Warn("createSQLiteBackup: PRAGMA wal_checkpoint failed", "error", res.Error)
+		slog.Warn("restoreSQLite: PRAGMA wal_checkpoint failed", "error", res.Error)
 	}
 
 	// Target sqlite path
-	destDB := database.GetSQLiteDBPath()
+	destDB := s.getActiveSQLiteDBPath()
 
-	// Replace database file
+	// Replace database file without unlinking active -wal/-shm descriptors
 	if err := copyFile(tempRestore, destDB); err != nil {
 		return fmt.Errorf("failed to write restored database file: %w", err)
 	}
 
-	// Clean up stale WAL / SHM files if any
-	_ = os.Remove(destDB + "-wal")
-	_ = os.Remove(destDB + "-shm")
-
-	// Verify restored db integrity
+	// Checkpoint WAL after copy to ensure shared-memory index is synchronized
 	if res := s.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); res.Error != nil {
-		slog.Warn("createSQLiteBackup: PRAGMA wal_checkpoint failed", "error", res.Error)
+		slog.Warn("restoreSQLite: Post-restore PRAGMA wal_checkpoint failed", "error", res.Error)
 	}
 	var schemaVer int
 	if err := s.db.Raw("PRAGMA user_version").Scan(&schemaVer).Error; err != nil {
@@ -527,9 +687,9 @@ func (s *Service) restoreJSON(archivePath string) error {
 			return err
 		}
 		defer gz.Close()
-		reader = gz
+		reader = io.LimitReader(gz, maxDecompressedBackupBytes)
 	} else {
-		reader = f
+		reader = io.LimitReader(f, maxDecompressedBackupBytes)
 	}
 
 	var dump UniversalBackupDump
@@ -538,77 +698,217 @@ func (s *Service) restoreJSON(archivePath string) error {
 	}
 
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		// Replace all core data in transaction with strict error checks
-		if len(dump.Users) > 0 {
-			for _, u := range dump.Users {
-				if err := tx.Save(&u).Error; err != nil {
-					return fmt.Errorf("failed to restore user %s: %w", u.Username, err)
+		// 1. Delete existing tables in reverse child-first topological order
+		if err := tx.Exec("DELETE FROM watched_tags").Error; err != nil {
+			return fmt.Errorf("failed to clear watched_tags: %w", err)
+		}
+		modelsToClear := []any{
+			&entity.Activity{},
+			&entity.WatchedEpisode{},
+			&entity.WatchedSeason{},
+			&entity.Watched{},
+			&entity.Tag{},
+			&entity.ArrRequest{},
+			&entity.PushSubscription{},
+			&entity.Follow{},
+			&entity.Token{},
+			&entity.UserServices{},
+			&entity.Game{},
+			&entity.Content{},
+			&entity.User{},
+			&entity.Image{},
+		}
+		for _, m := range modelsToClear {
+			if err := tx.Unscoped().Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(m).Error; err != nil {
+				return fmt.Errorf("failed to clear table for %T: %w", m, err)
+			}
+		}
+
+		// 2. Insert in topological parent-first order:
+		// Images -> Users -> UserServices -> Follow -> Content -> Games -> Tags -> Watched -> watched_tags -> WatchedSeasons -> WatchedEpisodes -> Activities -> ArrRequests -> PushSubscriptions
+		for _, ib := range dump.Images {
+			img := ib.Image
+			if ib.ID != 0 {
+				img.ID = ib.ID
+			}
+			if ib.Hash != "" {
+				img.Hash = ib.Hash
+			}
+			if err := tx.Create(&img).Error; err != nil {
+				return fmt.Errorf("failed to restore image %d: %w", img.ID, err)
+			}
+		}
+
+		for _, ub := range dump.Users {
+			u := ub.User
+			if ub.AvatarID != nil {
+				u.AvatarID = ub.AvatarID
+			}
+			if ub.Permissions != 0 {
+				u.Permissions = ub.Permissions
+			}
+			pwHash := ub.PasswordHash
+			if pwHash == "" && dump.PasswordHashes != nil {
+				pwHash = dump.PasswordHashes[u.ID]
+			}
+			if pwHash == "" {
+				pwHash = u.Password
+			}
+			u.Password = pwHash
+			if err := tx.Create(&u).Error; err != nil {
+				return fmt.Errorf("failed to restore user %s: %w", u.Username, err)
+			}
+			if pwHash != "" {
+				if err := tx.Table("users").Where("id = ?", u.ID).Update("password", pwHash).Error; err != nil {
+					return fmt.Errorf("failed to restore password hash for user %s: %w", u.Username, err)
 				}
 			}
 		}
-		if len(dump.UserServices) > 0 {
-			for _, us := range dump.UserServices {
-				if err := tx.Save(&us).Error; err != nil {
-					return fmt.Errorf("failed to restore user service: %w", err)
-				}
+
+		for _, usb := range dump.UserServices {
+			us := usb.UserServices
+			if usb.Name != "" {
+				us.Name = usb.Name
+			}
+			if usb.ClientID != "" {
+				us.ClientID = usb.ClientID
+			}
+			if usb.AuthToken != "" {
+				us.AuthToken = usb.AuthToken
+			}
+			if usb.AuthToken2 != "" {
+				us.AuthToken2 = usb.AuthToken2
+			}
+			if usb.UserID != 0 {
+				us.UserID = usb.UserID
+			}
+			if err := tx.Create(&us).Error; err != nil {
+				return fmt.Errorf("failed to restore user service: %w", err)
 			}
 		}
-		if len(dump.Content) > 0 {
-			for _, c := range dump.Content {
-				if err := tx.Save(&c).Error; err != nil {
-					return fmt.Errorf("failed to restore content %s: %w", c.Title, err)
-				}
+
+		for _, fb := range dump.Follow {
+			fl := fb.Follow
+			if !fb.UpdatedAt.IsZero() {
+				fl.UpdatedAt = fb.UpdatedAt
+			}
+			if fb.UserID != 0 {
+				fl.UserID = fb.UserID
+			}
+			if fb.FollowedUserID != 0 {
+				fl.FollowedUserID = fb.FollowedUserID
+			}
+			if err := tx.Create(&fl).Error; err != nil {
+				return fmt.Errorf("failed to restore follow: %w", err)
 			}
 		}
-		if len(dump.Watched) > 0 {
-			for _, w := range dump.Watched {
-				if err := tx.Save(&w).Error; err != nil {
-					return fmt.Errorf("failed to restore watched item: %w", err)
-				}
+
+		for _, c := range dump.Content {
+			if err := tx.Create(&c).Error; err != nil {
+				return fmt.Errorf("failed to restore content %s: %w", c.Title, err)
 			}
 		}
-		if len(dump.Seasons) > 0 {
-			for _, s := range dump.Seasons {
-				if err := tx.Save(&s).Error; err != nil {
-					return fmt.Errorf("failed to restore watched season: %w", err)
-				}
+
+		for _, gb := range dump.Games {
+			g := gb.Game
+			if gb.PosterID != nil {
+				g.PosterID = gb.PosterID
+			}
+			if err := tx.Create(&g).Error; err != nil {
+				return fmt.Errorf("failed to restore game: %w", err)
 			}
 		}
-		if len(dump.Episodes) > 0 {
-			for _, ep := range dump.Episodes {
-				if err := tx.Save(&ep).Error; err != nil {
-					return fmt.Errorf("failed to restore watched episode: %w", err)
-				}
+
+		for _, tb := range dump.Tags {
+			t := tb.Tag
+			if tb.UserID != 0 {
+				t.UserID = tb.UserID
+			}
+			if err := tx.Create(&t).Error; err != nil {
+				return fmt.Errorf("failed to restore tag: %w", err)
 			}
 		}
-		if len(dump.Activity) > 0 {
-			for _, act := range dump.Activity {
-				if err := tx.Save(&act).Error; err != nil {
-					return fmt.Errorf("failed to restore activity: %w", err)
-				}
+
+		for _, wb := range dump.Watched {
+			w := wb.Watched
+			if wb.UserID != 0 {
+				w.UserID = wb.UserID
+			}
+			if wb.ContentID != nil {
+				w.ContentID = wb.ContentID
+			}
+			if wb.GameID != nil {
+				w.GameID = wb.GameID
+			}
+			if err := tx.Create(&w).Error; err != nil {
+				return fmt.Errorf("failed to restore watched item: %w", err)
 			}
 		}
-		if len(dump.Tags) > 0 {
-			for _, t := range dump.Tags {
-				if err := tx.Save(&t).Error; err != nil {
-					return fmt.Errorf("failed to restore tag: %w", err)
-				}
+
+		for _, wt := range dump.WatchedTags {
+			if err := tx.Table("watched_tags").Create(map[string]any{
+				"watched_id": wt.WatchedID,
+				"tag_id":     wt.TagID,
+			}).Error; err != nil {
+				return fmt.Errorf("failed to restore watched_tag: %w", err)
 			}
 		}
-		if len(dump.Games) > 0 {
-			for _, g := range dump.Games {
-				if err := tx.Save(&g).Error; err != nil {
-					return fmt.Errorf("failed to restore game: %w", err)
-				}
+
+		for _, sb := range dump.Seasons {
+			ws := sb.WatchedSeason
+			if sb.UserID != 0 {
+				ws.UserID = sb.UserID
+			}
+			if sb.WatchedID != 0 {
+				ws.WatchedID = sb.WatchedID
+			}
+			if err := tx.Create(&ws).Error; err != nil {
+				return fmt.Errorf("failed to restore watched season: %w", err)
 			}
 		}
-		if len(dump.ArrRequests) > 0 {
-			for _, r := range dump.ArrRequests {
-				if err := tx.Save(&r).Error; err != nil {
-					return fmt.Errorf("failed to restore arr request: %w", err)
-				}
+
+		for _, epb := range dump.Episodes {
+			ep := epb.WatchedEpisode
+			if epb.UserID != 0 {
+				ep.UserID = epb.UserID
+			}
+			if epb.WatchedID != 0 {
+				ep.WatchedID = epb.WatchedID
+			}
+			if err := tx.Create(&ep).Error; err != nil {
+				return fmt.Errorf("failed to restore watched episode: %w", err)
 			}
 		}
+
+		for _, actb := range dump.Activity {
+			act := actb.Activity
+			if actb.UserID != 0 {
+				act.UserID = actb.UserID
+			}
+			if err := tx.Create(&act).Error; err != nil {
+				return fmt.Errorf("failed to restore activity: %w", err)
+			}
+		}
+
+		for _, arb := range dump.ArrRequests {
+			r := arb.ArrRequest
+			if arb.UserID != 0 {
+				r.UserID = arb.UserID
+			}
+			if arb.ContentID != nil {
+				r.ContentID = arb.ContentID
+			}
+			if err := tx.Create(&r).Error; err != nil {
+				return fmt.Errorf("failed to restore arr request: %w", err)
+			}
+		}
+
+		for _, ps := range dump.PushSubscriptions {
+			if err := tx.Create(&ps).Error; err != nil {
+				return fmt.Errorf("failed to restore push subscription: %w", err)
+			}
+		}
+
 		return nil
 	})
 }
@@ -654,6 +954,11 @@ func (s *Service) UpdateConfig(req UpdateBackupConfigRequest) error {
 	}
 	if req.ScheduleSeconds != nil && *req.ScheduleSeconds > 0 {
 		s.cfg.SetTaskSchedule("Automated Database Backup", *req.ScheduleSeconds)
+		if s.rescheduleTask != nil {
+			if err := s.rescheduleTask(*req.ScheduleSeconds); err != nil {
+				slog.Warn("UpdateConfig: failed to reschedule Automated Database Backup task", "error", err)
+			}
+		}
 	}
 	return s.cfg.Write()
 }
@@ -715,6 +1020,6 @@ func ungzipFile(src, dst string) error {
 	}
 	defer out.Close()
 
-	_, err = io.Copy(out, gr)
+	_, err = io.Copy(out, io.LimitReader(gr, maxDecompressedBackupBytes))
 	return err
 }

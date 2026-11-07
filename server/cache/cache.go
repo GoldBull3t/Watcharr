@@ -3,6 +3,7 @@ package cache
 import (
 	"log/slog"
 	"reflect"
+	"sort"
 	"strconv"
 
 	"github.com/robfig/go-cache"
@@ -48,8 +49,13 @@ func CreateCacheKey(name string, u ...any) string {
 		case string:
 			appnd(vv)
 		case map[string]string:
-			for k, e := range vv {
-				appnd(k + "_" + e)
+			keys := make([]string, 0, len(vv))
+			for k := range vv {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			for _, k := range keys {
+				appnd(k + "_" + vv[k])
 			}
 		case int:
 			appnd(strconv.Itoa(vv))

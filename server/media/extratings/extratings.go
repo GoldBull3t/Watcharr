@@ -93,7 +93,7 @@ type anilistGraphQLResponse struct {
 
 // FetchEnrichments fetches multi-platform ratings & enrichments from OMDb, MDBList, TVMaze, and AniList with 24h caching.
 func FetchEnrichments(opts FetchOptions) (*domain.ExternalRatings, string) {
-	cacheKey := fmt.Sprintf("ext_%s_%d_%s_%t_%t", opts.MediaType, opts.TMDBID, opts.ImdbID, opts.OMDBKey != "", opts.MDBListKey != "")
+	cacheKey := fmt.Sprintf("ext_%s_%d_%s_%d_%t_%t_%t", opts.MediaType, opts.TMDBID, opts.ImdbID, opts.TvdbID, opts.IsAnime, opts.OMDBKey != "", opts.MDBListKey != "")
 	if cached, found := RatingsCache.Get(cacheKey); found {
 		if entry, ok := cached.(cachedResult); ok {
 			return entry.ratings, entry.certification
@@ -367,10 +367,12 @@ func FetchEnrichments(opts FetchOptions) (*domain.ExternalRatings, string) {
 	wg.Wait()
 
 	var ptr *domain.ExternalRatings
+	ttl := 5 * time.Minute
 	if hasData {
 		ptr = &result
+		ttl = 24 * time.Hour
 	}
-	RatingsCache.Set(cacheKey, cachedResult{ratings: ptr, certification: certification}, 24*time.Hour)
+	RatingsCache.Set(cacheKey, cachedResult{ratings: ptr, certification: certification}, ttl)
 	return ptr, certification
 }
 

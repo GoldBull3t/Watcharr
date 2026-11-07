@@ -29,8 +29,9 @@ func AutoFinishWatcharrMedia(db *gorm.DB) (int64, error) {
 	// 1. Process Movies in WATCHING status
 	var watchingEntries []entity.Watched
 	err := db.Model(&entity.Watched{}).
+		Joins("INNER JOIN contents ON contents.id = watcheds.content_id AND contents.type = ?", entity.MOVIE).
 		Preload("Content").
-		Where("status = ?", entity.WATCHING).
+		Where("watcheds.status = ?", entity.WATCHING).
 		Find(&watchingEntries).Error
 	if err != nil {
 		slog.Error("AutoFinishWatcharrMedia: Failed to fetch watching entries", "error", err)
@@ -97,21 +98,39 @@ func AutoFinishWatcharrMedia(db *gorm.DB) (int64, error) {
 		}
 	}
 
-	// 2. Process TV Show Episodes in WATCHING status (Auto-Advance Series on Couch)
+	// 2. Process TV Show Episodes in WATCHING status
 	var watchingEpisodes []entity.WatchedEpisode
 	err = db.Model(&entity.WatchedEpisode{}).
 		Where("status = ?", entity.WATCHING).
 		Find(&watchingEpisodes).Error
 	if err != nil {
 		slog.Error("AutoFinishWatcharrMedia: Failed to fetch watching episodes", "error", err)
-	} else {
+	} else if len(watchingEpisodes) > 0 {
+		watchedIDSet := make(map[uint]struct{}, len(watchingEpisodes))
+		watchedIDs := make([]uint, 0, len(watchingEpisodes))
 		for _, ep := range watchingEpisodes {
-			var w entity.Watched
-			wErr := db.Model(&entity.Watched{}).
-				Preload("Content").
-				Where("id = ?", ep.WatchedID).
-				First(&w).Error
-			if wErr != nil || w.Content == nil || w.Content.Type != entity.SHOW {
+			if _, exists := watchedIDSet[ep.WatchedID]; !exists {
+				watchedIDSet[ep.WatchedID] = struct{}{}
+				watchedIDs = append(watchedIDs, ep.WatchedID)
+			}
+		}
+
+		var parentWatchedList []entity.Watched
+		parentWatchedMap := make(map[uint]entity.Watched, len(watchedIDs))
+		if err := db.Model(&entity.Watched{}).
+			Preload("Content").
+			Where("id IN ?", watchedIDs).
+			Find(&parentWatchedList).Error; err != nil {
+			slog.Error("AutoFinishWatcharrMedia: Failed to preload parent watched entries", "error", err)
+		} else {
+			for _, pw := range parentWatchedList {
+				parentWatchedMap[pw.ID] = pw
+			}
+		}
+
+		for _, ep := range watchingEpisodes {
+			w, ok := parentWatchedMap[ep.WatchedID]
+			if !ok || w.Content == nil || w.Content.Type != entity.SHOW {
 				continue
 			}
 
@@ -126,7 +145,7 @@ func AutoFinishWatcharrMedia(db *gorm.DB) (int64, error) {
 				continue
 			}
 
-			// Episode has finished! Complete it and advance to next episode
+			// Episode has finished! Complete it
 			txErr := db.Transaction(func(tx *gorm.DB) error {
 				// Mark current episode as FINISHED
 				upRes := tx.Model(&entity.WatchedEpisode{}).
@@ -159,32 +178,6 @@ func AutoFinishWatcharrMedia(db *gorm.DB) (int64, error) {
 					slog.Warn("AutoFinishWatcharrMedia: Failed to create episode activity", "error", actErr)
 				}
 
-				// Auto-advance to next episode in season
-				nextEpNum := ep.EpisodeNumber + 1
-				var nextEp entity.WatchedEpisode
-				nextFindErr := tx.Where(
-					"user_id = ? AND watched_id = ? AND season_number = ? AND episode_number = ?",
-					ep.UserID, ep.WatchedID, ep.SeasonNumber, nextEpNum,
-				).First(&nextEp).Error
-
-				if nextFindErr != nil {
-					// Create next episode as WATCHING
-					newNext := entity.WatchedEpisode{
-						UserID:        ep.UserID,
-						WatchedID:     ep.WatchedID,
-						SeasonNumber:  ep.SeasonNumber,
-						EpisodeNumber: nextEpNum,
-						Status:        entity.WATCHING,
-					}
-					_ = tx.Create(&newNext).Error
-				} else if nextEp.Status != entity.FINISHED {
-					// Update next episode to WATCHING
-					_ = tx.Model(&entity.WatchedEpisode{}).Where("id = ?", nextEp.ID).Updates(map[string]any{
-						"status":     entity.WATCHING,
-						"updated_at": now,
-					}).Error
-				}
-
 				// Touch parent show to keep it fresh at the top of Watching list
 				_ = tx.Model(&entity.Watched{}).Where("id = ?", ep.WatchedID).Updates(map[string]any{
 					"status":             entity.WATCHING,
@@ -198,7 +191,7 @@ func AutoFinishWatcharrMedia(db *gorm.DB) (int64, error) {
 
 			if txErr == nil {
 				finishedCount++
-				slog.Info("AutoFinishWatcharrMedia: Episode marked FINISHED & advanced to next episode",
+				slog.Info("AutoFinishWatcharrMedia: Episode marked FINISHED",
 					"userId", ep.UserID,
 					"watchedId", ep.WatchedID,
 					"season", ep.SeasonNumber,

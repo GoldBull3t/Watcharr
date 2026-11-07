@@ -140,4 +140,3 @@ func (c *Client) SeriesTranslation(tvdbID int, locale string) (Translation, erro
 	}
 	return t, nil
 }
-

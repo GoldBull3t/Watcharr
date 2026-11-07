@@ -131,4 +131,3 @@ func EvaluateShowCancellation(
 		HasCliffhanger: false,
 	}
 }
-

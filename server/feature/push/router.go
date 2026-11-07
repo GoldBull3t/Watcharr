@@ -5,9 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sbondCo/Watcharr/database/entity"
 	"github.com/sbondCo/Watcharr/feature/auth/authmiddleware"
-	"github.com/sbondCo/Watcharr/feature/user/usermiddleware"
 	"github.com/sbondCo/Watcharr/router"
 )
 
@@ -27,7 +25,6 @@ func (r *Router) AddRoutes() {
 	g := r.br.Router.Group("/push").
 		Use(
 			authmiddleware.AuthRequired(r.br.Cfg),
-			usermiddleware.WithUser(r.br.DB),
 		)
 
 	// Get VAPID Public Key needed by browser to subscribe
@@ -55,7 +52,7 @@ func (r *Router) GetKey(c *gin.Context) {
 }
 
 func (r *Router) Subscribe(c *gin.Context) {
-	user := c.MustGet("user").(entity.User)
+	userId := c.MustGet("userId").(uint)
 
 	var req SubscribeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -63,7 +60,7 @@ func (r *Router) Subscribe(c *gin.Context) {
 		return
 	}
 
-	sub, err := r.s.Subscribe(user.ID, req)
+	sub, err := r.s.Subscribe(userId, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: "failed to save subscription"})
 		return
@@ -76,7 +73,7 @@ func (r *Router) Subscribe(c *gin.Context) {
 }
 
 func (r *Router) Unsubscribe(c *gin.Context) {
-	user := c.MustGet("user").(entity.User)
+	userId := c.MustGet("userId").(uint)
 
 	var req UnsubscribeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -84,7 +81,7 @@ func (r *Router) Unsubscribe(c *gin.Context) {
 		return
 	}
 
-	if err := r.s.Unsubscribe(user.ID, req.Endpoint); err != nil {
+	if err := r.s.Unsubscribe(userId, req.Endpoint); err != nil {
 		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: "failed to unsubscribe"})
 		return
 	}
@@ -95,11 +92,11 @@ func (r *Router) Unsubscribe(c *gin.Context) {
 }
 
 func (r *Router) SendTest(c *gin.Context) {
-	user := c.MustGet("user").(entity.User)
+	userId := c.MustGet("userId").(uint)
 
-	sent, err := r.s.SendTest(user.ID)
+	sent, err := r.s.SendTest(userId)
 	if err != nil {
-		slog.Error("Push: Test notification error", "user_id", user.ID, "error", err)
+		slog.Error("Push: Test notification error", "user_id", userId, "error", err)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -107,4 +104,3 @@ func (r *Router) SendTest(c *gin.Context) {
 		"sent":    sent,
 	})
 }
-

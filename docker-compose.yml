@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: my-watcharr:latest
+    image: ghcr.io/goldbull3t/watcharr:latest
     container_name: watcharr
     ports:
       - "3080:3080"

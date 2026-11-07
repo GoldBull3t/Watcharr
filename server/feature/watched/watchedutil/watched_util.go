@@ -18,12 +18,29 @@ func GetLatestWatchedInTv(
 	}
 
 	seasonNum, seasonIsWatching := getLatestWatchedSeasonStateInTv(ws)
-	episode := getLatestWatchedEpisodeInTv(we, seasonNum)
+	filteredEpisodes := we
+	if seasonNum > -1 && len(ws) > 0 && len(we) > 0 {
+		finishedSeasons := make(map[int]bool, len(ws))
+		for i := range ws {
+			if ws[i].Status == entity.FINISHED {
+				finishedSeasons[ws[i].SeasonNumber] = true
+			}
+		}
+		filteredEpisodes = make([]entity.WatchedEpisode, 0, len(we))
+		for i := range we {
+			ep := we[i]
+			if ep.SeasonNumber > seasonNum && finishedSeasons[ep.SeasonNumber] {
+				continue
+			}
+			filteredEpisodes = append(filteredEpisodes, ep)
+		}
+	}
+	episode := getLatestWatchedEpisodeInTv(filteredEpisodes, seasonNum)
 
 	if seasonNum > -1 && episode.ID != 0 {
-		// If the season itself is WATCHING or the latest episode in it is WATCHING, show SxEy
-		if seasonIsWatching || episode.Status == entity.WATCHING {
-			return SeasonAndEpToReadable(seasonNum, episode.EpisodeNumber)
+		// If we have an episode in a newer season than seasonNum, or the season/episode is actively WATCHING, show SxEy
+		if episode.SeasonNumber > seasonNum || seasonIsWatching || episode.Status == entity.WATCHING {
+			return SeasonAndEpToReadable(episode.SeasonNumber, episode.EpisodeNumber)
 		}
 		// Season is FINISHED: show only the season number ("S1") (#753)
 		return "S" + strconv.Itoa(seasonNum)
@@ -81,9 +98,9 @@ func getLatestWatchedEpisodeInTv(
 	for i := range we {
 		v := &we[i]
 
-		if seasonNum >= 0 && v.SeasonNumber != seasonNum {
+		if seasonNum >= 0 && v.SeasonNumber < seasonNum {
 			// If we have a seasonNum, ensure the episode we find is in
-			// that season.
+			// that season or a newer season.
 			continue
 		}
 
@@ -93,8 +110,9 @@ func getLatestWatchedEpisodeInTv(
 				biggestWatchingIdx = i
 				continue
 			}
-			if v.EpisodeNumber > we[biggestWatchingIdx].EpisodeNumber ||
-				v.SeasonNumber > we[biggestWatchingIdx].SeasonNumber {
+			prev := &we[biggestWatchingIdx]
+			if v.SeasonNumber > prev.SeasonNumber ||
+				(v.SeasonNumber == prev.SeasonNumber && v.EpisodeNumber > prev.EpisodeNumber) {
 				biggestWatchingIdx = i
 			}
 		case entity.FINISHED:
@@ -102,8 +120,9 @@ func getLatestWatchedEpisodeInTv(
 				biggestWatchedIdx = i
 				continue
 			}
-			if v.EpisodeNumber > we[biggestWatchedIdx].EpisodeNumber ||
-				v.SeasonNumber > we[biggestWatchedIdx].SeasonNumber {
+			prev := &we[biggestWatchedIdx]
+			if v.SeasonNumber > prev.SeasonNumber ||
+				(v.SeasonNumber == prev.SeasonNumber && v.EpisodeNumber > prev.EpisodeNumber) {
 				biggestWatchedIdx = i
 			}
 		}

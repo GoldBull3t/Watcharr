@@ -22,4 +22,3 @@ func TestLoginWithoutKey(t *testing.T) {
 		t.Error("expected error when api key is empty")
 	}
 }
-

@@ -12,7 +12,7 @@ type (
 		SeasonNumber  int                  `json:"seasonNumber"`
 		EpisodeNumber int                  `json:"episodeNumber"`
 		Status        entity.WatchedStatus `json:"status"`
-		Rating        int8                 `json:"rating" binding:"max=10"`
+		Rating        int8                 `json:"rating" binding:"min=0,max=10"`
 
 		AddActivityDate   time.Time                `json:"-"`
 		AddActivityReason string                   `json:"-"`

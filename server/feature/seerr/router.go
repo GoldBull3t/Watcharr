@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sbondCo/Watcharr/database/entity"
@@ -56,13 +57,13 @@ func (r *Router) TestConnection(c *gin.Context) {
 		}
 	}
 
-	host := tr.Host
-	key := tr.Key
+	host := strings.TrimRight(strings.TrimSpace(tr.Host), "/")
+	key := strings.TrimSpace(tr.Key)
 
 	if host == "" {
 		host = r.br.Cfg.OVERSEERR_HOST
 	}
-	if key == "" {
+	if key == "" && (tr.Host == "" || host == strings.TrimRight(strings.TrimSpace(r.br.Cfg.OVERSEERR_HOST), "/")) {
 		key = r.br.Cfg.OVERSEERR_KEY
 	}
 
@@ -84,6 +85,10 @@ func (r *Router) TestConnection(c *gin.Context) {
 
 func (r *Router) GetStatus(c *gin.Context) {
 	mediaType := c.Param("type")
+	if mediaType != "movie" && mediaType != "tv" {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid media type: must be 'movie' or 'tv'"})
+		return
+	}
 	tmdbIdStr := c.Param("tmdbId")
 	tmdbId, err := strconv.Atoi(tmdbIdStr)
 	if err != nil || tmdbId <= 0 {

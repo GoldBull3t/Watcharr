@@ -61,8 +61,8 @@ func (s *Service) Search(
 		return resp, nil
 	}
 
-	if r.PreferMyList {
-		if err := s.searchMyList(r.Query, pp, userId, &resp); err != nil {
+	if r.PreferMyList && r.Type != domain.SearchTypePerson {
+		if err := s.searchMyList(r.Query, r.Type, pp, userId, &resp); err != nil {
 			// Silently fail allowing the below searches to try execution
 			slog.Error("Search: searchMyList failed!", "error", err)
 		} else if resp.TotalResults > 0 {
@@ -364,14 +364,24 @@ func (s *Service) searchGameBySlug(
 // so the controller doesn't need to add watched after this returns any results.
 func (s *Service) searchMyList(
 	query string,
+	searchType domain.SearchType,
 	pp util.PaginationParams,
 	userId uint,
 	resp *domain.SearchResponse,
 ) error {
+	wr := domain.WatchedGetPageRequest{}
+	switch searchType {
+	case domain.SearchTypeMovie:
+		wr.FilterType = []util.SupportedMedia{util.SupportedMediaMovie}
+	case domain.SearchTypeShow:
+		wr.FilterType = []util.SupportedMedia{util.SupportedMediaShow}
+	case domain.SearchTypeGame:
+		wr.FilterType = []util.SupportedMedia{util.SupportedMediaGame}
+	}
 	internalRes, err := s.watchedProvider.GetWatchedPage(
 		userId,
 		pp,
-		domain.WatchedGetPageRequest{},
+		wr,
 		&domain.WatchedGetPageExtraProps{Query: query})
 	if err != nil {
 		slog.Error("searchMyList: Failed to search!", "error", err)
@@ -381,11 +391,20 @@ func (s *Service) searchMyList(
 		slog.Debug("searchMyList: No direct substring matches found. Attempting fuzzy typo-tolerant trigram search.", "query", query)
 		if s.db != nil {
 			var userWatched []entity.Watched
-			dbErr := s.db.
+			q := s.db.
 				Model(&entity.Watched{}).
 				Where(&entity.Watched{UserID: userId}).
 				Joins("Content").
-				Joins("Game").
+				Joins("Game")
+			switch searchType {
+			case domain.SearchTypeMovie:
+				q = q.Where(`"Content".type = ?`, entity.MOVIE)
+			case domain.SearchTypeShow:
+				q = q.Where(`"Content".type = ?`, entity.SHOW)
+			case domain.SearchTypeGame:
+				q = q.Where("watcheds.game_id IS NOT NULL")
+			}
+			dbErr := q.
 				Limit(1000).
 				Find(&userWatched).Error
 			if dbErr == nil && len(userWatched) > 0 {
@@ -401,18 +420,31 @@ func (s *Service) searchMyList(
 					var fuzzyMatched []entity.Watched
 					s.db.
 						Model(&entity.Watched{}).
-						Where("id IN ?", matchedIDs).
+						Where("watcheds.id IN ?", matchedIDs).
 						Joins("Content").
 						Joins("Game").
 						Preload("Game.Poster").
+						Preload("WatchedSeasons").
+						Preload("WatchedEpisodes").
 						Preload("Tags").
 						Find(&fuzzyMatched)
 
-					resp.Results = domain.NewWatchedGetPageResponse(fuzzyMatched)
+					matchedByID := make(map[uint]entity.Watched, len(fuzzyMatched))
+					for _, fm := range fuzzyMatched {
+						matchedByID[fm.ID] = fm
+					}
+					orderedMatched := make([]entity.Watched, 0, len(fuzzyMatched))
+					for _, id := range matchedIDs {
+						if fm, ok := matchedByID[id]; ok {
+							orderedMatched = append(orderedMatched, fm)
+						}
+					}
+
+					resp.Results = domain.NewWatchedGetPageResponse(orderedMatched)
 					resp.Page = 1
 					resp.TotalPages = 1
-					resp.TotalResults = int64(len(fuzzyMatched))
-					slog.Info("searchMyList: Fuzzy trigram search found matching items", "count", len(fuzzyMatched), "query", query)
+					resp.TotalResults = int64(len(orderedMatched))
+					slog.Info("searchMyList: Fuzzy trigram search found matching items", "count", len(orderedMatched), "query", query)
 					return nil
 				}
 			}

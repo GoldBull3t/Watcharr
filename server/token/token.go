@@ -18,6 +18,10 @@ func CreateOneUseToken(db *gorm.DB, t entity.TokenType, userId uint) (string, er
 		slog.Error("createOneUseToken: Failed to generate string!", "error", err)
 		return "", errors.New("failed to generate token")
 	}
+	if err := db.Where("type = ? AND user_id = ?", t, userId).Delete(&entity.Token{}).Error; err != nil {
+		slog.Error("createOneUseToken: Failed to delete existing tokens from db!", "error", err)
+		return "", errors.New("failed to generate token")
+	}
 	res := db.Create(&entity.Token{Type: t, Value: token, UserID: userId})
 	if res.Error != nil {
 		slog.Error("createOneUseToken: Failed to insert token into db!", "error", res.Error)

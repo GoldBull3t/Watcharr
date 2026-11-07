@@ -111,9 +111,9 @@ func PaginatedRequest(force bool) gin.HandlerFunc {
 			return
 		} else {
 			num, err := strconv.Atoi(pageStr)
-			if err != nil {
-				slog.Error("PossiblyPaginated: Query paramater 'page' was not parseable as an int", "err", err)
-				c.JSON(http.StatusBadRequest, ErrorResponse{Error: "query param 'page' must be a number"})
+			if err != nil || num <= 0 {
+				slog.Error("PossiblyPaginated: Query paramater 'page' was not a valid positive int", "err", err, "page", pageStr)
+				c.AbortWithStatusJSON(http.StatusBadRequest, ErrorResponse{Error: "query param 'page' must be a number"})
 				return
 			}
 			page = num
@@ -125,7 +125,7 @@ func PaginatedRequest(force bool) gin.HandlerFunc {
 			num, err := strconv.Atoi(limitStr)
 			if err != nil {
 				slog.Error("PossiblyPaginated: Query paramater 'limit' was not parseable as an int", "err", err)
-				c.JSON(http.StatusBadRequest, ErrorResponse{Error: "query param 'limit' must be a number"})
+				c.AbortWithStatusJSON(http.StatusBadRequest, ErrorResponse{Error: "query param 'limit' must be a number"})
 				return
 			}
 			if num > 100 {

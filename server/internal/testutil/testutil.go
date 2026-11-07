@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sbondCo/Watcharr/database"
 	"github.com/glebarez/sqlite"
+	"github.com/sbondCo/Watcharr/database"
 	"gorm.io/gorm"
 )
 

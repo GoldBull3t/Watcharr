@@ -7,7 +7,7 @@ type Game struct {
 	ID         int       `json:"id" gorm:"primaryKey;autoIncrement"`
 	UpdatedAt  time.Time `json:"updatedAt"`
 	IgdbID     int       `json:"igdbId" gorm:"uniqueIndex;not null"`
-	Name       string    `json:"name"`
+	Name       string    `json:"name" gorm:"size:255"`
 	CoverID    string    `json:"coverId"`
 	BackdropID string    `json:"backdropId,omitempty"`
 	Summary    string    `json:"summary"`
@@ -28,5 +28,5 @@ type Game struct {
 	Publishers string `json:"publishers,omitempty"`
 	// Id to poster image row (cached game cover)
 	PosterID *uint  `json:"-"`
-	Poster   *Image `json:"poster,omitempty"`
+	Poster   *Image `json:"poster,omitempty" gorm:"constraint:OnDelete:SET NULL"`
 }

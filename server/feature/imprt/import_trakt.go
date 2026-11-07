@@ -114,6 +114,13 @@ func NewTraktService(s *Service) *TraktService {
 
 // TODO we could support trakt list imports when we support a similar feature (tags will function as custom lists when done #199)
 func (t *TraktService) startTraktImport(jobId string, userId uint, req TraktImportRequest) {
+	jobFinalized := false
+	defer func() {
+		if !jobFinalized {
+			job.UpdateJobStatus(jobId, userId, job.JOB_DONE)
+		}
+	}()
+
 	// Get trakt user. We want to get their profile `slug` for use in
 	// next requests and we can check their profile isn't private while here.
 	var traktUser TraktUser
@@ -128,12 +135,14 @@ func (t *TraktService) startTraktImport(jobId string, userId uint, req TraktImpo
 			"trakt_user", traktUser)
 		job.AddJobError(jobId, userId, "failed to request trakt profile from api")
 		job.UpdateJobStatus(jobId, userId, job.JOB_CANCELLED)
+		jobFinalized = true
 		return
 	}
 	if traktUser.Private {
 		slog.Error("startTraktImport: Users profile is private. Cannot continue with import.")
 		job.AddJobError(jobId, userId, "trakt profile is private")
 		job.UpdateJobStatus(jobId, userId, job.JOB_CANCELLED)
+		jobFinalized = true
 		return
 	}
 	userSlug := traktUser.IDs.Slug
@@ -244,14 +253,16 @@ func (t *TraktService) startTraktImport(jobId string, userId uint, req TraktImpo
 			job.UpdateJobCurrentTask(jobId, userId, "setting status for "+title)
 			mapKey := t.makeTraktMapKey(contentType, tmdbId)
 			if mv, ok := toImport[mapKey]; ok {
-				// If item already exists in toImport, set its status to planned.
+				// If item already exists in toImport, set its status to planned unless already FINISHED or WATCHING.
 				if v.Type == "episode" {
 					// For episode entries, we have to find the WatchedEpisode to set its status to planned.
 					weFound := false
 					for i, we := range mv.WatchedEpisodes {
 						if we.SeasonNumber == v.Episode.Season && we.EpisodeNumber == v.Episode.Number {
-							we.Status = entity.PLANNED
-							mv.WatchedEpisodes[i] = we
+							if we.Status != entity.FINISHED && we.Status != entity.WATCHING {
+								we.Status = entity.PLANNED
+								mv.WatchedEpisodes[i] = we
+							}
 							weFound = true
 							break
 						}
@@ -268,7 +279,9 @@ func (t *TraktService) startTraktImport(jobId string, userId uint, req TraktImpo
 					}
 					toImport[mapKey] = mv
 				} else {
-					mv.Status = entity.PLANNED
+					if mv.Status != entity.FINISHED && mv.Status != entity.WATCHING {
+						mv.Status = entity.PLANNED
+					}
 					if v.Notes != "" {
 						// episodes dont support notes in watcharr
 						mv.Thoughts = v.Notes
@@ -374,6 +387,7 @@ func (t *TraktService) startTraktImport(jobId string, userId uint, req TraktImpo
 	}
 	// We are donezo
 	job.UpdateJobStatus(jobId, userId, job.JOB_DONE)
+	jobFinalized = true
 }
 
 func (t *TraktService) processTraktHistoryItem(v TraktHistory, toImport map[string]domain.ImportRequest) error {

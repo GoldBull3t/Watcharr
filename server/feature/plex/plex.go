@@ -341,6 +341,7 @@ type PlexClientResources []struct {
 // but it does NOT strip custom-named headers, so without this the Plex token
 // would be forwarded to any host the configured PLEX_HOST redirects to.
 var plexHTTPClient = &http.Client{
+	Timeout: 30 * time.Second,
 	CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		if len(via) == 0 {
 			return nil
@@ -377,9 +378,12 @@ func (s *Service) GetPlexIdentity(host string) (PlexIdentity, error) {
 		return PlexIdentity{}, err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
 		return PlexIdentity{}, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return PlexIdentity{}, errors.New("non-2xx response from plex server")
 	}
 	var pi PlexIdentity
 	err = json.Unmarshal(body, &pi)
@@ -403,9 +407,12 @@ func (s *Service) FetchPlexAccountFromToken(token string) (PlexUser, error) {
 		return PlexUser{}, err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
 		return PlexUser{}, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return PlexUser{}, errors.New("non-2xx response from plex.tv")
 	}
 	var pa PlexAccountResponse
 	err = json.Unmarshal(body, &pa)
@@ -452,9 +459,12 @@ func (s *Service) GetPlexLibraries(plexAuth string) (PlexLibrariesResponse, erro
 		return PlexLibrariesResponse{}, err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
 		return PlexLibrariesResponse{}, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return PlexLibrariesResponse{}, errors.New("non-2xx response from plex server")
 	}
 	var pl PlexLibrariesResponse
 	err = json.Unmarshal(body, &pl)
@@ -477,9 +487,12 @@ func (s *Service) GetPlexLibraryItems(plexAuth string, libraryKey string) (PlexL
 		return PlexLibraryItemsResponse{}, err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
 		return PlexLibraryItemsResponse{}, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return PlexLibraryItemsResponse{}, errors.New("non-2xx response from plex server")
 	}
 	var pl PlexLibraryItemsResponse
 	err = json.Unmarshal(body, &pl)
@@ -502,9 +515,12 @@ func (s *Service) GetPlexLibraryItemSeasons(plexAuth string, ratingKey string) (
 		return PlexLibraryItemSeasonsResponse{}, err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
 		return PlexLibraryItemSeasonsResponse{}, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return PlexLibraryItemSeasonsResponse{}, errors.New("non-2xx response from plex server")
 	}
 	var pl PlexLibraryItemSeasonsResponse
 	err = json.Unmarshal(body, &pl)
@@ -527,9 +543,12 @@ func (s *Service) GetPlexLibraryItemEpisodes(plexAuth string, ratingKey string) 
 		return PlexLibraryItemEpisodesResponse{}, err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
 		return PlexLibraryItemEpisodesResponse{}, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return PlexLibraryItemEpisodesResponse{}, errors.New("non-2xx response from plex server")
 	}
 	var pl PlexLibraryItemEpisodesResponse
 	err = json.Unmarshal(body, &pl)
@@ -556,9 +575,12 @@ func (s *Service) GetPlexHomeServerAuthToken(plexAuth string, userClientId strin
 		return "", err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 10<<20))
 	if err != nil {
 		return "", err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", errors.New("non-2xx response from plex.tv")
 	}
 	var pl PlexClientResources
 	err = json.Unmarshal(body, &pl)

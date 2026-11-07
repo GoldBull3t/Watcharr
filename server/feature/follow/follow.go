@@ -33,6 +33,10 @@ func NewService(db *gorm.DB) *Service {
 }
 
 func (s *Service) FollowUser(currentUserId uint, toFollowUserId uint) (FollowPublic, error) {
+	var targetUser entity.User
+	if err := s.db.Where("id = ? AND (private IS NULL OR private = ?)", toFollowUserId, false).Take(&targetUser).Error; err != nil {
+		return FollowPublic{}, errors.New("cannot follow private or non-existent user")
+	}
 	f := entity.Follow{UserID: currentUserId, FollowedUserID: toFollowUserId}
 	res := s.db.Model(&entity.Follow{}).Create(&f)
 	if res.Error != nil {
@@ -45,7 +49,7 @@ func (s *Service) FollowUser(currentUserId uint, toFollowUserId uint) (FollowPub
 	}
 	// Now get the row with preloaded followed user
 	var nf entity.Follow
-	res = s.db.Where("user_id = ? AND followed_user_id = ?", currentUserId, toFollowUserId).Preload("FollowedUser", "private = ?", 0).Take(&nf)
+	res = s.db.Where("user_id = ? AND followed_user_id = ?", currentUserId, toFollowUserId).Preload("FollowedUser", "private = ?", false).Take(&nf)
 	if res.Error != nil {
 		slog.Error("followUser: Couldn't fetch newly followed user.", "error", res.Error)
 		return FollowPublic{}, errors.New("followed, but failed to fetch followed user")
@@ -70,7 +74,7 @@ func (s *Service) UnfollowUser(currentUserId uint, toFollowUserId uint) (bool, e
 // Get current users follows
 func (s *Service) GetFollows(userId uint) ([]FollowPublic, error) {
 	var follows []entity.Follow
-	res := s.db.Where("user_id = ?", userId).Preload("FollowedUser", "private = ?", 0).Find(&follows)
+	res := s.db.Where("user_id = ?", userId).Preload("FollowedUser", "private = ?", false).Find(&follows)
 	if res.Error != nil {
 		slog.Error("getFollows: Error finding follows.", "error", res.Error)
 		return []FollowPublic{}, errors.New("failed to find follows")
@@ -91,7 +95,7 @@ func (s *Service) GetFollows(userId uint) ([]FollowPublic, error) {
 // Get followed profile thoughts, rating, etc on specific content.
 func (s *Service) GetFollowsThoughts(userId uint, mediaType string, mediaId string) ([]FollowThoughts, error) {
 	var follows []entity.Follow
-	res := s.db.Where("user_id = ?", userId).Preload("FollowedUser", "private = ? AND private_thoughts = ?", 0, 0).Find(&follows)
+	res := s.db.Where("user_id = ?", userId).Preload("FollowedUser", "private = ? AND private_thoughts = ?", false, false).Find(&follows)
 	if res.Error != nil {
 		slog.Error("getFollows: Error finding follows.", "error", res.Error)
 		return []FollowThoughts{}, errors.New("failed to find follows")

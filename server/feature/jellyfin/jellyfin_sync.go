@@ -239,10 +239,14 @@ func (s *SyncService) startJellyfinSync(
 				job.UpdateJobCurrentTask(jobId, userId, "syncing serie "+v.Name)
 
 				// 2. Imported watched series
+				seriesStatus := entity.WATCHING
+				if v.UserData.Played {
+					seriesStatus = entity.FINISHED
+				}
 				w, err := s.wp.AddWatched(
 					userId,
 					domain.WatchedAddRequest{
-						Status:      entity.FINISHED,
+						Status:      seriesStatus,
 						ContentType: util.SupportedMediaShow,
 						TMDBID:      tmdbId,
 						WatchedDate: v.UserData.LastPlayedDate,
@@ -259,6 +263,14 @@ func (s *SyncService) startJellyfinSync(
 							"user_id", userId,
 							"watched_id", w.ID)
 						// In this case, we allow continuing below to start syncing seasons/episodes
+						if w.ID == 0 {
+							var existingW entity.Watched
+							if err := s.db.Joins("INNER JOIN contents ON watcheds.content_id = contents.id").
+								Where("watcheds.user_id = ? AND contents.tmdb_id = ? AND contents.type = ?", userId, tmdbId, entity.SHOW).
+								First(&existingW).Error; err == nil {
+								w = existingW
+							}
+						}
 					} else if errors.Is(err, domain.ErrWatchedExistsSoftDeleted) {
 						// Entry was manually soft deleted by user at another point,
 						// we DontRestore these automatically. We also don't continue
@@ -278,6 +290,7 @@ func (s *SyncService) startJellyfinSync(
 							"user_id", userId,
 							"error", err)
 						job.AddJobError(jobId, userId, "series could not be imported (failed when adding to watched list): "+v.Name)
+						continue
 					}
 				} else {
 					// 3. Add IMPORTED_ADDED_WATCHED activity (only if no err above, show also must not have already been on our list)
@@ -403,7 +416,7 @@ func (s *SyncService) jellyfinSyncWatched(
 	userThirdPartyId string,
 	userThirdPartyAuth string,
 ) (JellyfinSyncResponse, error) {
-	jobId, err := job.AddJob("jf_sync", userId)
+	jobId, err := job.AddUniqueJob("jf_sync", userId)
 	if err != nil {
 		slog.Error("jellyfinSyncWatched: Failed to create a job", "error", err)
 		return JellyfinSyncResponse{}, errors.New("failed to create job")

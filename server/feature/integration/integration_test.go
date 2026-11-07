@@ -196,4 +196,3 @@ func TestGetCalendarICS_FullURLPoster(t *testing.T) {
 		t.Errorf("expected ics to contain %q, but not found. Full ICS:\n%s", expectedXPoster, ics)
 	}
 }
-

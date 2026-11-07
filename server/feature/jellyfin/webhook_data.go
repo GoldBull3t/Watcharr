@@ -150,6 +150,7 @@ func (e *EmbyWebhookData) ToWebhookData() (*WebhookData, bool, bool) {
 		played = false
 	case "item.rate":
 		notifType = WebhookTypeUserDataSaved
+		saveReason = "UpdateUserRating"
 	default:
 		slog.Debug("ToWebhookData: Unhandled Emby event", "event", e.Event)
 		return nil, false, true

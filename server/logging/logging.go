@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -16,6 +17,8 @@ type (
 var (
 	// The logging level.
 	level = new(slog.LevelVar)
+	// Mutex protecting levelChangedHooks.
+	hooksMu sync.RWMutex
 	// Callbacks for whenever we change the log level.
 	levelChangedHooks []LevelChangedHook
 )
@@ -55,6 +58,8 @@ func Setup(logfp string) io.Writer {
 // **NOTE:** Ideally all hooks are added BEFORE the first `Level()` call, so
 // all hooks are ran for the first init of the logger level.
 func AddLevelChangedHook(lch LevelChangedHook) {
+	hooksMu.Lock()
+	defer hooksMu.Unlock()
 	levelChangedHooks = append(levelChangedHooks, lch)
 }
 
@@ -65,8 +70,11 @@ func Level(debug bool) {
 	} else {
 		level.Set(slog.LevelInfo)
 	}
-	for i := range levelChangedHooks {
-		levelChangedHooks[i](debug)
+	hooksMu.RLock()
+	hooks := append([]LevelChangedHook(nil), levelChangedHooks...)
+	hooksMu.RUnlock()
+	for i := range hooks {
+		hooks[i](debug)
 	}
 	slog.Info("Logging level set", "level", level)
 }

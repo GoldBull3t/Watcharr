@@ -11,9 +11,9 @@ import (
 // know what to return.
 type PaginationParams struct {
 	// Page limit (max amount of items to get for each page).
-	Limit int `json:"limit"`
+	Limit int `json:"limit" form:"limit"`
 	// Page number.
-	Page int `json:"page"`
+	Page int `json:"page" form:"page"`
 }
 
 // Pagination response struct.
@@ -33,6 +33,12 @@ type PaginationResponse[T any, U any] struct {
 // Call when finished with PaginationResponse, before returning to user.
 // Performs final calculations.
 func (r *PaginationResponse[T, U]) Finished(p PaginationParams) {
+	if p.Page <= 0 {
+		p.Page = 1
+	}
+	if p.Limit <= 0 {
+		p.Limit = 30
+	}
 	r.PaginationParams = p
 	if r.TotalResults != 0 && r.Limit != 0 {
 		r.TotalPages = int(math.Ceil(float64(r.TotalResults) / float64(r.Limit)))
@@ -52,6 +58,12 @@ func Paginate[T any, U any](
 	p PaginationParams,
 	r *PaginationResponse[T, U],
 ) func(db *gorm.DB) *gorm.DB {
+	if p.Page <= 0 {
+		p.Page = 1
+	}
+	if p.Limit <= 0 {
+		p.Limit = 30
+	}
 	return func(db *gorm.DB) *gorm.DB {
 		offset := (p.Page - 1) * p.Limit
 		return db.Offset(offset).Limit(p.Limit)

@@ -31,7 +31,7 @@ func ContentTypeToSupportedMedia(ct ContentType) util.SupportedMedia {
 type Content struct {
 	ID               int         `json:"id" gorm:"primaryKey;autoIncrement"`
 	TmdbID           int         `json:"tmdbId" gorm:"uniqueIndex:contentidtotypeidx;not null"`
-	Title            string      `json:"title"`
+	Title            string      `json:"title" gorm:"size:255"`
 	PosterPath       string      `json:"poster_path"`
 	BackdropPath     string      `json:"backdrop_path,omitempty"`
 	Overview         string      `json:"overview"`
@@ -41,7 +41,7 @@ type Content struct {
 	Homepage         string      `json:"homepage,omitempty"`
 	Certification    string      `json:"certification,omitempty"`
 	Networks         string      `json:"networks,omitempty"`
-	Type             ContentType `json:"type" gorm:"uniqueIndex:contentidtotypeidx;not null"`
+	Type             ContentType `json:"type" gorm:"size:64;uniqueIndex:contentidtotypeidx;not null"`
 	ReleaseDate      *time.Time  `json:"release_date,omitempty"`
 	Popularity       float32     `json:"popularity"`
 	VoteAverage      float32     `json:"vote_average"`

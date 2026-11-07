@@ -347,7 +347,7 @@ func (s *SyncService) PlexSyncWatched(
 	userId uint,
 	userPlexLocalAuth string,
 ) (PlexSyncResponse, error) {
-	jobId, err := job.AddJob("plex_sync", userId)
+	jobId, err := job.AddUniqueJob("plex_sync", userId)
 	if err != nil {
 		slog.Error("startPlexSync: Failed to create a job", "error", err)
 		return PlexSyncResponse{}, errors.New("failed to create job")

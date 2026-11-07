@@ -13,7 +13,6 @@ import (
 	"github.com/sbondCo/Watcharr/feature/integration"
 	"github.com/sbondCo/Watcharr/media/tmdb"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type WatchedProvider interface {
@@ -271,12 +270,23 @@ func (s *Service) rmWatchedEpisode(userId uint, id uint) (entity.Activity, error
 		addedActivity  entity.Activity
 	)
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		resp := tx.
-			Clauses(clause.Returning{}).
+		if err := tx.
 			Model(&entity.WatchedEpisode{}).
 			Unscoped().
 			Where("id = ? AND user_id = ?", id, userId).
-			Delete(&watchedEpisode)
+			Take(&watchedEpisode).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				slog.Error("Failed when removing a watched episode", "error", "zero rows affected")
+				return errors.New("wasn't removed from db.. may not exist")
+			}
+			slog.Error("Failed when removing a watched episode", "error", err)
+			return errors.New("failed when removing watched episode")
+		}
+		resp := tx.
+			Model(&entity.WatchedEpisode{}).
+			Unscoped().
+			Where("id = ? AND user_id = ?", watchedEpisode.ID, userId).
+			Delete(&entity.WatchedEpisode{})
 		if resp.Error != nil {
 			slog.Error("Failed when removing a watched episode", "error", resp.Error)
 			return errors.New("failed when removing watched episode")

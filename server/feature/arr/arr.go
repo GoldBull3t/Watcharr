@@ -137,41 +137,52 @@ func testRadarr(p ArrTestParams) (RadarrTestResponse, error) {
 
 // Add sonarr server to config
 func addSonarr(cfg *config.ServerConfig, s cfgmodel.SonarrSettings) error {
+	cfg.Lock()
 	for _, v := range cfg.SONARR {
 		if v.Name == s.Name {
+			cfg.Unlock()
 			// Server exists with this name...
 			return errors.New("server with that name already exists")
 		}
 	}
 	cfg.SONARR = append(cfg.SONARR, s)
+	cfg.Unlock()
 	cfg.Write()
 	return nil
 }
 
 // Edit sonarr server in config
 func editSonarr(cfg *config.ServerConfig, s cfgmodel.SonarrSettings) error {
+	cfg.Lock()
 	for i, v := range cfg.SONARR {
 		if v.Name == s.Name {
 			cfg.SONARR[i] = s
+			cfg.Unlock()
 			cfg.Write()
 			return nil
 		}
 	}
+	cfg.Unlock()
 	return errors.New("can't edit server that does not exist")
 }
 
 func rmSonarr(cfg *config.ServerConfig, name string) error {
+	cfg.Lock()
 	for i, v := range cfg.SONARR {
 		if v.Name == name {
 			cfg.SONARR = append(cfg.SONARR[:i], cfg.SONARR[i+1:]...)
+			cfg.Unlock()
 			cfg.Write()
 			return nil
 		}
 	}
+	cfg.Unlock()
 	return errors.New("can't remove a server that does not exist")
 }
 
 func getSonarr(cfg *config.ServerConfig, name string) (cfgmodel.SonarrSettings, error) {
+	cfg.RLock()
+	defer cfg.RUnlock()
 	for i, v := range cfg.SONARR {
 		if v.Name == name {
 			return cfg.SONARR[i], nil
@@ -183,6 +194,8 @@ func getSonarr(cfg *config.ServerConfig, name string) (cfgmodel.SonarrSettings, 
 // Get list of sonarr servers without api keys.
 // Regular users with access to adding to sonarr will request this.
 func getSonarrsSafe(cfg *config.ServerConfig) []SonarrSettingsPublicResponseResult {
+	cfg.RLock()
+	defer cfg.RUnlock()
 	s := []SonarrSettingsPublicResponseResult{}
 	for _, v := range cfg.SONARR {
 		s = append(s, NewSonarrSettingsPublicResponse(&v))
@@ -192,41 +205,52 @@ func getSonarrsSafe(cfg *config.ServerConfig) []SonarrSettingsPublicResponseResu
 
 // Add radarr server to config
 func addRadarr(cfg *config.ServerConfig, s cfgmodel.RadarrSettings) error {
+	cfg.Lock()
 	for _, v := range cfg.RADARR {
 		if v.Name == s.Name {
+			cfg.Unlock()
 			// Server exists with this name...
 			return errors.New("server with that name already exists")
 		}
 	}
 	cfg.RADARR = append(cfg.RADARR, s)
+	cfg.Unlock()
 	cfg.Write()
 	return nil
 }
 
 // Edit radarr server in config
 func editRadarr(cfg *config.ServerConfig, s cfgmodel.RadarrSettings) error {
+	cfg.Lock()
 	for i, v := range cfg.RADARR {
 		if v.Name == s.Name {
 			cfg.RADARR[i] = s
+			cfg.Unlock()
 			cfg.Write()
 			return nil
 		}
 	}
+	cfg.Unlock()
 	return errors.New("can't edit server that does not exist")
 }
 
 func rmRadarr(cfg *config.ServerConfig, name string) error {
+	cfg.Lock()
 	for i, v := range cfg.RADARR {
 		if v.Name == name {
 			cfg.RADARR = append(cfg.RADARR[:i], cfg.RADARR[i+1:]...)
+			cfg.Unlock()
 			cfg.Write()
 			return nil
 		}
 	}
+	cfg.Unlock()
 	return errors.New("can't remove a server that does not exist")
 }
 
 func getRadarr(cfg *config.ServerConfig, name string) (cfgmodel.RadarrSettings, error) {
+	cfg.RLock()
+	defer cfg.RUnlock()
 	for i, v := range cfg.RADARR {
 		if v.Name == name {
 			return cfg.RADARR[i], nil
@@ -238,6 +262,8 @@ func getRadarr(cfg *config.ServerConfig, name string) (cfgmodel.RadarrSettings, 
 // Get list of radarr servers without api keys.
 // Regular users with access to adding to radarr will request this.
 func getRadarrsSafe(cfg *config.ServerConfig) []RadarrSettingsPublicResponseResult {
+	cfg.RLock()
+	defer cfg.RUnlock()
 	s := []RadarrSettingsPublicResponseResult{}
 	for _, v := range cfg.RADARR {
 		s = append(s, NewRadarrSettingsPublicResponse(&v))

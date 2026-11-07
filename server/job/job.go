@@ -55,13 +55,17 @@ func ShutdownJobs() {
 // Returns id of job on success, or error if failed to add.
 // Only return safe errors for display to users, log serious errors.
 func AddJob(name string, userId uint) (string, error) {
+	jobsMu.Lock()
+	defer jobsMu.Unlock()
+	return addJobLocked(name, userId)
+}
+
+func addJobLocked(name string, userId uint) (string, error) {
 	idk, err := util.GenerateString(8)
 	if err != nil {
 		slog.Error("addJob: Failed to generate a job id!", "error", err)
 		return "", errors.New("failed to generate a job id, please try again")
 	}
-	jobsMu.Lock()
-	defer jobsMu.Unlock()
 	_, ok := activeJobs[idk]
 	if ok {
 		// Lets just hope this doesn't happen, may the odds be with us.
@@ -78,19 +82,14 @@ func AddJob(name string, userId uint) (string, error) {
 // Add a job, but only if one with the same `name` isn't already running.
 // Only return safe errors for display to users.
 func AddUniqueJob(name string, userId uint) (string, error) {
-	jobsMu.RLock()
-	found := false
+	jobsMu.Lock()
+	defer jobsMu.Unlock()
 	for _, v := range activeJobs {
 		if v.UserId == userId && v.Name == name && (v.Status == JOB_CREATED || v.Status == JOB_RUNNING) {
-			found = true
-			break
+			return "", errors.New("a job of this type is already running, please wait for the existing job to finish")
 		}
 	}
-	jobsMu.RUnlock()
-	if found {
-		return "", errors.New("a job of this type is already running, please wait for the existing job to finish")
-	}
-	return AddJob(name, userId)
+	return addJobLocked(name, userId)
 }
 
 func RmJob(id string, userId uint) {
@@ -118,8 +117,11 @@ func GetJob(id string, userId uint) (*Job, error) {
 			slog.Warn("getJob: A user tried to access a job they do not own.", "user_id", userId, "job_id", id)
 			return &Job{}, errors.New("job does not exist")
 		}
-		// Return a shallow copy of the job so caller reads are safe
+		// Return a copy of the job with deep-copied Errors slice so caller reads are race-free
 		jobCopy := *j
+		if j.Errors != nil {
+			jobCopy.Errors = append([]string(nil), j.Errors...)
+		}
 		return &jobCopy, nil
 	}
 	return &Job{}, errors.New("job does not exist")

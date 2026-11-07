@@ -64,4 +64,28 @@ func TestGetLatestWatchedInTv(t *testing.T) {
 	if respCompleted != "S3" {
 		t.Errorf("expected S3 for completed season, got %s", respCompleted)
 	}
+
+	// BUG-06: When S1 is FINISHED in WatchedSeasons and user watches episodes in S2 (without S2 in WatchedSeasons)
+	// Also tests lexicographical comparison (S1E10 should NOT beat S2E3)
+	s1FinishedOnly := []entity.WatchedSeason{
+		{SeasonNumber: 1, Status: entity.FINISHED},
+	}
+	s2Eps := []entity.WatchedEpisode{
+		{
+			GormModelNoDel: dbmodel.GormModelNoDel{ID: 101},
+			SeasonNumber:   1,
+			EpisodeNumber:  10,
+			Status:         entity.FINISHED,
+		},
+		{
+			GormModelNoDel: dbmodel.GormModelNoDel{ID: 102},
+			SeasonNumber:   2,
+			EpisodeNumber:  3,
+			Status:         entity.FINISHED,
+		},
+	}
+	respNewerSeason := watchedutil.GetLatestWatchedInTv(s1FinishedOnly, s2Eps)
+	if respNewerSeason != "S2E3" {
+		t.Errorf("expected S2E3 for episode in newer season than finished season, got %s", respNewerSeason)
+	}
 }

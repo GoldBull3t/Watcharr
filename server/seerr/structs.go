@@ -47,8 +47,8 @@ type MediaResponse struct {
 }
 
 type RequestPayload struct {
-	MediaType string `json:"mediaType"` // "movie" or "tv"
-	MediaID   int    `json:"mediaId"`   // TMDB ID
+	MediaType string `json:"mediaType"`         // "movie" or "tv"
+	MediaID   int    `json:"mediaId"`           // TMDB ID
 	Seasons   any    `json:"seasons,omitempty"` // "all" or []int
 }
 
@@ -64,12 +64,11 @@ type TestRequest struct {
 }
 
 type ContentStatusResponse struct {
-	Configured    bool        `json:"configured"`
-	Status        MediaStatus `json:"status"`
-	StatusName    string      `json:"statusName"`
-	IsAvailable   bool        `json:"isAvailable"`
-	IsProcessing  bool        `json:"isProcessing"`
-	IsPending     bool        `json:"isPending"`
-	MediaInfo     *MediaInfo  `json:"mediaInfo,omitempty"`
+	Configured   bool        `json:"configured"`
+	Status       MediaStatus `json:"status"`
+	StatusName   string      `json:"statusName"`
+	IsAvailable  bool        `json:"isAvailable"`
+	IsProcessing bool        `json:"isProcessing"`
+	IsPending    bool        `json:"isPending"`
+	MediaInfo    *MediaInfo  `json:"mediaInfo,omitempty"`
 }
-

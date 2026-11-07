@@ -4,6 +4,7 @@ import (
 	"math"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/sbondCo/Watcharr/database/entity"
 )
@@ -141,10 +142,10 @@ func DamerauLevenshtein(s1, s2 string) int {
 			}
 
 			h[i+1][j+1] = minInt(
-				h[i][j+1]+1,                     // deletion
-				h[i+1][j]+1,                     // insertion
-				h[i][j]+cost,                    // substitution
-				h[i1][j1]+(i-i1-1)+1+(j-j1-1),   // transposition
+				h[i][j+1]+1,  // deletion
+				h[i+1][j]+1,  // insertion
+				h[i][j]+cost, // substitution
+				h[i1][j1]+(i-i1-1)+1+(j-j1-1), // transposition
 			)
 		}
 		lastRow[r1[i-1]] = i
@@ -236,10 +237,10 @@ func ScoreText(query, target string) float64 {
 
 	// Check edit distance for words of reasonable length
 	minWordDist := math.MaxInt32
-	qLen := len(qNorm)
+	qLen := utf8.RuneCountInString(qNorm)
 
 	for _, w := range words {
-		wLen := len(w)
+		wLen := utf8.RuneCountInString(w)
 		if math.Abs(float64(wLen-qLen)) <= 2 {
 			d := DamerauLevenshtein(qNorm, w)
 			if d < minWordDist {

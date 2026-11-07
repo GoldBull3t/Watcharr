@@ -57,3 +57,55 @@ func TestDownloadAndInsertFromUrl(t *testing.T) {
 		t.Fatalf("count of images in db doesn't look right: %v", c)
 	}
 }
+
+func TestCleanupImagesPreservesGamePosterAndUserAvatar(t *testing.T) {
+	testutil.SetupLogging()
+	db := testutil.SetupDB(t)
+
+	avatarImg := entity.Image{Hash: "avatar_hash", Path: "img/test/a/avatar_hash.jpg", BlurHash: "bh1"}
+	gameImg := entity.Image{Hash: "game_poster_hash", Path: "img/test/g/game_poster_hash.jpg", BlurHash: "bh2"}
+	orphanImg := entity.Image{Hash: "orphan_hash", Path: "img/test/o/orphan_hash.jpg", BlurHash: "bh3"}
+
+	if err := db.Create(&avatarImg).Error; err != nil {
+		t.Fatalf("failed to create avatar image: %v", err)
+	}
+	if err := db.Create(&gameImg).Error; err != nil {
+		t.Fatalf("failed to create game image: %v", err)
+	}
+	if err := db.Create(&orphanImg).Error; err != nil {
+		t.Fatalf("failed to create orphan image: %v", err)
+	}
+
+	user := entity.User{
+		Username: "img_user",
+		Password: "pw",
+		AvatarID: &avatarImg.ID,
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	game := entity.Game{
+		IgdbID:   999123,
+		Name:     "Test Game",
+		PosterID: &gameImg.ID,
+	}
+	if err := db.Create(&game).Error; err != nil {
+		t.Fatalf("failed to create game: %v", err)
+	}
+
+	CleanupImages(db)
+
+	var remaining []entity.Image
+	if err := db.Find(&remaining).Error; err != nil {
+		t.Fatalf("failed to query images after cleanup: %v", err)
+	}
+	if len(remaining) != 2 {
+		t.Fatalf("expected 2 images remaining (avatar + game poster), got %d", len(remaining))
+	}
+	for _, img := range remaining {
+		if img.ID == orphanImg.ID {
+			t.Errorf("orphan image %d should have been cleaned up", orphanImg.ID)
+		}
+	}
+}

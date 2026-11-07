@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/SherClockHolmes/webpush-go"
@@ -96,22 +99,61 @@ type UnsubscribeRequest struct {
 	Endpoint string `json:"endpoint" binding:"required"`
 }
 
+func validatePushEndpoint(rawEndpoint string) (string, error) {
+	trimmed := strings.TrimSpace(rawEndpoint)
+	if trimmed == "" {
+		return "", errors.New("invalid push endpoint")
+	}
+	u, err := url.Parse(trimmed)
+	if err != nil || (u.Scheme != "https" && u.Scheme != "http") {
+		return "", errors.New("invalid push endpoint scheme (must be http or https)")
+	}
+	host := strings.ToLower(strings.TrimSpace(u.Hostname()))
+	if host == "" {
+		return "", errors.New("invalid push endpoint host")
+	}
+	allowLocal := os.Getenv("ALLOW_LOCAL_WEBHOOKS") == "true"
+	if !allowLocal {
+		if host == "localhost" || strings.HasSuffix(host, ".localhost") || strings.HasSuffix(host, ".local") {
+			return "", errors.New("loopback or local push endpoints are not allowed")
+		}
+		if ip := net.ParseIP(host); ip != nil {
+			if ip.IsLoopback() || ip.IsPrivate() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsMulticast() {
+				return "", errors.New("private or loopback push endpoint IPs are not allowed")
+			}
+		} else if ips, err := net.LookupIP(host); err == nil {
+			for _, resolvedIP := range ips {
+				if resolvedIP.IsLoopback() || resolvedIP.IsPrivate() || resolvedIP.IsUnspecified() || resolvedIP.IsLinkLocalUnicast() || resolvedIP.IsLinkLocalMulticast() || resolvedIP.IsMulticast() {
+					return "", errors.New("private or loopback push endpoint IPs are not allowed")
+				}
+			}
+		}
+	}
+	return trimmed, nil
+}
+
 // Subscribe registers or updates a Web Push subscription for a user.
 func (s *Service) Subscribe(userId uint, req SubscribeRequest) (*entity.PushSubscription, error) {
 	if req.Endpoint == "" || req.Keys.P256dh == "" || req.Keys.Auth == "" {
 		return nil, errors.New("invalid push subscription parameters")
 	}
+	cleanEndpoint, err := validatePushEndpoint(req.Endpoint)
+	if err != nil {
+		return nil, err
+	}
+	req.Endpoint = cleanEndpoint
 
 	var sub entity.PushSubscription
-	res := s.db.Where("endpoint = ?", req.Endpoint).First(&sub)
+	res := s.db.Unscoped().Where("endpoint = ?", req.Endpoint).First(&sub)
 
 	if res.Error == nil {
-		// Existing subscription found: update ownership & keys
+		// Existing subscription found (active or soft-deleted): restore if soft-deleted and update ownership & keys
+		sub.DeletedAt = gorm.DeletedAt{}
 		sub.UserID = userId
 		sub.P256dh = req.Keys.P256dh
 		sub.Auth = req.Keys.Auth
 		sub.UserAgent = req.UserAgent
-		if err := s.db.Save(&sub).Error; err != nil {
+		if err := s.db.Unscoped().Save(&sub).Error; err != nil {
 			slog.Error("Push: Failed to update existing subscription", "error", err)
 			return nil, err
 		}
@@ -140,7 +182,11 @@ func (s *Service) Subscribe(userId uint, req SubscribeRequest) (*entity.PushSubs
 
 // Unsubscribe removes a subscription for a user matching the endpoint.
 func (s *Service) Unsubscribe(userId uint, endpoint string) error {
-	res := s.db.Where("user_id = ? AND endpoint = ?", userId, endpoint).Delete(&entity.PushSubscription{})
+	endpoint = strings.TrimSpace(endpoint)
+	if endpoint == "" {
+		return errors.New("endpoint is required")
+	}
+	res := s.db.Unscoped().Where("user_id = ? AND endpoint = ?", userId, endpoint).Delete(&entity.PushSubscription{})
 	if res.Error != nil {
 		slog.Error("Push: Failed to unsubscribe", "user_id", userId, "error", res.Error)
 		return res.Error
@@ -204,7 +250,7 @@ func (s *Service) SendNotification(sub *entity.PushSubscription, payload Notific
 
 	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone {
 		slog.Info("Push: Subscription has expired or unsubscribed, pruning from database", "sub_id", sub.ID)
-		if err := s.db.Delete(sub).Error; err != nil {
+		if err := s.db.Unscoped().Where("id = ?", sub.ID).Delete(&entity.PushSubscription{}).Error; err != nil {
 			slog.Warn("Push: Failed to delete expired subscription", "sub_id", sub.ID, "error", err)
 		}
 		return fmt.Errorf("subscription expired (status %d)", resp.StatusCode)

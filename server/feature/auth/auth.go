@@ -20,6 +20,7 @@ import (
 	"github.com/sbondCo/Watcharr/config"
 	"github.com/sbondCo/Watcharr/database/entity"
 	"github.com/sbondCo/Watcharr/feature/plex"
+	"github.com/sbondCo/Watcharr/feature/setup/setupglob"
 	"github.com/sbondCo/Watcharr/token"
 	"golang.org/x/crypto/argon2"
 	"gorm.io/gorm"
@@ -131,6 +132,7 @@ func (s *Service) Register(ur *UserRegisterRequest, initialPerm int) (AuthRespon
 		slog.Error("user.ID not filled out after registration", "userId", user.ID)
 		return AuthResponse{}, errors.New("failed to get user id, try login")
 	}
+	setupglob.ServerInSetup = false
 
 	token, err := s.signJWT(user.ID, user.Username, user.Type)
 	if err != nil {
@@ -212,20 +214,21 @@ func (s *Service) LoginJellyfin(userL *entity.User) (AuthResponse, error) {
 		return AuthResponse{}, errors.New("failed to marshal json")
 	}
 	// Run auth request
-	client := &http.Client{}
+	client := &http.Client{Timeout: 15 * time.Second}
 	req, err := http.NewRequest("POST", base.String(), bytes.NewBuffer(usrJSON))
 	if err != nil {
 		slog.Error("Creating request to jellyfin for auth failed", "error", err)
 		return AuthResponse{}, errors.New("request failed")
 	}
+	safeUsername := strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(userL.Username, `"`, ""), `\`, ""), "\r", ""), "\n", "")
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "MediaBrowser Client=\"Watcharr\", Device=\"HTTP\", DeviceId=\"WatcharrFor"+userL.Username+"\", Version=\"10.8.0\"")
+	req.Header.Add("Authorization", "MediaBrowser Client=\"Watcharr\", Device=\"HTTP\", DeviceId=\"WatcharrFor"+safeUsername+"\", Version=\"10.8.0\"")
 	res, err := client.Do(req)
 	if err != nil {
 		slog.Error("making request to jellyfin for auth failed", "error", err)
 		return AuthResponse{}, errors.New("request failed")
 	}
-	body, err := io.ReadAll(res.Body)
+	body, err := io.ReadAll(io.LimitReader(res.Body, 2<<20))
 	res.Body.Close()
 	if err != nil {
 		slog.Error("Error reading jellyfin auth response", "error", err.Error())
@@ -320,6 +323,7 @@ func (s *Service) createJellyfinUser(
 		slog.Error("createJellyfinUser: Create Failed!", "error", err)
 		return err
 	}
+	setupglob.ServerInSetup = false
 	return nil
 }
 
@@ -347,7 +351,7 @@ func (s *Service) LoginPlex(lr *plex.PlexLoginRequest) (AuthResponse, error) {
 		return AuthResponse{}, errors.New("failed to verify plex access")
 	}
 	dbUser := new(entity.User)
-	userIdQ := s.db.Select("user_id").Where("name = ? AND client_id = ?", "plex", account.Id).Table("user_services")
+	userIdQ := s.db.Select("user_id").Where("name = ? AND client_id = ?", "plex", strconv.FormatUint(account.Id, 10)).Table("user_services")
 	dbRes := s.db.Where("type = ?", entity.PLEX_USER).Where("id = (?)", userIdQ).Preload("UserServices").Take(&dbUser)
 	if dbRes.Error != nil {
 		if errors.Is(dbRes.Error, gorm.ErrRecordNotFound) {
@@ -368,6 +372,7 @@ func (s *Service) LoginPlex(lr *plex.PlexLoginRequest) (AuthResponse, error) {
 				slog.Error("loginPlex: Failed to create new user in db from plex response", "error", dbRes.Error)
 				return AuthResponse{}, errors.New("failed to create new user from plex")
 			}
+			setupglob.ServerInSetup = false
 		} else {
 			slog.Error("loginPlex: Failed to select user from database for login", "error", dbRes.Error)
 			return AuthResponse{}, errors.New("failed to locate user")
@@ -418,8 +423,12 @@ func (s *Service) UseAdminToken(req *UseAdminTokenRequest, userId uint) error {
 	// Token is valid and for current user.. give user admin.
 	// Incase removing the token after used fails, this is in a transaction so user wont be admin.
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		// Give user admin
-		if err := tx.Model(&entity.User{}).Where("id = ?", userId).Update("permissions", entity.PERM_ADMIN).Error; err != nil {
+		var u entity.User
+		if err := tx.Select("permissions").Where("id = ?", userId).First(&u).Error; err != nil {
+			return err
+		}
+		// Give user admin while preserving existing permissions
+		if err := tx.Model(&entity.User{}).Where("id = ?", userId).Update("permissions", u.Permissions|entity.PERM_ADMIN).Error; err != nil {
 			return err
 		}
 		// Delete used token
@@ -488,9 +497,9 @@ func (s *Service) signJWT(
 		Username: userName,
 		Type:     userType,
 		RegisteredClaims: jwt.RegisteredClaims{
-			// ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
-			IssuedAt: jwt.NewNumericDate(time.Now()),
-			Issuer:   "watcharr",
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(30 * 24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "watcharr",
 		},
 	})
 

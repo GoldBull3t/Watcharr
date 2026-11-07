@@ -42,11 +42,11 @@ type WatchedGetPageRequest struct {
 	// Sorting direction (asc or desc).
 	SortDir SortDirection `form:"sortDir,default=desc"`
 	// Filtering options.
-	FilterType   []util.SupportedMedia  `form:"type" collection_format:"csv"`
-	FilterStatus []entity.WatchedStatus `form:"status" collection_format:"csv"`
-	Year         int                    `form:"year"`
-	MinRating    float64                `form:"minRating"`
-	MaxRating    float64                `form:"maxRating"`
+	FilterType       []util.SupportedMedia  `form:"type" collection_format:"csv"`
+	FilterStatus     []entity.WatchedStatus `form:"status" collection_format:"csv"`
+	Year             int                    `form:"year"`
+	MinRating        float64                `form:"minRating"`
+	MaxRating        float64                `form:"maxRating"`
 	Genre            string                 `form:"genre"`
 	Query            string                 `form:"query"`
 	ProductionStatus string                 `form:"productionStatus"`
@@ -97,11 +97,11 @@ type WatchedDto struct {
 // Note: If this is updated, ensure whatever uses this still makes sense.
 func NewWatchedDtoWithBaseProps(w *entity.Watched) WatchedDto {
 	return WatchedDto{
-		ID:        w.ID,
-		CreatedAt: w.CreatedAt,
-		UpdatedAt: w.UpdatedAt,
-		Status:    w.Status,
-		Rating:    w.Rating,
+		ID:                   w.ID,
+		CreatedAt:            w.CreatedAt,
+		UpdatedAt:            w.UpdatedAt,
+		Status:               w.Status,
+		Rating:               w.Rating,
 		Pinned:               w.Pinned,
 		HoursPlayed:          w.HoursPlayed,
 		Platform:             w.Platform,
@@ -196,7 +196,7 @@ type WatchedAddRequest struct {
 	IGDBID int `json:"igdbId"`
 
 	Status   entity.WatchedStatus `json:"status"`
-	Rating   float64              `json:"rating" binding:"max=10"`
+	Rating   float64              `json:"rating" binding:"min=0,max=10"`
 	Thoughts string               `json:"thoughts"`
 	// Gaming 2.0 tracker fields
 	HoursPlayed          *float64 `json:"hoursPlayed,omitempty"`

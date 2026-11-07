@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand"
+	"reflect"
 	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	gocache "github.com/robfig/go-cache"
 	"github.com/sbondCo/Watcharr/activity"
 	"github.com/sbondCo/Watcharr/database/dbmodel"
 	"github.com/sbondCo/Watcharr/database/entity"
@@ -21,9 +23,7 @@ import (
 	"github.com/sbondCo/Watcharr/media/tmdb"
 	"github.com/sbondCo/Watcharr/util"
 	"gorm.io/gorm"
-	gocache "github.com/robfig/go-cache"
 )
-
 
 var (
 	watchedPageCache    = gocache.New(5*time.Minute, 10*time.Minute)
@@ -142,7 +142,7 @@ func (s *Service) GetWatchedPage(
 		// Search query
 		if extraProps.Query != "" {
 			q := "%" + strings.ToLower(extraProps.Query) + "%"
-			res = res.Where("LOWER(Content.title) LIKE ? OR LOWER(Game.name) LIKE ?", q, q)
+			res = res.Where(`LOWER("Content".title) LIKE ? OR LOWER("Game".name) LIKE ?`, q, q)
 		}
 	}
 
@@ -151,6 +151,7 @@ func (s *Service) GetWatchedPage(
 		Joins("Game").
 		Preload("Game.Poster").
 		Preload("WatchedSeasons").
+		Preload("WatchedEpisodes").
 		Preload("Tags").
 		// Apply filters first.
 		Scopes(watchedRefineFilter(wr, &userSettings)).
@@ -213,6 +214,7 @@ func (s *Service) getPublicWatched(
 		Joins("Game").
 		Preload("Game.Poster").
 		Preload("WatchedSeasons").
+		Preload("WatchedEpisodes").
 		Preload("Tags").
 		// Apply filters first.
 		Scopes(watchedRefineFilter(wr, nil)).
@@ -289,7 +291,7 @@ func (s *Service) GetWatchedItemByTmdbId(
 		Preload("WatchedSeasons").
 		Preload("WatchedEpisodes").
 		Preload("Tags").
-		Where("user_id = ? AND Content.tmdb_id = ? AND Content.type = ?",
+		Where(`user_id = ? AND "Content".tmdb_id = ? AND "Content".type = ?`,
 			userId, tmdbId, contentType).
 		Take(&watched)
 	if res.Error != nil {
@@ -314,7 +316,7 @@ func (s *Service) GetWatchedItemsByTmdbIds(userId uint, c [][]any) ([]entity.Wat
 		Preload("WatchedEpisodes").
 		Preload("Tags").
 		Where("user_id = ?", userId).
-		Where("(Content.tmdb_id, Content.type) IN ?", c).
+		Where(`("Content".tmdb_id, "Content".type) IN ?`, c).
 		Find(&watched)
 	if res.Error != nil {
 		slog.Error("GetWatchedItemsByTmdbIds: Failed!", "error", res.Error)
@@ -365,7 +367,7 @@ func (s *Service) GetWatchedItemByIgdbId(userId uint, igdbId uint) (entity.Watch
 		Preload("Game.Poster").
 		Preload("Activity").
 		Preload("Tags").
-		Where("user_id = ? AND Game.igdb_id = ?", userId, igdbId).
+		Where(`user_id = ? AND "Game".igdb_id = ?`, userId, igdbId).
 		Take(&watched)
 	if res.Error != nil {
 		slog.Error("getWatchedItemByIgdbId: Failed!", "error", res.Error)
@@ -386,7 +388,7 @@ func (s *Service) GetWatchedItemsByIgdbIds(userId uint, c []int) ([]entity.Watch
 		Preload("Activity").
 		Preload("Tags").
 		Where("user_id = ?", userId).
-		Where("(Game.igdb_id) IN ?", c).
+		Where(`("Game".igdb_id) IN ?`, c).
 		Find(&watched)
 	if res.Error != nil {
 		slog.Error("getWatchedItemsByIgdbIds: Failed!", "error", res.Error)
@@ -669,6 +671,19 @@ func (s *Service) restoreWatchedAfterDuplicatedKeyErr(
 	}
 
 	// If we are here, we have a soft deleted record to restore:
+	restoreUpdates := map[string]any{
+		"status":                 ar.Status,
+		"rating":                 ar.Rating,
+		"thoughts":               ar.Thoughts,
+		"hours_played":           ar.HoursPlayed,
+		"platform":               ar.Platform,
+		"game_completion_status": ar.GameCompletionStatus,
+		"deleted_at":             nil,
+	}
+	if !ar.WatchedDate.IsZero() {
+		restoreUpdates["created_at"] = ar.WatchedDate
+		restoreUpdates["updated_at"] = ar.WatchedDate
+	}
 	res = activeDB.
 		// Passing `&watchedOut` makes gorm do another query for inserting
 		// all existing rows into db, im not sure why... but just going to
@@ -677,12 +692,7 @@ func (s *Service) restoreWatchedAfterDuplicatedKeyErr(
 			GormModel: dbmodel.GormModel{ID: watchedOut.ID},
 		}).
 		Unscoped().
-		Updates(map[string]any{
-			"status":     ar.Status,
-			"rating":     ar.Rating,
-			"thoughts":   ar.Thoughts,
-			"deleted_at": nil,
-		})
+		Updates(restoreUpdates)
 	if res.Error != nil || res.RowsAffected == 0 {
 		slog.Error("restoreWatchedAfterDuplicatedKeyErr: Updating record failed!",
 			"error", res.Error,
@@ -693,6 +703,13 @@ func (s *Service) restoreWatchedAfterDuplicatedKeyErr(
 	watchedOut.Status = ar.Status
 	watchedOut.Rating = ar.Rating
 	watchedOut.Thoughts = ar.Thoughts
+	watchedOut.HoursPlayed = ar.HoursPlayed
+	watchedOut.Platform = ar.Platform
+	watchedOut.GameCompletionStatus = ar.GameCompletionStatus
+	if !ar.WatchedDate.IsZero() {
+		watchedOut.CreatedAt = ar.WatchedDate
+		watchedOut.UpdatedAt = ar.WatchedDate
+	}
 	watchedOut.DeletedAt = gorm.DeletedAt{}
 
 	slog.Info("restoreWatchedAfterDuplicatedKeyErr: Updated record.",
@@ -718,6 +735,8 @@ func (s *Service) UpdateWatched(
 	upwat := entity.Watched{}
 	err := s.db.
 		Model(&entity.Watched{}).
+		Preload("Content").
+		Preload("Game").
 		Where("id = ? AND user_id = ?", id, userId).
 		Take(&upwat).
 		Error
@@ -846,16 +865,16 @@ func (s *Service) UpdateWatched(
 	}
 
 	// Trigger real-time activity webhook only after transaction commits successfully
-	go func() {
+	go func(w entity.Watched) {
 		title := "Conteúdo"
 		poster := ""
 		mType := "content"
-		if upwat.Content != nil {
-			title = upwat.Content.Title
-			poster = integration.BuildPosterURL(upwat.Content.PosterPath)
-			mType = string(upwat.Content.Type)
-		} else if upwat.Game != nil {
-			title = upwat.Game.Name
+		if w.Content != nil {
+			title = w.Content.Title
+			poster = integration.BuildPosterURL(w.Content.PosterPath)
+			mType = string(w.Content.Type)
+		} else if w.Game != nil {
+			title = w.Game.Name
 			mType = "game"
 		}
 		evt := "media.status_changed"
@@ -868,14 +887,14 @@ func (s *Service) UpdateWatched(
 		}
 		integration.DispatchActivityWebhook(s.db, userId, integration.ActivityWebhookPayload{
 			Event:     evt,
-			Status:    string(upwat.Status),
+			Status:    string(w.Status),
 			MediaType: mType,
 			Title:     title,
-			Rating:    upwat.Rating,
+			Rating:    w.Rating,
 			Poster:    poster,
 			Reason:    strconv.Itoa(int(ar.ActivityCreatedBy)),
 		})
-	}()
+	}(upwat)
 
 	InvalidateUserWatchedCache(userId)
 	return domain.WatchedUpdateResponse{NewActivities: newActivities}, nil
@@ -954,11 +973,15 @@ func (s *Service) bulkRemoveWatched(
 	err := s.db.Transaction(func(tx *gorm.DB) error {
 		if req.Hard {
 			if req.All {
-				res := tx.Unscoped().Where("user_id = ?", userId).Delete(&entity.Watched{})
-				if res.Error != nil {
-					return res.Error
+				var targetIDs []uint
+				if err := tx.Unscoped().Model(&entity.Watched{}).Where("user_id = ?", userId).Pluck("id", &targetIDs).Error; err != nil {
+					return err
 				}
-				deletedCount = res.RowsAffected
+				if len(targetIDs) > 0 {
+					if err := tx.Table("watched_tags").Where("watched_id IN ?", targetIDs).Delete(nil).Error; err != nil {
+						return err
+					}
+				}
 				if err := tx.Unscoped().Where("user_id = ?", userId).Delete(&entity.WatchedSeason{}).Error; err != nil {
 					return err
 				}
@@ -968,21 +991,36 @@ func (s *Service) bulkRemoveWatched(
 				if err := tx.Unscoped().Where("user_id = ?", userId).Delete(&entity.Activity{}).Error; err != nil {
 					return err
 				}
-			} else if len(req.IDs) > 0 {
-				res := tx.Unscoped().Where("id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.Watched{})
+				res := tx.Unscoped().Where("user_id = ?", userId).Delete(&entity.Watched{})
 				if res.Error != nil {
 					return res.Error
 				}
 				deletedCount = res.RowsAffected
-				if err := tx.Unscoped().Where("watched_id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.WatchedSeason{}).Error; err != nil {
+			} else if len(req.IDs) > 0 {
+				var targetIDs []uint
+				if err := tx.Unscoped().Model(&entity.Watched{}).Where("id IN ? AND user_id = ?", req.IDs, userId).Pluck("id", &targetIDs).Error; err != nil {
 					return err
 				}
-				if err := tx.Unscoped().Where("watched_id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.WatchedEpisode{}).Error; err != nil {
+				if len(targetIDs) == 0 {
+					return nil
+				}
+				if err := tx.Table("watched_tags").Where("watched_id IN ?", targetIDs).Delete(nil).Error; err != nil {
 					return err
 				}
-				if err := tx.Unscoped().Where("watched_id IN ? AND user_id = ?", req.IDs, userId).Delete(&entity.Activity{}).Error; err != nil {
+				if err := tx.Unscoped().Where("watched_id IN ? AND user_id = ?", targetIDs, userId).Delete(&entity.WatchedSeason{}).Error; err != nil {
 					return err
 				}
+				if err := tx.Unscoped().Where("watched_id IN ? AND user_id = ?", targetIDs, userId).Delete(&entity.WatchedEpisode{}).Error; err != nil {
+					return err
+				}
+				if err := tx.Unscoped().Where("watched_id IN ? AND user_id = ?", targetIDs, userId).Delete(&entity.Activity{}).Error; err != nil {
+					return err
+				}
+				res := tx.Unscoped().Where("id IN ? AND user_id = ?", targetIDs, userId).Delete(&entity.Watched{})
+				if res.Error != nil {
+					return res.Error
+				}
+				deletedCount = res.RowsAffected
 			}
 		} else {
 			if req.All {
@@ -1123,14 +1161,8 @@ func (s *Service) GetContinueWatching(userId uint) ([]entity.Watched, error) {
 	return watched, nil
 }
 
-type seasonCacheEntry struct {
-	details   tmdb.SeasonDetails
-	expiresAt time.Time
-}
-
 var (
-	seasonCache    sync.Map
-	seasonCacheTTL = 2 * time.Hour
+	seasonCache = gocache.New(6*time.Hour, 30*time.Minute)
 )
 
 // getSeasonDetailsCached retrieves TMDB season details with an in-memory TTL cache to eliminate redundant HTTP calls
@@ -1140,12 +1172,10 @@ func (s *Service) getSeasonDetailsCached(showId string, seasonNum string) (tmdb.
 	}
 
 	key := showId + ":" + seasonNum
-	if val, ok := seasonCache.Load(key); ok {
-		entry := val.(seasonCacheEntry)
-		if time.Now().Before(entry.expiresAt) {
-			return entry.details, nil
+	if val, ok := seasonCache.Get(key); ok {
+		if sd, ok := val.(tmdb.SeasonDetails); ok {
+			return sd, nil
 		}
-		seasonCache.Delete(key)
 	}
 
 	sd, err := s.tmdb.SeasonDetails(showId, seasonNum)
@@ -1153,25 +1183,41 @@ func (s *Service) getSeasonDetailsCached(showId string, seasonNum string) (tmdb.
 		return tmdb.SeasonDetails{}, err
 	}
 
-	seasonCache.Store(key, seasonCacheEntry{
-		details:   sd,
-		expiresAt: time.Now().Add(seasonCacheTTL),
-	})
+	seasonCache.Set(key, sd, 6*time.Hour)
 	return sd, nil
 }
 
 // InvalidateSeasonCache clears cached TMDB season details for a given show, or completely if showId is empty
 func InvalidateSeasonCache(showId string) {
-	if showId == "" {
-		seasonCache = sync.Map{}
+	if seasonCache == nil {
 		return
 	}
-	seasonCache.Range(func(key, value any) bool {
-		if k, ok := key.(string); ok && strings.HasPrefix(k, showId+":") {
-			seasonCache.Delete(key)
+	if showId == "" {
+		seasonCache.Flush()
+		return
+	}
+	prefix := showId + ":"
+	var keysToDelete []string
+	seasonCache.Lock()
+	cv := reflect.ValueOf(seasonCache)
+	if cv.Kind() == reflect.Ptr && !cv.IsNil() {
+		inner := cv.Elem().Field(0)
+		if inner.Kind() == reflect.Ptr && !inner.IsNil() {
+			items := inner.Elem().FieldByName("items")
+			if items.IsValid() && items.Kind() == reflect.Map {
+				for _, kv := range items.MapKeys() {
+					k := kv.String()
+					if strings.HasPrefix(k, prefix) {
+						keysToDelete = append(keysToDelete, k)
+					}
+				}
+			}
 		}
-		return true
-	})
+	}
+	seasonCache.Unlock()
+	for _, k := range keysToDelete {
+		seasonCache.Delete(k)
+	}
 }
 
 // GetUpNext computes the exact next episode to watch for all active TV shows using parallel worker pool and caching
@@ -1240,7 +1286,7 @@ func (s *Service) GetUpNext(userId uint) ([]domain.UpNextItem, error) {
 
 			for _, ws := range w.WatchedSeasons {
 				if ws.Status == entity.FINISHED {
-					if ws.SeasonNumber > maxFinishedSeason {
+					if ws.SeasonNumber >= maxFinishedSeason {
 						maxFinishedSeason = ws.SeasonNumber
 						maxFinishedEpisode = 0
 					}
@@ -1276,14 +1322,28 @@ func (s *Service) GetUpNext(userId uint) ([]domain.UpNextItem, error) {
 			if s.tmdb != nil && w.Content.TmdbID > 0 {
 				sd, err := s.getSeasonDetailsCached(strconv.Itoa(w.Content.TmdbID), strconv.Itoa(candidateSeason))
 				if err == nil && len(sd.Episodes) > 0 {
-					if candidateEpisode <= len(sd.Episodes) {
-						ep := sd.Episodes[candidateEpisode-1]
+					matchedIdx := -1
+					for idx := range sd.Episodes {
+						if sd.Episodes[idx].EpisodeNumber == candidateEpisode {
+							matchedIdx = idx
+							break
+						}
+					}
+					if matchedIdx == -1 && candidateEpisode >= 1 && candidateEpisode <= len(sd.Episodes) {
+						matchedIdx = candidateEpisode - 1
+					}
+					if matchedIdx != -1 {
+						ep := sd.Episodes[matchedIdx]
 						item.EpisodeName = ep.Name
 						item.EpisodeOverview = ep.Overview
 						item.EpisodeStill = ep.StillPath
 						item.AirDate = ep.AirDate
 						item.TotalEpisodesInSeason = len(sd.Episodes)
-						item.EpisodesRemaining = len(sd.Episodes) - candidateEpisode + 1
+						rem := len(sd.Episodes) - candidateEpisode + 1
+						if rem < 1 {
+							rem = 1
+						}
+						item.EpisodesRemaining = rem
 						if ep.AirDate != "" {
 							if t, err := time.Parse("2006-01-02", ep.AirDate); err == nil {
 								item.IsAired = time.Now().After(t)
@@ -1343,6 +1403,12 @@ func (s *Service) PickRoulette(userId uint, req domain.RoulettePickRequest) (dom
 		query = query.Where("watcheds.status = ?", entity.WATCHING)
 	case "finished":
 		query = query.Where("watcheds.status = ?", entity.FINISHED)
+	case "hold":
+		query = query.Where("watcheds.status = ?", entity.HOLD)
+	case "dropped":
+		query = query.Where("watcheds.status = ?", entity.DROPPED)
+	case "cancelled", "canceled":
+		query = query.Where("watcheds.status = ?", entity.CANCELLED)
 	default:
 		if status == "" {
 			query = query.Where("watcheds.status = ?", entity.PLANNED)
@@ -1355,6 +1421,7 @@ func (s *Service) PickRoulette(userId uint, req domain.RoulettePickRequest) (dom
 		Joins("Game").
 		Preload("Game.Poster").
 		Preload("WatchedSeasons").
+		Preload("WatchedEpisodes").
 		Preload("Tags").
 		Find(&allWatched).Error
 	if err != nil {

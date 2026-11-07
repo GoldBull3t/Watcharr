@@ -46,10 +46,10 @@ type GenreStat struct {
 
 type Profile struct {
 	Joined               time.Time `json:"joined"`
-	ShowsWatched         int32     `json:"showsWatched"` // Finished shows
-	MoviesWatched        int32     `json:"moviesWatched"` // Finished movies
+	ShowsWatched         int32     `json:"showsWatched"`         // Finished shows
+	MoviesWatched        int32     `json:"moviesWatched"`        // Finished movies
 	MoviesWatchedRuntime uint32    `json:"moviesWatchedRuntime"` // in minutes
-	ShowsWatchedRuntime  uint32    `json:"showsWatchedRuntime"` // in minutes
+	ShowsWatchedRuntime  uint32    `json:"showsWatchedRuntime"`  // in minutes
 
 	// Extended metrics
 	ShowsWatching          int32                     `json:"showsWatching"`
@@ -239,7 +239,7 @@ func (s *Service) getProfile(userId uint) (Profile, error) {
 				totalGamingHours += *w.HoursPlayed
 			}
 			if w.Game.Developers != "" {
-				for _, d := range strings.Split(w.Game.Developers, ",") {
+				for _, d := range strings.FieldsFunc(w.Game.Developers, func(r rune) bool { return r == '|' || r == ',' }) {
 					d = strings.TrimSpace(d)
 					if d != "" {
 						developerCounts[d]++

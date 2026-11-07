@@ -68,6 +68,57 @@ func GetSQLiteDBPath() string {
 	return path.Join(config.DataPath, "watcharr.db")
 }
 
+// normalizeMySQLDSN converts a mysql:// URL or raw DSN into valid go-sql-driver/mysql format
+// and ensures parseTime=True is present.
+func normalizeMySQLDSN(dsn string) string {
+	dsn = strings.TrimSpace(dsn)
+	if strings.HasPrefix(dsn, "mysql://") {
+		dsn = strings.TrimPrefix(dsn, "mysql://")
+		// Convert user:pass@host:port/db to user:pass@tcp(host:port)/db if protocol is missing
+		atIdx := strings.LastIndex(dsn, "@")
+		rest := dsn
+		prefix := ""
+		if atIdx != -1 {
+			prefix = dsn[:atIdx+1]
+			rest = dsn[atIdx+1:]
+		}
+		if !strings.HasPrefix(rest, "tcp(") && !strings.HasPrefix(rest, "unix(") {
+			slashIdx := strings.Index(rest, "/")
+			if slashIdx > 0 {
+				hostPort := rest[:slashIdx]
+				pathAndQuery := rest[slashIdx:]
+				dsn = prefix + "tcp(" + hostPort + ")" + pathAndQuery
+			}
+		}
+	}
+	if !strings.Contains(strings.ToLower(dsn), "parsetime=") {
+		if strings.Contains(dsn, "?") {
+			dsn += "&parseTime=True"
+		} else {
+			dsn += "?parseTime=True"
+		}
+	}
+	return dsn
+}
+
+const sqliteDefaultPragmas = "_pragma=busy_timeout(10000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=cache_size(-2000)&_pragma=temp_store(FILE)&_pragma=mmap_size(0)"
+
+// normalizeSQLiteDSN ensures per-connection SQLite PRAGMAs are always present in the DSN.
+func normalizeSQLiteDSN(customDSN string) string {
+	dsn := strings.TrimSpace(customDSN)
+	if dsn == "" {
+		dsn = path.Join(config.DataPath, "watcharr.db")
+	}
+	if !strings.Contains(dsn, "_pragma") {
+		if strings.Contains(dsn, "?") {
+			dsn += "&" + sqliteDefaultPragmas
+		} else {
+			dsn += "?" + sqliteDefaultPragmas
+		}
+	}
+	return dsn
+}
+
 // Create a new database connection.
 // Supports SQLite (default), PostgreSQL, and MySQL based on DB_TYPE or connection string.
 // For initial database connection in `main()`, also call `Setup()` on the
@@ -97,18 +148,12 @@ func Open() (*gorm.DB, error) {
 		if customDSN == "" {
 			return nil, fmt.Errorf("DB_DSN or DATABASE_URL must be specified when using DB_TYPE=mysql")
 		}
-		dialector = mysql.Open(customDSN)
+		dialector = mysql.Open(normalizeMySQLDSN(customDSN))
 
 	case DBTypeSQLite:
 		fallthrough
 	default:
-		dsn := customDSN
-		if dsn == "" {
-			dsn = fmt.Sprintf(
-				"%s?_pragma=busy_timeout(10000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=cache_size(-2000)&_pragma=temp_store(FILE)&_pragma=mmap_size(0)",
-				path.Join(config.DataPath, "watcharr.db"),
-			)
-		}
+		dsn := normalizeSQLiteDSN(customDSN)
 		dialector = sqlite.Open(dsn)
 	}
 

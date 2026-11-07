@@ -10,9 +10,9 @@ import (
 	"github.com/sbondCo/Watcharr/activity"
 	"github.com/sbondCo/Watcharr/database/entity"
 	"github.com/sbondCo/Watcharr/domain"
+	"github.com/sbondCo/Watcharr/feature/watched"
 	"github.com/sbondCo/Watcharr/media/tmdb"
 	"github.com/sbondCo/Watcharr/util"
-	"github.com/sbondCo/Watcharr/feature/watched"
 )
 
 // Called after season status is changed.

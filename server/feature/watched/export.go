@@ -125,6 +125,7 @@ func (r *Router) ExportWatchedList(c *gin.Context) {
 			entity.PLANNED,
 			entity.HOLD,
 			entity.DROPPED,
+			entity.CANCELLED,
 		}
 		for _, st := range statuses {
 			var group []entity.Watched
@@ -178,6 +179,7 @@ func (r *Router) ExportWatchedList(c *gin.Context) {
 			entity.PLANNED,
 			entity.HOLD,
 			entity.DROPPED,
+			entity.CANCELLED,
 		}
 		for _, st := range statuses {
 			var group []entity.Watched

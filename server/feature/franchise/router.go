@@ -82,4 +82,3 @@ func (r *Router) FindFranchiseForContent(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, match)
 }
-

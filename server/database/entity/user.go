@@ -31,13 +31,13 @@ const (
 // This is incase different users with same name from different services try to signup.
 type User struct {
 	dbmodel.GormModel
-	Username string `gorm:"uniqueIndex:usr_name_to_type;not null" json:"username" binding:"required"`
+	Username string `gorm:"size:128;uniqueIndex:usr_name_to_type;not null" json:"username" binding:"required"`
 	// The Password field is "create only". When we query to get the User,
 	// it won't be SELECTED (read). Ops that need to read (login, changepass)
 	// should instead use their own small struct for that use case.
 	Password string `gorm:"not null;->:false;<-:create" json:"password" binding:"required"`
 	AvatarID *uint  `json:"-"`
-	Avatar   Image  `json:"avatar"`
+	Avatar   Image  `json:"avatar" gorm:"constraint:OnDelete:SET NULL"`
 	Bio      string `json:"bio"`
 	// The type of user/which auth service they originate from.
 	// Empty if from Watcharr, or the name of the service (eg. jellyfin)
@@ -50,7 +50,7 @@ type User struct {
 	// Users permissions
 	Permissions int `gorm:"default:1" json:"-"`
 	// Static API Key for Dashboard integrations (Homepage, Home Assistant, iCal)
-	ApiKey string `gorm:"index;default:''" json:"apiKey,omitempty"`
+	ApiKey string `gorm:"size:128;index;default:''" json:"apiKey,omitempty"`
 	// All user settings cols, in another struct for reusability
 	UserSettings
 }

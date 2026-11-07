@@ -103,7 +103,7 @@ func (r *Router) GetHomepage(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: "falha ao calcular dados do widget"})
 		return
 	}
-	c.Header("Cache-Control", "public, max-age=60")
+	c.Header("Cache-Control", "private, max-age=60")
 	c.JSON(http.StatusOK, data)
 }
 
@@ -114,7 +114,7 @@ func (r *Router) GetHomeAssistantSensor(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: "falha ao gerar sensor do Home Assistant"})
 		return
 	}
-	c.Header("Cache-Control", "public, max-age=60")
+	c.Header("Cache-Control", "private, max-age=60")
 	c.JSON(http.StatusOK, sensor)
 }
 
@@ -125,7 +125,7 @@ func (r *Router) GetLibrary(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: "falha ao carregar biblioteca"})
 		return
 	}
-	c.Header("Cache-Control", "public, max-age=60")
+	c.Header("Cache-Control", "private, max-age=60")
 	c.JSON(http.StatusOK, lib)
 }
 
@@ -136,7 +136,7 @@ func (r *Router) GetUpcoming(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: "falha ao carregar estreias"})
 		return
 	}
-	c.Header("Cache-Control", "public, max-age=60")
+	c.Header("Cache-Control", "private, max-age=60")
 	c.JSON(http.StatusOK, gin.H{
 		"data": upcoming,
 	})
@@ -172,7 +172,7 @@ func (r *Router) GetCalendarICS(c *gin.Context) {
 	}
 	c.Header("Content-Type", "text/calendar; charset=utf-8")
 	c.Header("Content-Disposition", "inline; filename=\"watcharr.ics\"")
-	c.Header("Cache-Control", "public, max-age=300")
+	c.Header("Cache-Control", "private, max-age=300")
 	c.String(http.StatusOK, ics)
 }
 
@@ -184,7 +184,7 @@ func (r *Router) GetNowNextSVG(c *gin.Context) {
 		return
 	}
 	c.Header("Content-Type", "image/svg+xml; charset=utf-8")
-	c.Header("Cache-Control", "public, max-age=60")
+	c.Header("Cache-Control", "private, max-age=60")
 	c.String(http.StatusOK, svg)
 }
 
@@ -211,4 +211,3 @@ func (r *Router) RegenerateUserApiKey(c *gin.Context) {
 		"apiKey": key,
 	})
 }
-

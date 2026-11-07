@@ -460,16 +460,16 @@ func (r *MovieReleaseDates) ExtractCertification(preferredCountry string) string
 
 type MovieDetails struct {
 	ContentDetails
-	Adult               bool                      `json:"adult"`
+	Adult               bool                     `json:"adult"`
 	BelongsToCollection *TMDBBelongsToCollection `json:"belongs_to_collection"`
-	Budget              uint32                    `json:"budget"`
-	ImdbID              string                    `json:"imdb_id"`
-	OriginalTitle       string                    `json:"original_title"`
-	ReleaseDate         string                    `json:"release_date"`
-	Revenue             uint32                    `json:"revenue"`
-	Runtime             uint32                    `json:"runtime"`
-	Title               string                    `json:"title"`
-	Video               bool                      `json:"video"`
+	Budget              uint32                   `json:"budget"`
+	ImdbID              string                   `json:"imdb_id"`
+	OriginalTitle       string                   `json:"original_title"`
+	ReleaseDate         string                   `json:"release_date"`
+	Revenue             uint32                   `json:"revenue"`
+	Runtime             uint32                   `json:"runtime"`
+	Title               string                   `json:"title"`
+	Video               bool                     `json:"video"`
 
 	Status MovieStatus `json:"status"`
 
@@ -686,11 +686,11 @@ type ShowDetails struct {
 		Gender      int    `json:"gender"`
 		ProfilePath string `json:"profile_path"`
 	} `json:"created_by"`
-	EpisodeRunTime   []int    `json:"episode_run_time"`
-	FirstAirDate     string   `json:"first_air_date"`
-	InProduction     bool     `json:"in_production"`
-	Languages        []string `json:"languages"`
-	LastAirDate      string   `json:"last_air_date"`
+	EpisodeRunTime   []int             `json:"episode_run_time"`
+	FirstAirDate     string            `json:"first_air_date"`
+	InProduction     bool              `json:"in_production"`
+	Languages        []string          `json:"languages"`
+	LastAirDate      string            `json:"last_air_date"`
 	LastEpisodeToAir TMDBEpisodeBasic  `json:"last_episode_to_air"`
 	Name             string            `json:"name"`
 	NextEpisodeToAir *TMDBEpisodeBasic `json:"next_episode_to_air"`

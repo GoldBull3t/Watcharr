@@ -34,7 +34,7 @@ func TestDamerauLevenshtein(t *testing.T) {
 		expected int
 	}{
 		{"kitten", "sitting", 3},
-		{"rings", "rigns", 1}, // transposition
+		{"rings", "rigns", 1},             // transposition
 		{"oppenheimer", "oppenhaimer", 1}, // substitution
 		{"batman", "batman", 0},
 		{"matrix", "mtarix", 1}, // transposition

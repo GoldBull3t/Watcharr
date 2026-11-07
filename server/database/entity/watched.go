@@ -5,9 +5,9 @@ import "github.com/sbondCo/Watcharr/database/dbmodel"
 type WatchedStatus string
 
 const (
-	FINISHED WatchedStatus = "FINISHED"
-	WATCHING WatchedStatus = "WATCHING"
-	PLANNED  WatchedStatus = "PLANNED"
+	FINISHED  WatchedStatus = "FINISHED"
+	WATCHING  WatchedStatus = "WATCHING"
+	PLANNED   WatchedStatus = "PLANNED"
 	HOLD      WatchedStatus = "HOLD"
 	DROPPED   WatchedStatus = "DROPPED"
 	CANCELLED WatchedStatus = "CANCELLED"
@@ -28,11 +28,11 @@ func (r WatchedStatus) IsValid() bool {
 
 type Watched struct {
 	dbmodel.GormModel
-	Status WatchedStatus `json:"status"`
+	Status WatchedStatus `json:"status" gorm:"size:64"`
 	// float so we can support decimal ratings.
 	// Ratings should still always be saved as out of 10.0,
 	// so they can be viewed with any ratings setting in the client.
-	Rating          float64          `json:"rating" gorm:"type:numeric(2,1)"`
+	Rating          float64          `json:"rating" gorm:"type:numeric(4,1)"`
 	Thoughts        string           `json:"thoughts"`
 	Pinned          bool             `json:"pinned" gorm:"default:false;not null"`
 	UserID          uint             `json:"-" gorm:"uniqueIndex:usernctnidx;uniqueIndex:userngamidx"`
@@ -40,9 +40,9 @@ type Watched struct {
 	Content         *Content         `json:"content,omitempty"`
 	GameID          *int             `json:"-" gorm:"uniqueIndex:userngamidx"`
 	Game            *Game            `json:"game,omitempty"`
-	Activity        []Activity       `json:"activity"`
-	WatchedSeasons  []WatchedSeason  `json:"watchedSeasons,omitempty"`  // For shows
-	WatchedEpisodes []WatchedEpisode `json:"watchedEpisodes,omitempty"` // For shows
+	Activity        []Activity       `json:"activity" gorm:"constraint:OnDelete:CASCADE"`
+	WatchedSeasons  []WatchedSeason  `json:"watchedSeasons,omitempty" gorm:"constraint:OnDelete:CASCADE"`  // For shows
+	WatchedEpisodes []WatchedEpisode `json:"watchedEpisodes,omitempty" gorm:"constraint:OnDelete:CASCADE"` // For shows
 	Tags            []Tag            `json:"tags,omitempty" gorm:"many2many:watched_tags;"`
 	// The last season that was viewed by the user for this watched entry.
 	// Only applies to tv shows of course.

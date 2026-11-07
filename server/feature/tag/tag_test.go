@@ -145,3 +145,55 @@ func TestThematicList_PublicSharing(t *testing.T) {
 		t.Fatalf("expected pubResp.IsPublic to be true")
 	}
 }
+
+func TestDeleteTag_CrossUserIDORPrevention(t *testing.T) {
+	db := testutil.SetupDB(t)
+	svc := tag.NewService(db, nil)
+
+	userA := entity.User{Username: "userA", Type: entity.WATCHARR_USER}
+	userB := entity.User{Username: "userB", Type: entity.WATCHARR_USER}
+	if err := db.Create(&userA).Error; err != nil {
+		t.Fatalf("failed to create userA: %v", err)
+	}
+	if err := db.Create(&userB).Error; err != nil {
+		t.Fatalf("failed to create userB: %v", err)
+	}
+
+	tagA, err := svc.AddTag(userA.ID, domain.TagAddRequest{
+		Name:    "UserA Tag",
+		Color:   "#ffffff",
+		BgColor: "#000000",
+	})
+	if err != nil {
+		t.Fatalf("failed to add tag for userA: %v", err)
+	}
+
+	content := entity.Content{TmdbID: 550, Type: entity.MOVIE, Title: "Fight Club"}
+	if err := db.Create(&content).Error; err != nil {
+		t.Fatalf("failed to create content: %v", err)
+	}
+	watched := entity.Watched{
+		UserID:    userA.ID,
+		ContentID: &content.ID,
+		Status:    entity.FINISHED,
+		Tags:      []entity.Tag{tagA},
+	}
+	if err := db.Create(&watched).Error; err != nil {
+		t.Fatalf("failed to create watched item with tag: %v", err)
+	}
+
+	// User B attempts to delete User A's tag -> must fail and must NOT remove watched_tags association!
+	err = svc.DeleteTag(userB.ID, tagA.ID)
+	if err == nil {
+		t.Fatalf("expected error when userB tries to delete userA's tag")
+	}
+
+	// Verify User A's tag and watched association are still intact
+	fetchedTag, err := svc.GetTag(userA.ID, tagA.ID)
+	if err != nil {
+		t.Fatalf("expected userA's tag to still exist, got err: %v", err)
+	}
+	if len(fetchedTag.Watched) != 1 || fetchedTag.Watched[0].ID != watched.ID {
+		t.Fatalf("expected userA's watched_tags association to remain intact, got: %+v", fetchedTag.Watched)
+	}
+}

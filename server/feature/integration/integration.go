@@ -677,8 +677,12 @@ func (s *Service) GetCalendarICS(userId uint) (string, error) {
 				summary += fmt.Sprintf(" (%s)", ev.EpisodeName)
 			}
 		}
+		summary = strings.ReplaceAll(summary, "\r", "")
+		summary = strings.ReplaceAll(summary, "\n", " ")
 
 		posterURL := BuildPosterURL(ev.PosterPath)
+		posterURL = strings.NewReplacer("\r", "", "\n", "").Replace(posterURL)
+		uidPart := strings.NewReplacer("\r", "", "\n", "").Replace(ev.ID)
 
 		desc := ev.Overview
 		if desc == "" {
@@ -692,7 +696,7 @@ func (s *Service) GetCalendarICS(userId uint) (string, error) {
 		desc = strings.ReplaceAll(desc, ",", "\\,")
 
 		sb.WriteString("BEGIN:VEVENT\r\n")
-		sb.WriteString(fmt.Sprintf("UID:watcharr-%s-%s@homelab\r\n", ev.ID, cleanDate))
+		sb.WriteString(fmt.Sprintf("UID:watcharr-%s-%s@homelab\r\n", uidPart, cleanDate))
 		sb.WriteString(fmt.Sprintf("DTSTAMP:%sT000000Z\r\n", time.Now().Format("20060102")))
 		sb.WriteString(fmt.Sprintf("DTSTART;VALUE=DATE:%s\r\n", cleanDate))
 		sb.WriteString(fmt.Sprintf("SUMMARY:%s\r\n", summary))

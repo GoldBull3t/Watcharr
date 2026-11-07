@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"runtime/debug"
+	"sync"
 	"time"
 
 	"github.com/go-co-op/gocron/v2"
@@ -11,9 +12,9 @@ import (
 	"github.com/sbondCo/Watcharr/config"
 	"github.com/sbondCo/Watcharr/database"
 	"github.com/sbondCo/Watcharr/feature/arr"
+	"github.com/sbondCo/Watcharr/feature/watched"
 	"github.com/sbondCo/Watcharr/image"
 	"github.com/sbondCo/Watcharr/token"
-	"github.com/sbondCo/Watcharr/feature/watched"
 	"gorm.io/gorm"
 )
 
@@ -38,16 +39,18 @@ type TaskFunc struct {
 	dd time.Duration
 }
 
-var taskScheduler gocron.Scheduler
-
-// All task functions are stored here so when updating (rescheduling)
-// a job, we can give it this function again.
-// Doesn't seem to be a way to only update the schedule of a job,
-// the .Update func wants the whole definition again.
-//
-// All funcs simply call a cleaning/routine method where the rest of the
-// related code lives so it's kept tidy.
-var taskFuncs map[string]TaskFunc
+var (
+	taskMu        sync.RWMutex
+	taskScheduler gocron.Scheduler
+	// All task functions are stored here so when updating (rescheduling)
+	// a job, we can give it this function again.
+	// Doesn't seem to be a way to only update the schedule of a job,
+	// the .Update func wants the whole definition again.
+	//
+	// All funcs simply call a cleaning/routine method where the rest of the
+	// related code lives so it's kept tidy.
+	taskFuncs map[string]TaskFunc
+)
 
 type CalendarNotifier interface {
 	CheckAndNotifyAllUsers() error
@@ -64,6 +67,8 @@ func SetupTasks(cfg *config.ServerConfig, db *gorm.DB, calendarNotifier Calendar
 		slog.Error("SetupTasks: Failed to create new scheduler!", "error", err)
 		return
 	}
+
+	taskMu.Lock()
 	taskScheduler = ts
 
 	// Define all task funcs.
@@ -131,6 +136,11 @@ func SetupTasks(cfg *config.ServerConfig, db *gorm.DB, calendarNotifier Calendar
 
 	if len(backupProvider) > 0 && backupProvider[0] != nil {
 		bp := backupProvider[0]
+		if rbp, ok := bp.(interface{ SetTaskRescheduler(func(int) error) }); ok {
+			rbp.SetTaskRescheduler(func(seconds int) error {
+				return RescheduleTask(cfg, "Automated Database Backup", TaskRescheduleRequest{Seconds: seconds})
+			})
+		}
 		taskFuncs["Automated Database Backup"] = TaskFunc{
 			f: func() {
 				slog.Debug("Running Automated Database Backup recurring task")
@@ -144,13 +154,15 @@ func SetupTasks(cfg *config.ServerConfig, db *gorm.DB, calendarNotifier Calendar
 
 	// Add all jobs to scheduler.
 	for k, v := range taskFuncs {
-		err = AddTaskToScheduler(cfg, k, v.dd)
+		err = addTaskToSchedulerLocked(cfg, k, v.dd)
 		if err != nil {
 			slog.Error("SetupTasks: Failed to add new job", "job", k, "err", err)
 		}
 	}
 
 	taskScheduler.Start()
+	taskMu.Unlock()
+
 	activity.CleanupOldActivities(db)
 	slog.Info("SetupTasks: Jobs created and scheduler started.")
 }
@@ -166,6 +178,8 @@ func GetTaskSeconds(cfg *config.ServerConfig, name string, defaultDur time.Durat
 
 // ShutdownTasks gracefully stops the task scheduler.
 func ShutdownTasks() {
+	taskMu.Lock()
+	defer taskMu.Unlock()
 	if taskScheduler != nil {
 		if err := taskScheduler.Shutdown(); err != nil {
 			slog.Warn("ShutdownTasks: Failed to shutdown scheduler cleanly", "error", err)
@@ -177,10 +191,23 @@ func ShutdownTasks() {
 
 // Add new job to scheduler.
 func AddTaskToScheduler(cfg *config.ServerConfig, name string, defaultDur time.Duration) error {
+	taskMu.RLock()
+	defer taskMu.RUnlock()
+	return addTaskToSchedulerLocked(cfg, name, defaultDur)
+}
+
+func addTaskToSchedulerLocked(cfg *config.ServerConfig, name string, defaultDur time.Duration) error {
+	if taskScheduler == nil {
+		return errors.New("task scheduler is not initialized")
+	}
+	tf, ok := taskFuncs[name]
+	if !ok {
+		return errors.New("task function not found")
+	}
 	s := GetTaskSeconds(cfg, name, defaultDur)
 	_, err := taskScheduler.NewJob(
 		gocron.DurationJob(s),
-		gocron.NewTask(taskFuncs[name].f),
+		gocron.NewTask(tf.f),
 		gocron.WithName(name),
 	)
 	slog.Debug("addTaskToScheduler: Job added.", "job_name", name, "duration_used", s, "duration_default", defaultDur)
@@ -189,7 +216,12 @@ func AddTaskToScheduler(cfg *config.ServerConfig, name string, defaultDur time.D
 
 // Get all tasks in a consumable format.
 func GetAllTasks(cfg *config.ServerConfig) []AllTasksResponse {
+	taskMu.RLock()
+	defer taskMu.RUnlock()
 	jobs := []AllTasksResponse{}
+	if taskScheduler == nil {
+		return jobs
+	}
 	for _, j := range taskScheduler.Jobs() {
 		j2a := AllTasksResponse{
 			Name: j.Name(),
@@ -208,6 +240,15 @@ func GetAllTasks(cfg *config.ServerConfig) []AllTasksResponse {
 
 // Get task (job) from scheduler by name.
 func GetTask(name string) *gocron.Job {
+	taskMu.RLock()
+	defer taskMu.RUnlock()
+	return getTaskLocked(name)
+}
+
+func getTaskLocked(name string) *gocron.Job {
+	if taskScheduler == nil {
+		return nil
+	}
 	for _, j := range taskScheduler.Jobs() {
 		if j.Name() == name {
 			job := j
@@ -222,8 +263,17 @@ func RescheduleTask(cfg *config.ServerConfig, name string, req TaskRescheduleReq
 	if req.Seconds == 0 {
 		return errors.New("request has no seconds")
 	}
-	j := GetTask(name)
+	taskMu.Lock()
+	defer taskMu.Unlock()
+	if taskScheduler == nil {
+		return errors.New("task scheduler is not initialized")
+	}
+	j := getTaskLocked(name)
 	if j == nil {
+		return errors.New("no task found")
+	}
+	tf, ok := taskFuncs[name]
+	if !ok {
 		return errors.New("no task found")
 	}
 	// Update config
@@ -239,7 +289,7 @@ func RescheduleTask(cfg *config.ServerConfig, name string, req TaskRescheduleReq
 			time.Duration(req.Seconds)*time.Second,
 		),
 		gocron.NewTask(
-			taskFuncs[name].f,
+			tf.f,
 		),
 		gocron.WithName(name),
 	)

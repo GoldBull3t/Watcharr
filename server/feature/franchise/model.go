@@ -63,4 +63,3 @@ type CuratedFranchiseDefinition struct {
 	ItemTypes    string
 	Items        []FranchiseItem
 }
-

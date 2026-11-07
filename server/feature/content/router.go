@@ -14,6 +14,7 @@ import (
 	"github.com/sbondCo/Watcharr/domain"
 	"github.com/sbondCo/Watcharr/feature/auth/authmiddleware"
 	"github.com/sbondCo/Watcharr/feature/user/usermiddleware"
+	"github.com/sbondCo/Watcharr/feature/watched"
 	"github.com/sbondCo/Watcharr/feature/watched/addedtocontent"
 	"github.com/sbondCo/Watcharr/media/extratings"
 	"github.com/sbondCo/Watcharr/media/tmdb"
@@ -93,7 +94,7 @@ func (r *Router) AddRoutes() {
 	// Get movie collection / series details
 	content.GET("/collection/:id", usermiddleware.WithUser(r.br.DB), router.LanguageRequired(r.br.Cfg), r.GetCollection)
 	// Update or set ending type override for tv show
-	content.POST("/tv/:id/ending-type", usermiddleware.WithUser(r.br.DB), r.UpdateTvEndingType)
+	content.POST("/tv/:id/ending-type", usermiddleware.WithUser(r.br.DB), authmiddleware.AdminRequired(), r.UpdateTvEndingType)
 	// Force refresh TMDB metadata and episodes for a movie or tv show (#1049)
 	content.POST("/:type/:id/refresh", usermiddleware.WithUser(r.br.DB), router.WhereaboutsRequired(r.br.Cfg), router.LanguageRequired(r.br.Cfg), r.RefreshContent)
 }
@@ -306,7 +307,7 @@ func (r *Router) GetTvDetails(c *gin.Context) {
 }
 
 type UpdateEndingTypeRequest struct {
-	EndingType string `json:"endingType" binding:"required"`
+	EndingType string `json:"endingType"`
 }
 
 func (r *Router) UpdateTvEndingType(c *gin.Context) {
@@ -322,6 +323,26 @@ func (r *Router) UpdateTvEndingType(c *gin.Context) {
 		return
 	}
 	endingType := strings.ToLower(strings.TrimSpace(req.EndingType))
+	if endingType == "none" || endingType == "reset" {
+		endingType = ""
+	}
+	allowedEndingTypes := map[string]bool{
+		"":            true,
+		"ended":       true,
+		"conclusive":  true,
+		"cancelled":   true,
+		"canceled":    true,
+		"cliffhanger": true,
+		"hiatus":      true,
+		"rushed":      true,
+		"open":        true,
+		"good":        true,
+		"bad":         true,
+	}
+	if len(endingType) > 32 || !allowedEndingTypes[endingType] {
+		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid endingType"})
+		return
+	}
 	res := r.br.DB.Model(&entity.Content{}).
 		Where("tmdb_id = ? AND type = ?", tmdbId, entity.SHOW).
 		Update("ending_type", endingType)
@@ -474,9 +495,20 @@ func (r *Router) GetCollection(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
 		return
 	}
-	// Sort parts chronologically by release date
+	// Sort parts chronologically by release date (push empty dates to the end)
 	sort.Slice(collectionData.Parts, func(i, j int) bool {
-		return collectionData.Parts[i].ReleaseDate < collectionData.Parts[j].ReleaseDate
+		ri := strings.TrimSpace(collectionData.Parts[i].ReleaseDate)
+		rj := strings.TrimSpace(collectionData.Parts[j].ReleaseDate)
+		if ri == "" && rj == "" {
+			return false
+		}
+		if ri == "" {
+			return false
+		}
+		if rj == "" {
+			return true
+		}
+		return ri < rj
 	})
 
 	collectionMedia := collectionData.AsMediaCollection()
@@ -507,6 +539,7 @@ func (r *Router) RefreshContent(c *gin.Context) {
 	}
 	r.tmdb.InvalidateCacheForID(id)
 	if mediaType == "tv" {
+		watched.InvalidateSeasonCache(id)
 		r.GetTvDetails(c)
 		return
 	}

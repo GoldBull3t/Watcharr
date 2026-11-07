@@ -43,7 +43,7 @@ var migrations = []Migration{
 						entity.STATUS_CHANGED,
 					},
 				).
-				Update("count_as_play", 1)
+				Update("count_as_play", true)
 			if res.Error != nil {
 				slog.Error("First step failed!", "mig", migID,
 					"error", res.Error)
@@ -60,7 +60,7 @@ var migrations = []Migration{
 					"IMPORTED_ADDED_WATCHED_JF",
 					"IMPORTED_ADDED_WATCHED_PLEX",
 				}).
-				Update("count_as_play", 1)
+				Update("count_as_play", true)
 			if res.Error != nil {
 				slog.Error("Second step failed!", "mig", migID,
 					"error", res.Error)
@@ -345,9 +345,9 @@ var migrations = []Migration{
 			}
 
 			for _, q := range queries {
-				if res := tx.Exec(q); res.Error != nil {
-					slog.Error("Creating performance index failed!", "mig", migID, "query", q, "error", res.Error)
-					return res.Error
+				if err := execCreateIndex(tx, q); err != nil {
+					slog.Error("Creating performance index failed!", "mig", migID, "query", q, "error", err)
+					return err
 				}
 			}
 
@@ -368,9 +368,9 @@ var migrations = []Migration{
 			}
 
 			for _, q := range queries {
-				if res := tx.Exec(q); res.Error != nil {
-					slog.Error("Creating search index failed!", "mig", migID, "query", q, "error", res.Error)
-					return res.Error
+				if err := execCreateIndex(tx, q); err != nil {
+					slog.Error("Creating search index failed!", "mig", migID, "query", q, "error", err)
+					return err
 				}
 			}
 
@@ -391,9 +391,9 @@ var migrations = []Migration{
 			}
 
 			for _, q := range queries {
-				if res := tx.Exec(q); res.Error != nil {
-					slog.Error("Creating integration/sort index failed!", "mig", migID, "query", q, "error", res.Error)
-					return res.Error
+				if err := execCreateIndex(tx, q); err != nil {
+					slog.Error("Creating integration/sort index failed!", "mig", migID, "query", q, "error", err)
+					return err
 				}
 			}
 
@@ -409,9 +409,9 @@ var migrations = []Migration{
 			slog.Info("Migration is starting.", "mig", migID)
 
 			q := "CREATE INDEX IF NOT EXISTS idx_watcheds_user_status_updated ON watcheds(user_id, status, updated_at DESC);"
-			if res := tx.Exec(q); res.Error != nil {
-				slog.Error("Creating composite index failed!", "mig", migID, "query", q, "error", res.Error)
-				return res.Error
+			if err := execCreateIndex(tx, q); err != nil {
+				slog.Error("Creating composite index failed!", "mig", migID, "query", q, "error", err)
+				return err
 			}
 
 			slog.Info("Composite index created successfully.", "mig", migID)
@@ -432,9 +432,9 @@ var migrations = []Migration{
 			}
 
 			for _, q := range queries {
-				if res := tx.Exec(q); res.Error != nil {
-					slog.Error("Creating optimization index failed!", "mig", migID, "query", q, "error", res.Error)
-					return res.Error
+				if err := execCreateIndex(tx, q); err != nil {
+					slog.Error("Creating optimization index failed!", "mig", migID, "query", q, "error", err)
+					return err
 				}
 			}
 
@@ -455,9 +455,9 @@ var migrations = []Migration{
 			}
 
 			for _, q := range queries {
-				if res := tx.Exec(q); res.Error != nil {
-					slog.Error("Creating composite lookup index failed!", "mig", migID, "query", q, "error", res.Error)
-					return res.Error
+				if err := execCreateIndex(tx, q); err != nil {
+					slog.Error("Creating composite lookup index failed!", "mig", migID, "query", q, "error", err)
+					return err
 				}
 			}
 
@@ -465,4 +465,22 @@ var migrations = []Migration{
 			return nil
 		},
 	},
+}
+
+// execCreateIndex executes a CREATE INDEX statement portably across SQLite, PostgreSQL, and MySQL.
+// MySQL does not support "CREATE INDEX IF NOT EXISTS", so we strip "IF NOT EXISTS" and ignore
+// duplicate key name errors (MySQL error 1061).
+func execCreateIndex(tx *gorm.DB, q string) error {
+	if tx.Dialector.Name() == "mysql" {
+		q = strings.Replace(q, "CREATE INDEX IF NOT EXISTS ", "CREATE INDEX ", 1)
+		if res := tx.Exec(q); res.Error != nil {
+			errMsg := strings.ToLower(res.Error.Error())
+			if strings.Contains(errMsg, "1061") || strings.Contains(errMsg, "duplicate key name") {
+				return nil
+			}
+			return res.Error
+		}
+		return nil
+	}
+	return tx.Exec(q).Error
 }

@@ -29,11 +29,11 @@ type ArrRequest struct {
 	ContentID *int     `json:"-" gorm:"uniqueIndex:sn_to_cid;not null"`
 	Content   *Content `json:"content,omitempty"`
 	// Server names are used as an identifier
-	ServerName string `json:"serverName" gorm:"uniqueIndex:sn_to_cid;not null"`
+	ServerName string `json:"serverName" gorm:"size:128;uniqueIndex:sn_to_cid;not null"`
 	// Sonarr/Radarrs seriesId/movieId
 	ArrID int `json:"arrId"`
 	// Tracked request status
-	Status ArrRequestStatus `json:"status" gorm:"default:PENDING"`
+	Status ArrRequestStatus `json:"status" gorm:"size:64;default:PENDING"`
 	// Full request made by user (arr.SonarrRequest / arr.RadarrRequest)
 	// so we know how to fulfil the request if approved.
 	RequestJson string `json:"requestJson"`

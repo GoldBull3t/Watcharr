@@ -38,4 +38,3 @@ type CalendarEvent struct {
 	EpisodeNumber int    `json:"episodeNumber,omitempty"`
 	EpisodeName   string `json:"episodeName,omitempty"`
 }
-

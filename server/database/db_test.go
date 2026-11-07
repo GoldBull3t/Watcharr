@@ -2,6 +2,7 @@ package database
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -71,3 +72,39 @@ func TestOpenMissingDSN(t *testing.T) {
 	os.Unsetenv("DB_TYPE")
 }
 
+func TestNormalizeMySQLDSN(t *testing.T) {
+	got := normalizeMySQLDSN("mysql://user:pass@localhost:3306/watcharr")
+	want := "user:pass@tcp(localhost:3306)/watcharr?parseTime=True"
+	if got != want {
+		t.Fatalf("expected %q, got %q", want, got)
+	}
+
+	got2 := normalizeMySQLDSN("user:pass@tcp(127.0.0.1:3306)/watcharr?charset=utf8mb4")
+	want2 := "user:pass@tcp(127.0.0.1:3306)/watcharr?charset=utf8mb4&parseTime=True"
+	if got2 != want2 {
+		t.Fatalf("expected %q, got %q", want2, got2)
+	}
+
+	got3 := normalizeMySQLDSN("user:pass@tcp(127.0.0.1:3306)/watcharr?parseTime=true")
+	want3 := "user:pass@tcp(127.0.0.1:3306)/watcharr?parseTime=true"
+	if got3 != want3 {
+		t.Fatalf("expected %q, got %q", want3, got3)
+	}
+}
+
+func TestNormalizeSQLiteDSN(t *testing.T) {
+	got := normalizeSQLiteDSN("/custom/path/watcharr.db")
+	if !strings.Contains(got, "_pragma=foreign_keys(1)") || !strings.Contains(got, "_pragma=busy_timeout(10000)") {
+		t.Fatalf("expected default pragmas appended to custom sqlite path, got %q", got)
+	}
+
+	gotWithQuery := normalizeSQLiteDSN("/custom/path/watcharr.db?cache=shared")
+	if !strings.HasPrefix(gotWithQuery, "/custom/path/watcharr.db?cache=shared&_pragma=") {
+		t.Fatalf("expected pragmas appended with &, got %q", gotWithQuery)
+	}
+
+	existing := "/custom/path/watcharr.db?_pragma=busy_timeout(5000)"
+	if normalizeSQLiteDSN(existing) != existing {
+		t.Fatalf("expected existing pragma DSN untouched, got %q", normalizeSQLiteDSN(existing))
+	}
+}

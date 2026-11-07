@@ -127,10 +127,10 @@ type slackWebhookPayload struct {
 
 // Generic Webhook Payload
 type genericWebhookPayload struct {
-	Event    string                `json:"event"`
-	Date     string                `json:"date"`
-	IsTest   bool                  `json:"isTest"`
-	Count    int                   `json:"count"`
+	Event    string                 `json:"event"`
+	Date     string                 `json:"date"`
+	IsTest   bool                   `json:"isTest"`
+	Count    int                    `json:"count"`
 	Releases []domain.CalendarEvent `json:"releases"`
 }
 
@@ -296,8 +296,8 @@ func (s *Service) sendDiscordWebhook(url string, events []domain.CalendarEvent, 
 			}
 
 			desc := ev.Overview
-			if len(desc) > 300 {
-				desc = desc[:297] + "..."
+			if runes := []rune(desc); len(runes) > 300 {
+				desc = string(runes[:297]) + "..."
 			}
 
 			fields := []discordEmbedField{
@@ -362,13 +362,14 @@ func (s *Service) sendDiscordWebhook(url string, events []domain.CalendarEvent, 
 		if err != nil {
 			return fmt.Errorf("discord request failed: %w", err)
 		}
-		defer resp.Body.Close()
 
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+			resp.Body.Close()
 			slog.Warn("Calendar: Discord webhook returned non-2xx status", "status", resp.StatusCode, "body", string(respBody))
 			return fmt.Errorf("discord webhook returned status %d", resp.StatusCode)
 		}
+		resp.Body.Close()
 	}
 
 	return nil
@@ -448,4 +449,3 @@ func (s *Service) sendGenericWebhook(url string, events []domain.CalendarEvent, 
 
 	return nil
 }
-

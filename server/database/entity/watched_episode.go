@@ -14,6 +14,6 @@ type WatchedEpisode struct {
 	WatchedID     uint          `json:"-" gorm:"uniqueIndex:we_watched_to_ens;not null"`
 	SeasonNumber  int           `json:"seasonNumber" gorm:"uniqueIndex:we_watched_to_ens;not null"`
 	EpisodeNumber int           `json:"episodeNumber" gorm:"uniqueIndex:we_watched_to_ens;not null"`
-	Status        WatchedStatus `json:"status"`
+	Status        WatchedStatus `json:"status" gorm:"size:64"`
 	Rating        int8          `json:"rating"`
 }

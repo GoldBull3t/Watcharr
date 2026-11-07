@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/sbondCo/Watcharr/database/entity"
+	"github.com/sbondCo/Watcharr/feature/setup/setupglob"
 	"gorm.io/gorm"
 )
 
@@ -302,11 +303,44 @@ func (s *Service) LoginOIDC(req OIDCCallbackRequest) (AuthResponse, error) {
 			return AuthResponse{}, errors.New("failed to locate linked OIDC user")
 		}
 	} else {
+		needsCreate := false
 		// Check if an OIDC_USER with this username already exists
-		if err := s.db.Where("username = ? AND type = ?", username, entity.OIDC_USER).Take(dbUser).Error; err != nil {
+		if err := s.db.Preload("UserServices").Where("username = ? AND type = ?", username, entity.OIDC_USER).Take(dbUser).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return AuthResponse{}, errors.New("database error looking up OIDC user")
 			}
+			needsCreate = true
+		} else {
+			// Matched an existing OIDC_USER by username; check if it already has an "oidc" service record.
+			var existingOIDCService *entity.UserServices
+			for i := range dbUser.UserServices {
+				if dbUser.UserServices[i].Name == entity.UserServiceNameOIDC {
+					existingOIDCService = &dbUser.UserServices[i]
+					break
+				}
+			}
+			if existingOIDCService == nil {
+				// User has no OIDC service record yet (e.g. converted by admin); link info.Sub to it.
+				svcRecord := entity.UserServices{
+					UserID:    dbUser.ID,
+					Name:      entity.UserServiceNameOIDC,
+					ClientID:  info.Sub,
+					AuthToken: tok.AccessToken,
+				}
+				if err := s.db.Create(&svcRecord).Error; err != nil {
+					slog.Error("LoginOIDC: Failed to link OIDC service to existing user", "error", err)
+					return AuthResponse{}, errors.New("failed to link OIDC account")
+				}
+			} else if existingOIDCService.ClientID != info.Sub {
+				// Existing OIDC_USER belongs to a different OIDC subject! Do NOT log into it.
+				// Disambiguate username and create a new user if auto-registration is allowed.
+				sum := sha256.Sum256([]byte(info.Sub))
+				username = fmt.Sprintf("%s_%x", username, sum[:3])
+				needsCreate = true
+			}
+		}
+
+		if needsCreate {
 			if !s.cfg.OIDC.AutoRegister && !s.cfg.SIGNUP_ENABLED {
 				return AuthResponse{}, errors.New("automatic registration for OIDC users is disabled")
 			}
@@ -336,6 +370,7 @@ func (s *Service) LoginOIDC(req OIDCCallbackRequest) (AuthResponse, error) {
 				slog.Error("LoginOIDC: Failed to create new OIDC user", "error", err)
 				return AuthResponse{}, errors.New("failed to create user from OIDC")
 			}
+			setupglob.ServerInSetup = false
 		}
 	}
 
@@ -345,4 +380,3 @@ func (s *Service) LoginOIDC(req OIDCCallbackRequest) (AuthResponse, error) {
 	}
 	return AuthResponse{Token: jwtToken}, nil
 }
-

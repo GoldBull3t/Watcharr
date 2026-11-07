@@ -72,7 +72,7 @@ func New(t ArrType, host *string, key *string) *Arr {
 }
 
 func (a *Arr) GetQualityProfiles() ([]QualityProfile, error) {
-	slog.Debug("GetQualityProfiles", "type", a.Type, "host", *a.Host, "key", *a.Key)
+	slog.Debug("GetQualityProfiles", "type", a.Type, "host", *a.Host)
 	var resp []QualityProfile
 	_, err := request(*a.Host, "/qualityprofile", map[string]string{"apikey": *a.Key}, &resp)
 	if err != nil {
@@ -83,7 +83,7 @@ func (a *Arr) GetQualityProfiles() ([]QualityProfile, error) {
 }
 
 func (a *Arr) GetRootFolders() ([]RootFolder, error) {
-	slog.Debug("GetRootFolders", "type", a.Type, "host", *a.Host, "key", *a.Key)
+	slog.Debug("GetRootFolders", "type", a.Type, "host", *a.Host)
 	var resp []RootFolder
 	_, err := request(*a.Host, "/rootfolder", map[string]string{"apikey": *a.Key}, &resp)
 	if err != nil {
@@ -94,7 +94,7 @@ func (a *Arr) GetRootFolders() ([]RootFolder, error) {
 }
 
 func (a *Arr) GetLangaugeProfiles() ([]LanguageProfile, error) {
-	slog.Debug("GetLangaugeProfiles", "type", a.Type, "host", *a.Host, "key", *a.Key)
+	slog.Debug("GetLangaugeProfiles", "type", a.Type, "host", *a.Host)
 	var resp []LanguageProfile
 	// languageprofile supposedly deprecated.. but new language endpoint doesnt seem to work.. note probs to switch soon
 	// TODO languages are handled diffferently in Sonarr now, I think we can remove all language stuff, now controlled per profile.
@@ -107,7 +107,7 @@ func (a *Arr) GetLangaugeProfiles() ([]LanguageProfile, error) {
 }
 
 func (a *Arr) RunCommand(name string) (CommandResponse, error) {
-	slog.Debug("RunCommand", "name", name, "type", a.Type, "host", *a.Host, "key", *a.Key)
+	slog.Debug("RunCommand", "name", name, "type", a.Type, "host", *a.Host)
 	var resp CommandResponse
 	err := requestPost(*a.Host, "/command", *a.Key, map[string]interface{}{"name": name}, &resp)
 	if err != nil {
@@ -119,7 +119,7 @@ func (a *Arr) RunCommand(name string) (CommandResponse, error) {
 
 // arrId = movieId/seriesId on radarr/sonarr
 func (a *Arr) GetQueueDetails(arrId string, resp interface{}) error {
-	slog.Debug("GetQueueDetails", "arrId", arrId, "type", a.Type, "host", *a.Host, "key", *a.Key)
+	slog.Debug("GetQueueDetails", "arrId", arrId, "type", a.Type, "host", *a.Host)
 	p := map[string]string{"apikey": *a.Key}
 	if a.Type == RADARR {
 		p["movieId"] = arrId
@@ -138,7 +138,7 @@ func (a *Arr) GetQueueDetails(arrId string, resp interface{}) error {
 
 // Get movie/show
 func (a *Arr) GetContent(arrId int) (MovieSerie, int, error) {
-	slog.Debug("GetContent", "arrId", arrId, "type", a.Type, "host", *a.Host, "key", *a.Key)
+	slog.Debug("GetContent", "arrId", arrId, "type", a.Type, "host", *a.Host)
 	e := "movie"
 	if a.Type == SONARR {
 		e = "series"
@@ -154,7 +154,7 @@ func (a *Arr) GetContent(arrId int) (MovieSerie, int, error) {
 }
 
 func (a *Arr) LookupByTmdbId(tmdbId int) ([]MovieSerie, error) {
-	slog.Debug("LookupByTmdbId", "tmdbId", tmdbId, "type", a.Type, "host", *a.Host, "key", *a.Key)
+	slog.Debug("LookupByTmdbId", "tmdbId", tmdbId, "type", a.Type, "host", *a.Host)
 	e := "movie"
 	if a.Type == SONARR {
 		e = "series"
@@ -221,7 +221,15 @@ func (a *Arr) AddContent(b map[string]interface{}) (map[string]interface{}, erro
 }
 
 func request(host string, ep string, p map[string]string, resp interface{}) (int, error) {
-	slog.Debug("arrAPIRequest", "endpoint", ep, "params", p)
+	safeParams := make(map[string]string, len(p))
+	for k, v := range p {
+		if k == "apikey" {
+			safeParams[k] = "[REDACTED]"
+		} else {
+			safeParams[k] = v
+		}
+	}
+	slog.Debug("arrAPIRequest", "endpoint", ep, "params", safeParams)
 	base, err := url.Parse(host)
 	if err != nil {
 		return 0, errors.New("failed to parse api uri")

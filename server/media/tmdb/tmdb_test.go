@@ -32,4 +32,3 @@ func TestTokenBucket_NilSafe(t *testing.T) {
 		tb.Wait()
 	})
 }
-

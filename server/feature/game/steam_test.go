@@ -19,8 +19,8 @@ func TestTitlesMatch(t *testing.T) {
 		{"Hollow Knight", "Hollow Knight", true},
 		{"Counter-Strike 2", "Counter-Strike 2", true},
 		{"Dark Souls III", "Dark Souls 3", false}, // roman numerals vs numbers differs unless normalized, good to know
-		{"Portal", "Portal 2", false}, // must not match different numbered installments
-		{"Half-Life", "Half-Life 2", false}, // must not match different numbered installments
+		{"Portal", "Portal 2", false},             // must not match different numbered installments
+		{"Half-Life", "Half-Life 2", false},       // must not match different numbered installments
 	}
 
 	for _, tt := range tests {
@@ -30,4 +30,3 @@ func TestTitlesMatch(t *testing.T) {
 		}
 	}
 }
-

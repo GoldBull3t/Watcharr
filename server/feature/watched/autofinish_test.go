@@ -114,9 +114,8 @@ func TestAutoFinishSeries_AutoAdvance(t *testing.T) {
 	db.First(&ep1Check, ep1.ID)
 	assert.Equal(t, entity.FINISHED, ep1Check.Status)
 
-	// Check Ep 2 was automatically created/set to WATCHING
+	// Check Ep 2 was NOT automatically created/set to WATCHING (prevents phantom episode chain)
 	var ep2Check entity.WatchedEpisode
 	err = db.Where("watched_id = ? AND season_number = 1 AND episode_number = 2", wShow.ID).First(&ep2Check).Error
-	assert.NoError(t, err)
-	assert.Equal(t, entity.WATCHING, ep2Check.Status)
+	assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
 }

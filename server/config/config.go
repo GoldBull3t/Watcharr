@@ -9,7 +9,6 @@ import (
 	"path"
 	"strings"
 	"sync"
-	"time"
 	"uuid"
 
 	"github.com/sbondCo/Watcharr/config/cfgmodel"
@@ -129,7 +128,7 @@ type ServerConfig struct {
 	// Optional: Point to Jellyseerr or Overseerr install to enable media requests.
 	OVERSEERR_ENABLED bool   `json:",omitempty"`
 	OVERSEERR_HOST    string `json:",omitempty"`
-	OVERSEERR_KEY  string `json:",omitempty"`
+	OVERSEERR_KEY     string `json:",omitempty"`
 
 	SONARR []cfgmodel.SonarrSettings `json:",omitempty"`
 	RADARR []cfgmodel.RadarrSettings `json:",omitempty"`
@@ -155,6 +154,28 @@ type ServerConfig struct {
 // Technically only admins will have access to that api route,
 // but I feel more comfortable removing it anyways (+ this is
 // not editable on frontend, so not needed).
+func (c *ServerConfig) RLock() {
+	cfgMu.RLock()
+}
+
+func (c *ServerConfig) RUnlock() {
+	cfgMu.RUnlock()
+}
+
+func (c *ServerConfig) Lock() {
+	cfgMu.Lock()
+}
+
+func (c *ServerConfig) Unlock() {
+	cfgMu.Unlock()
+}
+
+func (c *ServerConfig) SetHeaderAuthSetting(has TrustedHeaderAuthSetting) {
+	cfgMu.Lock()
+	c.HEADER_AUTH = has
+	cfgMu.Unlock()
+}
+
 func (c *ServerConfig) GetSafe() ServerConfig {
 	cfgMu.RLock()
 	defer cfgMu.RUnlock()
@@ -162,14 +183,14 @@ func (c *ServerConfig) GetSafe() ServerConfig {
 		SIGNUP_ENABLED:           c.SIGNUP_ENABLED,
 		DEFAULT_COUNTRY:          c.DEFAULT_COUNTRY,
 		DEFAULT_LANGUAGE:         c.DEFAULT_LANGUAGE,
-		DEFAULT_USER_PERMISSIONS: c.GetDefaultUserPermissions(),
+		DEFAULT_USER_PERMISSIONS: c.getDefaultUserPermissionsLocked(),
 		JELLYFIN_HOST:            c.JELLYFIN_HOST,
 		JELLYFIN_WEBHOOK_ENABLED: c.JELLYFIN_WEBHOOK_ENABLED,
 		JELLYFIN_WEBHOOK_KEY:     c.JELLYFIN_WEBHOOK_KEY,
 		USE_EMBY:                 c.USE_EMBY,
 		TMDB_KEY:                 c.TMDB_KEY,
 		TVDB_KEY:                 c.TVDB_KEY,
-		METADATA_PROVIDER:        c.GetMetadataProvider(),
+		METADATA_PROVIDER:        c.getMetadataProviderLocked(),
 		OMDB_KEY:                 c.OMDB_KEY,
 		MDBLIST_KEY:              c.MDBLIST_KEY,
 		STEAM_KEY:                c.STEAM_KEY,
@@ -178,8 +199,8 @@ func (c *ServerConfig) GetSafe() ServerConfig {
 		OVERSEERR_ENABLED:        c.OVERSEERR_ENABLED,
 		OVERSEERR_HOST:           c.OVERSEERR_HOST,
 		OVERSEERR_KEY:            c.OVERSEERR_KEY,
-		BACKUP_ENABLED:           func() *bool { b := c.GetBackupEnabled(); return &b }(),
-		BACKUP_RETENTION:         c.GetBackupRetention(),
+		BACKUP_ENABLED:           func() *bool { b := c.getBackupEnabledLocked(); return &b }(),
+		BACKUP_RETENTION:         c.getBackupRetentionLocked(),
 		DEBUG:                    c.DEBUG,
 		OIDC:                     c.OIDC,
 		SONARR:                   c.SONARR, // Dont act safe, this contains sonarr api key, needed for config
@@ -191,11 +212,17 @@ func (c *ServerConfig) GetSafe() ServerConfig {
 	}
 }
 
-func (c *ServerConfig) GetDefaultUserPermissions() int {
+func (c *ServerConfig) getDefaultUserPermissionsLocked() int {
 	if c.DEFAULT_USER_PERMISSIONS <= 0 {
 		return 1 // entity.PERM_NONE
 	}
 	return c.DEFAULT_USER_PERMISSIONS
+}
+
+func (c *ServerConfig) GetDefaultUserPermissions() int {
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+	return c.getDefaultUserPermissionsLocked()
 }
 
 func (c *ServerConfig) GetTVDBKey() string {
@@ -207,11 +234,17 @@ func (c *ServerConfig) GetTVDBKey() string {
 	return strings.TrimSpace(os.Getenv("TVDB_API_KEY"))
 }
 
-func (c *ServerConfig) GetMetadataProvider() string {
+func (c *ServerConfig) getMetadataProviderLocked() string {
 	if strings.EqualFold(c.METADATA_PROVIDER, "tvdb") && (c.TVDB_KEY != "" || os.Getenv("TVDB_API_KEY") != "") {
 		return "tvdb"
 	}
 	return "tmdb"
+}
+
+func (c *ServerConfig) GetMetadataProvider() string {
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+	return c.getMetadataProviderLocked()
 }
 
 func (c *ServerConfig) GetDefaultLanguage() string {
@@ -253,13 +286,17 @@ func (c *ServerConfig) GetSteamKey() string {
 	return strings.TrimSpace(os.Getenv("STEAM_KEY"))
 }
 
-func (c *ServerConfig) GetBackupEnabled() bool {
-	cfgMu.RLock()
-	defer cfgMu.RUnlock()
+func (c *ServerConfig) getBackupEnabledLocked() bool {
 	if c.BACKUP_ENABLED == nil {
 		return true
 	}
 	return *c.BACKUP_ENABLED
+}
+
+func (c *ServerConfig) GetBackupEnabled() bool {
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+	return c.getBackupEnabledLocked()
 }
 
 func (c *ServerConfig) SetBackupEnabled(b bool) {
@@ -268,13 +305,17 @@ func (c *ServerConfig) SetBackupEnabled(b bool) {
 	c.BACKUP_ENABLED = &b
 }
 
-func (c *ServerConfig) GetBackupRetention() int {
-	cfgMu.RLock()
-	defer cfgMu.RUnlock()
+func (c *ServerConfig) getBackupRetentionLocked() int {
 	if c.BACKUP_RETENTION > 0 {
 		return c.BACKUP_RETENTION
 	}
 	return 7
+}
+
+func (c *ServerConfig) GetBackupRetention() int {
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+	return c.getBackupRetentionLocked()
 }
 
 func (c *ServerConfig) SetBackupRetention(r int) {
@@ -318,7 +359,7 @@ func (c *ServerConfig) Get(s string) (ServerConfigGetByName, error) {
 	case "DEFAULT_LANGUAGE":
 		return ServerConfigGetByName{Value: c.DEFAULT_LANGUAGE}, nil
 	case "DEFAULT_USER_PERMISSIONS":
-		return ServerConfigGetByName{Value: c.GetDefaultUserPermissions()}, nil
+		return ServerConfigGetByName{Value: c.getDefaultUserPermissionsLocked()}, nil
 	case "JELLYFIN_HOST":
 		return ServerConfigGetByName{Value: c.JELLYFIN_HOST}, nil
 	case "JELLYFIN_WEBHOOK_ENABLED":
@@ -334,7 +375,7 @@ func (c *ServerConfig) Get(s string) (ServerConfigGetByName, error) {
 	case "TVDB_KEY":
 		return ServerConfigGetByName{Value: c.TVDB_KEY}, nil
 	case "METADATA_PROVIDER":
-		return ServerConfigGetByName{Value: c.GetMetadataProvider()}, nil
+		return ServerConfigGetByName{Value: c.getMetadataProviderLocked()}, nil
 	case "OMDB_KEY":
 		return ServerConfigGetByName{Value: c.OMDB_KEY}, nil
 	case "MDBLIST_KEY":
@@ -358,9 +399,9 @@ func (c *ServerConfig) Get(s string) (ServerConfigGetByName, error) {
 	case "OVERSEERR_KEY":
 		return ServerConfigGetByName{Value: c.OVERSEERR_KEY}, nil
 	case "BACKUP_ENABLED":
-		return ServerConfigGetByName{Value: c.GetBackupEnabled()}, nil
+		return ServerConfigGetByName{Value: c.getBackupEnabledLocked()}, nil
 	case "BACKUP_RETENTION":
-		return ServerConfigGetByName{Value: c.GetBackupRetention()}, nil
+		return ServerConfigGetByName{Value: c.getBackupRetentionLocked()}, nil
 	}
 	return ServerConfigGetByName{}, errors.New("invalid setting")
 }
@@ -616,19 +657,18 @@ func (c *ServerConfig) Write() error {
 }
 
 func (c *ServerConfig) SaveTwitchConfig(newt igdb.IGDB) error {
+	cfgMu.Lock()
 	// If existing client id and secret are same.. just return here
-	if (c.TWITCH.ClientID != nil && newt.ClientID != nil && c.TWITCH.ClientSecret != nil && newt.ClientSecret != nil) &&
-		*c.TWITCH.ClientID == *newt.ClientID && *c.TWITCH.ClientSecret == *newt.ClientSecret {
+	if c.TWITCH.HasSameCredentials(newt) {
+		cfgMu.Unlock()
 		slog.Info("SaveTwitchConfig: New ClientID and ClientSecret match old ClientID and ClientSecret.. ignoring request to update.")
 		return nil
 	}
 	// Update our config
-	c.TWITCH.ClientID = newt.ClientID
-	c.TWITCH.ClientSecret = newt.ClientSecret
-	c.TWITCH.AccessToken = ""
-	c.TWITCH.AccessTokenExpires = time.Time{}
+	c.TWITCH.SetCredentials(newt.ClientID, newt.ClientSecret)
 	// Try to init again
 	err := c.TWITCH.Init()
+	cfgMu.Unlock()
 	if err != nil {
 		slog.Error("SaveTwitchConfig failed to initialize TWITCH", "error", err)
 		return errors.New("initialization with credentials failed")
@@ -642,10 +682,9 @@ func (c *ServerConfig) SaveTwitchConfig(newt igdb.IGDB) error {
 }
 
 func (c *ServerConfig) TwitchEnabled() bool {
-	if c.TWITCH.ClientID != nil && c.TWITCH.ClientSecret != nil {
-		return true
-	}
-	return false
+	cfgMu.RLock()
+	defer cfgMu.RUnlock()
+	return c.TWITCH.Enabled()
 }
 
 // Read config file
@@ -691,7 +730,7 @@ func generateConfig() (*ServerConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	cfg := ServerConfig{
+	cfg := &ServerConfig{
 		JWT_SECRET: key,
 		// Other defaults..
 		DEFAULT_COUNTRY:  "US",
@@ -705,7 +744,7 @@ func generateConfig() (*ServerConfig, error) {
 	if err := os.MkdirAll(DataPath, 0755); err != nil {
 		return nil, err
 	}
-	return &cfg, os.WriteFile(path.Join(DataPath, "watcharr.json"), barej, 0600)
+	return cfg, os.WriteFile(path.Join(DataPath, "watcharr.json"), barej, 0600)
 }
 
 // Get server config.

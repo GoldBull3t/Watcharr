@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	gocache "github.com/robfig/go-cache"
@@ -36,7 +37,11 @@ rating_count,
 first_release_date`
 )
 
-var tokenRefreshJobCancel context.CancelFunc
+var (
+	igdbMu                sync.RWMutex
+	tokenRefreshJobMu     sync.Mutex
+	tokenRefreshJobCancel context.CancelFunc
+)
 
 type IGDB struct {
 	ClientID           *string   `json:"clientId,omitempty"`
@@ -46,14 +51,47 @@ type IGDB struct {
 	onTokenRefreshed   *func()
 }
 
+func (i *IGDB) SetCredentials(clientID, clientSecret *string) {
+	igdbMu.Lock()
+	defer igdbMu.Unlock()
+	i.ClientID = clientID
+	i.ClientSecret = clientSecret
+	i.AccessToken = ""
+	i.AccessTokenExpires = time.Time{}
+}
+
+func (i *IGDB) HasSameCredentials(other IGDB) bool {
+	igdbMu.RLock()
+	defer igdbMu.RUnlock()
+	return i.ClientID != nil && other.ClientID != nil &&
+		i.ClientSecret != nil && other.ClientSecret != nil &&
+		*i.ClientID == *other.ClientID && *i.ClientSecret == *other.ClientSecret
+}
+
+func (i *IGDB) Enabled() bool {
+	igdbMu.RLock()
+	defer igdbMu.RUnlock()
+	return i.ClientID != nil && i.ClientSecret != nil
+}
+
 var igdbHttpClient = &http.Client{
 	Timeout: 20 * time.Second,
 }
 
 func (i *IGDB) req(host string, ep string, p map[string]string, b string, resp interface{}) error {
-	// if using igdb host and we have no access token, error before running req
-	if host == igdbHost && (i.ClientID == nil || i.AccessToken == "") {
-		return errors.New("using igdbHost without a clientID or accessToken")
+	var clientID string
+	var accessToken string
+	if host == igdbHost {
+		igdbMu.RLock()
+		if i.ClientID != nil {
+			clientID = *i.ClientID
+		}
+		accessToken = i.AccessToken
+		igdbMu.RUnlock()
+		// if using igdb host and we have no access token, error before running req
+		if clientID == "" || accessToken == "" {
+			return errors.New("using igdbHost without a clientID or accessToken")
+		}
 	}
 
 	slog.Debug("IGDB->req: Creating a request.", "ep", ep, "body", b)
@@ -84,8 +122,8 @@ func (i *IGDB) req(host string, ep string, p map[string]string, b string, resp i
 
 	// Add igdb auth headers
 	if host == igdbHost {
-		req.Header.Add("Client-ID", *i.ClientID)
-		req.Header.Add("Authorization", "Bearer "+i.AccessToken)
+		req.Header.Add("Client-ID", clientID)
+		req.Header.Add("Authorization", "Bearer "+accessToken)
 	}
 
 	res, err := igdbHttpClient.Do(req)
@@ -110,11 +148,23 @@ func (i *IGDB) req(host string, ep string, p map[string]string, b string, resp i
 }
 
 func (i *IGDB) getNewAccessToken() (TwitchTokenResponse, error) {
+	igdbMu.RLock()
+	var clientID, clientSecret string
+	if i.ClientID != nil {
+		clientID = *i.ClientID
+	}
+	if i.ClientSecret != nil {
+		clientSecret = *i.ClientSecret
+	}
+	igdbMu.RUnlock()
+	if clientID == "" || clientSecret == "" {
+		return TwitchTokenResponse{}, errors.New("client id and or secret not provided")
+	}
 	var resp TwitchTokenResponse
 	err := i.req(
 		"https://id.twitch.tv/oauth2",
 		"/token",
-		map[string]string{"client_id": *i.ClientID, "client_secret": *i.ClientSecret, "grant_type": tokenGrantType},
+		map[string]string{"client_id": clientID, "client_secret": clientSecret, "grant_type": tokenGrantType},
 		"",
 		&resp,
 	)
@@ -128,9 +178,14 @@ func (i *IGDB) getNewAccessToken() (TwitchTokenResponse, error) {
 func (i *IGDB) refreshToken(ctx context.Context) {
 	var exp <-chan time.Time
 
-	if i.AccessToken != "" && !i.AccessTokenExpires.IsZero() && i.AccessTokenExpires.Compare(time.Now()) == 1 {
+	igdbMu.RLock()
+	accessToken := i.AccessToken
+	accessTokenExpires := i.AccessTokenExpires
+	igdbMu.RUnlock()
+
+	if accessToken != "" && !accessTokenExpires.IsZero() && accessTokenExpires.Compare(time.Now()) == 1 {
 		// Stored token not expired.. set exp time to token exp time - 1h.
-		exp = time.After(i.AccessTokenExpires.Sub(time.Now().Add(60 * time.Second)))
+		exp = time.After(accessTokenExpires.Sub(time.Now().Add(60 * time.Second)))
 	} else {
 		// Token expired.. exp now..
 		exp = time.After(100 * time.Millisecond)
@@ -149,12 +204,16 @@ func (i *IGDB) refreshToken(ctx context.Context) {
 				exp = time.After(60 * time.Second)
 			} else {
 				slog.Info("IGDB refreshToken: Token successfully refreshed")
+				newExpiry := time.Now().Add(time.Duration(r.ExpiresIn) * time.Second)
+				igdbMu.Lock()
 				i.AccessToken = r.AccessToken
-				i.AccessTokenExpires = time.Now().Add(time.Duration(r.ExpiresIn) * time.Second)
-				exp = time.After(i.AccessTokenExpires.Sub(time.Now().Add(60 * time.Second)))
+				i.AccessTokenExpires = newExpiry
+				cb := i.onTokenRefreshed
+				igdbMu.Unlock()
+				exp = time.After(newExpiry.Sub(time.Now().Add(60 * time.Second)))
 				// Call token refresh callback if set
-				if i.onTokenRefreshed != nil {
-					(*i.onTokenRefreshed)()
+				if cb != nil {
+					(*cb)()
 				}
 			}
 
@@ -166,19 +225,27 @@ func (i *IGDB) refreshToken(ctx context.Context) {
 }
 
 func (i *IGDB) OnTokenRefreshed(tokenRefreshed func()) {
+	igdbMu.Lock()
+	defer igdbMu.Unlock()
 	i.onTokenRefreshed = &tokenRefreshed
 }
 
 // Get token and stuff
 func (i *IGDB) Init() error {
+	tokenRefreshJobMu.Lock()
+	defer tokenRefreshJobMu.Unlock()
+
 	// Cancel existing refresh job if we have a cancel func for its context
 	if tokenRefreshJobCancel != nil {
 		slog.Debug("IGDB init: Refresh job running.. cancelling it.")
 		tokenRefreshJobCancel()
 		tokenRefreshJobCancel = nil
 	}
+	igdbMu.RLock()
+	hasCreds := i.ClientID != nil && i.ClientSecret != nil
+	igdbMu.RUnlock()
 	// Stop here if we have no client id or secret.
-	if i.ClientID == nil || i.ClientSecret == nil {
+	if !hasCreds {
 		slog.Error("IGDB init client id and or secret not provided")
 		return errors.New("client id and or secret not provided")
 	}

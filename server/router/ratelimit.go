@@ -8,6 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const maxBuckets = 10000
+
 type ipRateBucket struct {
 	count     int
 	resetTime time.Time
@@ -28,10 +30,23 @@ func RateLimit(maxRequests int, window time.Duration) gin.HandlerFunc {
 
 		mu.Lock()
 		// Lazy cleanup of expired buckets without background goroutine leaks
-		if now.Sub(lastCleanup) > window*2 {
+		if now.Sub(lastCleanup) > window*2 || len(buckets) >= maxBuckets {
 			for k, b := range buckets {
 				if now.After(b.resetTime) {
 					delete(buckets, k)
+				}
+			}
+			if len(buckets) >= maxBuckets {
+				var oldestKey string
+				var oldestTime time.Time
+				for k, b := range buckets {
+					if oldestKey == "" || b.resetTime.Before(oldestTime) {
+						oldestKey = k
+						oldestTime = b.resetTime
+					}
+				}
+				if oldestKey != "" {
+					delete(buckets, oldestKey)
 				}
 			}
 			lastCleanup = now

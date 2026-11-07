@@ -133,9 +133,10 @@ func (s *Service) GetCatalog(userId uint, mediaType string, catalogId string, sk
 
 	var items []entity.Watched
 	query := s.db.Model(&entity.Watched{}).
+		Joins("INNER JOIN contents ON contents.id = watcheds.content_id").
 		Preload("Content").
-		Where("user_id = ? AND status = ?", userId, status).
-		Order("updated_at DESC")
+		Where("watcheds.user_id = ? AND watcheds.status = ? AND contents.type = ?", userId, status, targetContentType).
+		Order("watcheds.updated_at DESC")
 
 	if skip > 0 {
 		query = query.Offset(skip)
@@ -210,12 +211,27 @@ func (s *Service) GetMeta(userId uint, mediaType string, id string) (MetaDetailR
 		imdbId = id
 	}
 
+	var targetContentType entity.ContentType
+	if mediaType == "movie" {
+		targetContentType = entity.MOVIE
+	} else if mediaType == "series" || mediaType == "tv" || mediaType == "show" {
+		targetContentType = entity.SHOW
+	}
+
 	var content entity.Content
 	query := s.db.Model(&entity.Content{})
 	if tmdbId > 0 {
-		query = query.Where("tmdb_id = ?", tmdbId)
+		if targetContentType != "" {
+			query = query.Where("tmdb_id = ? AND type = ?", tmdbId, targetContentType)
+		} else {
+			query = query.Where("tmdb_id = ?", tmdbId)
+		}
 	} else if imdbId != "" {
-		query = query.Where("imdb_id = ?", imdbId)
+		if targetContentType != "" {
+			query = query.Where("imdb_id = ? AND type = ?", imdbId, targetContentType)
+		} else {
+			query = query.Where("imdb_id = ?", imdbId)
+		}
 	} else {
 		return MetaDetailResponse{}, errors.New("invalid id format")
 	}
@@ -256,7 +272,11 @@ func (s *Service) GetMeta(userId uint, mediaType string, id string) (MetaDetailR
 	// If series, populate video entries
 	if (mediaType == "series" || mediaType == "tv" || mediaType == "show") && content.Type == entity.SHOW {
 		var videos []Video
-		for sNum := 1; sNum <= int(content.NumberOfSeasons); sNum++ {
+		numSeasons := int(content.NumberOfSeasons)
+		if numSeasons > 100 {
+			numSeasons = 100
+		}
+		for sNum := 1; sNum <= numSeasons; sNum++ {
 			// Estimate episodes or fallback to standard 24 if seasons not cached
 			maxEps := 24
 			for epNum := 1; epNum <= maxEps; epNum++ {
@@ -315,13 +335,18 @@ func (s *Service) HandleStreamPlayback(userId uint, mediaType string, rawId stri
 		return errors.New("cannot parse id from stream request")
 	}
 
+	targetContentType := entity.MOVIE
+	if mediaType == "series" || mediaType == "tv" || mediaType == "show" || seasonNum > 0 {
+		targetContentType = entity.SHOW
+	}
+
 	// 1. Resolve content in local database
 	var content entity.Content
 	query := s.db.Model(&entity.Content{})
 	if tmdbID > 0 {
-		query = query.Where("tmdb_id = ?", tmdbID)
+		query = query.Where("tmdb_id = ? AND type = ?", tmdbID, targetContentType)
 	} else if imdbID != "" {
-		query = query.Where("imdb_id = ?", imdbID)
+		query = query.Where("imdb_id = ? AND type = ?", imdbID, targetContentType)
 	}
 
 	if err := query.First(&content).Error; err != nil {
@@ -415,24 +440,38 @@ func (s *Service) HandleScrobble(userId uint, p ScrobblePayload) error {
 
 	now := time.Now().UTC()
 
-	// Normalize ratio progress (0.0 to 1.0) to percentage (0 to 100)
-	if p.Progress > 0 && p.Progress <= 1.0 {
-		p.Progress = p.Progress * 100.0
+	if p.Event == "start" {
+		rawId := p.ImdbID
+		if p.TmdbID > 0 {
+			rawId = fmt.Sprintf("tmdb:%d", p.TmdbID)
+		}
+		if rawId != "" && p.SeasonNumber > 0 && p.EpisodeNumber > 0 {
+			rawId = fmt.Sprintf("%s:%d:%d", rawId, p.SeasonNumber, p.EpisodeNumber)
+		}
+		if rawId != "" {
+			return s.HandleStreamPlayback(userId, p.MediaType, rawId)
+		}
+		return nil
 	}
 
-	// We trigger watched status when progress is >= 80% or event is "stop"
-	if p.Progress < 80.0 && p.Event != "stop" {
+	// We trigger watched status when progress is >= 80%
+	if p.Progress < 80.0 {
 		slog.Debug("Addon Scrobble: Progress under 80%, not marking watched yet", "progress", p.Progress)
 		return nil
+	}
+
+	targetContentType := entity.MOVIE
+	if p.MediaType == "series" || p.MediaType == "tv" || p.MediaType == "show" || p.SeasonNumber > 0 {
+		targetContentType = entity.SHOW
 	}
 
 	// 1. Resolve content
 	var content entity.Content
 	query := s.db.Model(&entity.Content{})
 	if p.TmdbID > 0 {
-		query = query.Where("tmdb_id = ?", p.TmdbID)
+		query = query.Where("tmdb_id = ? AND type = ?", p.TmdbID, targetContentType)
 	} else if p.ImdbID != "" {
-		query = query.Where("imdb_id = ?", p.ImdbID)
+		query = query.Where("imdb_id = ? AND type = ?", p.ImdbID, targetContentType)
 	} else {
 		return errors.New("scrobble missing tmdbId and imdbId")
 	}
@@ -441,16 +480,30 @@ func (s *Service) HandleScrobble(userId uint, p ScrobblePayload) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) && p.TmdbID > 0 {
 			// Content might not be cached locally yet, let's cache it via tmdb
 			supportedMedia := util.SupportedMediaMovie
-			if p.MediaType == "series" || p.MediaType == "tv" {
+			initialStatus := entity.FINISHED
+			if targetContentType == entity.SHOW {
 				supportedMedia = util.SupportedMediaShow
+				initialStatus = entity.WATCHING
 			}
 			// Attempt to add watched
-			_, addErr := s.watchedService.AddWatched(userId, domain.WatchedAddRequest{
-				Status:      entity.FINISHED,
+			createdWatched, addErr := s.watchedService.AddWatched(userId, domain.WatchedAddRequest{
+				Status:      initialStatus,
 				ContentType: supportedMedia,
 				TMDBID:      p.TmdbID,
 			}, domain.WatchedAddExtraProps{})
-			return addErr
+			if addErr != nil {
+				return addErr
+			}
+			if targetContentType == entity.SHOW && p.SeasonNumber > 0 && p.EpisodeNumber > 0 {
+				_, epErr := s.episodeService.SetWatchedEpisode(userId, domain.WatchedEpisodeSetRequest{
+					WatchedID:     createdWatched.ID,
+					SeasonNumber:  p.SeasonNumber,
+					EpisodeNumber: p.EpisodeNumber,
+					Status:        entity.FINISHED,
+				})
+				return epErr
+			}
+			return nil
 		}
 		return err
 	}

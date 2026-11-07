@@ -12,6 +12,7 @@ import (
 
 	"github.com/sbondCo/Watcharr/config"
 	"github.com/sbondCo/Watcharr/database/entity"
+	"github.com/sbondCo/Watcharr/feature/setup/setupglob"
 	"gorm.io/gorm"
 )
 
@@ -40,7 +41,7 @@ func (s *TrustedHeaderService) TrustedHeaderAuthIsEnabled() bool {
 
 func (s *TrustedHeaderService) SetTrustedHeaderAuthSetting(has config.TrustedHeaderAuthSetting) error {
 	slog.Debug("setTrustedHeaderAuthSetting: Attempting to update to new provided value", "new_value", has)
-	s.cfg.HEADER_AUTH = has
+	s.cfg.SetHeaderAuthSetting(has)
 	err := s.cfg.Write()
 	if err != nil {
 		slog.Error("setTrustedHeaderAuthSetting: Failed to write updated config!", "error", err)
@@ -70,6 +71,7 @@ func (s *TrustedHeaderService) LoginTrustedHeaderAuth(user *entity.User) (AuthRe
 			// dbUser will be empty, so we can just reuse it for this purpose.
 			dbUser.Username = user.Username
 			dbUser.Type = entity.PROXY_USER
+			dbUser.Permissions = s.cfg.GetDefaultUserPermissions()
 			dbUser.Country = &s.cfg.DEFAULT_COUNTRY
 			dbUser.Language = &s.cfg.DEFAULT_LANGUAGE
 
@@ -78,6 +80,7 @@ func (s *TrustedHeaderService) LoginTrustedHeaderAuth(user *entity.User) (AuthRe
 				slog.Error("loginTrustedHeaderAuth: Failed to create new user in db", "error", res.Error)
 				return AuthResponse{}, errors.New("failed to create new user")
 			}
+			setupglob.ServerInSetup = false
 		} else {
 			slog.Error("loginTrustedHeaderAuth: An error occurred when looking up user in db", "error", res.Error)
 			return AuthResponse{}, errors.New("error locating user in db")

@@ -8,7 +8,9 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -265,8 +267,28 @@ func (t *TMDB) PrimaryTranslations() ([]string, error) {
 
 // InvalidateCacheForID evicts cached TMDB entries so fresh details and seasons are fetched (#1049).
 func (t *TMDB) InvalidateCacheForID(id string) {
-	if id == "" {
+	if id == "" || ContentStore == nil {
 		return
 	}
-	ContentStore.Flush()
+	var keysToDelete []string
+	ContentStore.Lock()
+	cv := reflect.ValueOf(ContentStore)
+	if cv.Kind() == reflect.Ptr && !cv.IsNil() {
+		inner := cv.Elem().Field(0)
+		if inner.Kind() == reflect.Ptr && !inner.IsNil() {
+			items := inner.Elem().FieldByName("items")
+			if items.IsValid() && items.Kind() == reflect.Map {
+				for _, kv := range items.MapKeys() {
+					k := kv.String()
+					if strings.Contains(k, id) {
+						keysToDelete = append(keysToDelete, k)
+					}
+				}
+			}
+		}
+	}
+	ContentStore.Unlock()
+	for _, k := range keysToDelete {
+		ContentStore.Delete(k)
+	}
 }

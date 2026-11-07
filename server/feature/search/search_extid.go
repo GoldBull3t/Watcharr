@@ -107,11 +107,9 @@ func (s *Service) getExtProviderFromQuery(queryLower string) (string, string) {
 		"tiktok":
 		provider = querySplit[0]
 		// Any aliases we want to support
-	case "i":
-	case "imd":
+	case "i", "imd":
 		provider = "imdb"
-	case "wd":
-	case "wdt":
+	case "wd", "wdt":
 		provider = "wikidata"
 	case "yt":
 		provider = "youtube"
@@ -152,7 +150,7 @@ func (s *Service) getExtProviderFromURL(maybeaurl string) (string, string) {
 		return s.getExtProviderIDFromIGDBURL(u)
 	}
 
-	return "", " "
+	return "", ""
 }
 
 // Extract id from IMDB url.

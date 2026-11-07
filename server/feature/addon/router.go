@@ -96,7 +96,7 @@ func (r *Router) AddRoutes() {
 
 		// 6. Simkl-compatible scrobble endpoint for NuvioTV native fallback
 		addonGroup.POST("/scrobble/stop", authMw, r.HandleSimklScrobble)
-		addonGroup.POST("/scrobble/start", authMw, r.HandleSimklScrobble)
+		addonGroup.POST("/scrobble/start", authMw, r.HandleSimklScrobbleStart)
 	}
 }
 
@@ -196,8 +196,70 @@ func (r *Router) HandleScrobble(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Progresso sincronizado com sucesso no Watcharr"})
 }
 
+// HandleSimklScrobbleStart handles Simkl-format start scrobbles by marking media as WATCHING
+func (r *Router) HandleSimklScrobbleStart(c *gin.Context) {
+	userId := c.MustGet("userId").(uint)
+
+	var simklBody struct {
+		Movie *struct {
+			Title string `json:"title"`
+			Year  int    `json:"year"`
+			IDs   struct {
+				TMDB int    `json:"tmdb"`
+				IMDb string `json:"imdb"`
+			} `json:"ids"`
+		} `json:"movie"`
+		Show *struct {
+			Title string `json:"title"`
+			Year  int    `json:"year"`
+			IDs   struct {
+				TMDB int    `json:"tmdb"`
+				IMDb string `json:"imdb"`
+			} `json:"ids"`
+		} `json:"show"`
+		Episode *struct {
+			Season int `json:"season"`
+			Number int `json:"number"`
+		} `json:"episode"`
+		Progress float64 `json:"progress"`
+	}
+
+	if err := c.ShouldBindJSON(&simklBody); err != nil {
+		c.JSON(http.StatusOK, gin.H{"result": "OK"})
+		return
+	}
+
+	if simklBody.Movie != nil {
+		rawId := simklBody.Movie.IDs.IMDb
+		if simklBody.Movie.IDs.TMDB > 0 {
+			rawId = fmt.Sprintf("tmdb:%d", simklBody.Movie.IDs.TMDB)
+		}
+		if rawId != "" {
+			_ = r.s.HandleStreamPlayback(userId, "movie", rawId)
+		}
+	} else if simklBody.Show != nil {
+		rawId := simklBody.Show.IDs.IMDb
+		if simklBody.Show.IDs.TMDB > 0 {
+			rawId = fmt.Sprintf("tmdb:%d", simklBody.Show.IDs.TMDB)
+		}
+		if rawId != "" {
+			if simklBody.Episode != nil && simklBody.Episode.Season > 0 && simklBody.Episode.Number > 0 {
+				rawId = fmt.Sprintf("%s:%d:%d", rawId, simklBody.Episode.Season, simklBody.Episode.Number)
+			}
+			_ = r.s.HandleStreamPlayback(userId, "series", rawId)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"result": "OK", "action": "scrobble_started"})
+}
+
 // HandleSimklScrobble handles Simkl-format scrobbles if NuvioTV is configured to direct to this host
 func (r *Router) HandleSimklScrobble(c *gin.Context) {
+	if strings.HasSuffix(c.Request.URL.Path, "/start") {
+		r.HandleSimklScrobbleStart(c)
+		return
+	}
+
 	userId := c.MustGet("userId").(uint)
 
 	var simklBody struct {
@@ -248,12 +310,7 @@ func (r *Router) HandleSimklScrobble(c *gin.Context) {
 		}
 	}
 
-	// Normalize ratio 0.0 - 1.0 to percentage 0 - 100
-	if payload.Progress > 0 && payload.Progress <= 1.0 {
-		payload.Progress = payload.Progress * 100.0
-	}
-
-	if payload.Progress >= 80.0 || payload.Progress == 0 {
+	if payload.Progress >= 80.0 {
 		_ = r.s.HandleScrobble(userId, payload)
 	}
 

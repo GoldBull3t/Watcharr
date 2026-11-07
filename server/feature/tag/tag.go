@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/sbondCo/Watcharr/database/dbmodel"
 	"github.com/sbondCo/Watcharr/database/entity"
 	"github.com/sbondCo/Watcharr/domain"
 	"github.com/sbondCo/Watcharr/util"
@@ -74,10 +73,12 @@ func (s *Service) GetTagPage(
 		"pagination_params", pp,
 		"wr", wr)
 
-	// Attempt to get the tag, verifying it exists and the user own it.
-	_, err := s.GetTag(userId, tagId)
-	if err != nil {
-		return util.PaginationResponse[entity.Watched, util.None]{}, err
+	// Verify the tag exists and the user owns it using a lightweight query.
+	if err := s.db.Select("id").Where("id = ? AND user_id = ?", tagId, userId).Take(&entity.Tag{}).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return util.PaginationResponse[entity.Watched, util.None]{}, errors.New("tag does not exist")
+		}
+		return util.PaginationResponse[entity.Watched, util.None]{}, errors.New("failed getting tag")
 	}
 
 	// Get all watched ids for this tag.
@@ -90,8 +91,8 @@ func (s *Service) GetTagPage(
 		Where("tag_id = ?", tagId).
 		Find(&wids)
 	if res.Error != nil {
-		slog.Error("GetTagPage: Getting watched ids failed!", "error", err)
-		return util.PaginationResponse[entity.Watched, util.None]{}, err
+		slog.Error("GetTagPage: Getting watched ids failed!", "error", res.Error)
+		return util.PaginationResponse[entity.Watched, util.None]{}, res.Error
 	}
 	if len(*wids) <= 0 {
 		slog.Debug("GetTagPage: The requested tag has no watched items!")
@@ -228,10 +229,17 @@ func (s *Service) GetPublicTag(tagId uint) (domain.PublicTagResponse, error) {
 		return domain.PublicTagResponse{}, errors.New("this list is private")
 	}
 
-	var user entity.User
+	var owner entity.User
 	authorName := "Watcharr User"
-	if err := s.db.Select("username").Where("id = ?", tag.UserID).First(&user).Error; err == nil && user.Username != "" {
-		authorName = user.Username
+	if err := s.db.Select("username, private_thoughts").Where("id = ?", tag.UserID).First(&owner).Error; err == nil {
+		if owner.Username != "" {
+			authorName = owner.Username
+		}
+		if owner.PrivateThoughts != nil && *owner.PrivateThoughts {
+			for i := range tag.Watched {
+				tag.Watched[i].Thoughts = ""
+			}
+		}
 	}
 
 	mediaItems := domain.NewWatchedGetPageResponse(tag.Watched)
@@ -255,9 +263,17 @@ func (s *Service) DeleteTag(userId uint, tagId uint) error {
 		return errors.New("no tag id provided")
 	}
 	slog.Debug("deleteTag:", "tag_id", tagId, "user_id", userId)
+	var tag entity.Tag
+	if err := s.db.Where("id = ? AND user_id = ?", tagId, userId).Take(&tag).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			slog.Error("deleteTag: Tag does not exist for user", "tag_id", tagId, "user_id", userId)
+			return errors.New("tag does not exist")
+		}
+		slog.Error("deleteTag: Error looking up tag in database", "error", err.Error(), "tag_id", tagId, "user_id", userId)
+		return errors.New("failed deleting tag from database")
+	}
 	// Select("Watched") so relations in watched_tags table are removed too.
-	// ID is passed in the .Delete param so the .Select call can do it's job (relies on the primary key).
-	res := s.db.Unscoped().Where("id = ? AND user_id = ?", tagId, userId).Select("Watched").Delete(&entity.Tag{GormModel: dbmodel.GormModel{ID: tagId}})
+	res := s.db.Unscoped().Select("Watched").Delete(&tag)
 	if res.Error != nil {
 		slog.Error("deleteTag: Error deleting tag from database", "error", res.Error.Error(), "tag_id", tagId, "user_id", userId)
 		return errors.New("failed deleting tag from database")

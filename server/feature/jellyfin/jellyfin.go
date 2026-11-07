@@ -50,6 +50,10 @@ type JFContentFindResponse struct {
 	Url        string `json:"url"`
 }
 
+var jellyfinHTTPClient = &http.Client{
+	Timeout: 30 * time.Second,
+}
+
 type Service struct {
 	cfg *config.ServerConfig
 }
@@ -94,9 +98,7 @@ func (s *Service) userAPIRequest(
 	base.RawQuery = params.Encode()
 
 	// Run get request
-	client := &http.Client{
-		Timeout: 20 * time.Second,
-	}
+	client := jellyfinHTTPClient
 	req, err := http.NewRequest(method, base.String(), bytes.NewBuffer([]byte{}))
 	if err != nil {
 		slog.Error("Creating request to jellyfin failed", "error", err)
@@ -117,7 +119,7 @@ func (s *Service) userAPIRequest(
 		slog.Error("making request to jellyfin for auth failed", "error", err)
 		return errors.New("request failed")
 	}
-	body, err := io.ReadAll(res.Body)
+	body, err := io.ReadAll(io.LimitReader(res.Body, 10<<20))
 	res.Body.Close()
 	if err != nil {
 		slog.Error("Error reading jellyfin auth response", "error", err)

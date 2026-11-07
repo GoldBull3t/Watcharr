@@ -118,17 +118,17 @@ func (s *Service) UserGetSettings(userId uint) (entity.UserSettings, error) {
 		RatingStep:               user.RatingStep,
 		CalendarWebhookUrl:       user.CalendarWebhookUrl,
 		CalendarWebhookEnabled:   user.CalendarWebhookEnabled,
-		CalendarWebhookFilter:   user.CalendarWebhookFilter,
+		CalendarWebhookFilter:    user.CalendarWebhookFilter,
 		ActivityWebhookUrl:       user.ActivityWebhookUrl,
 		ActivityWebhookEnabled:   user.ActivityWebhookEnabled,
-		ActivityWebhookFilter:   user.ActivityWebhookFilter,
+		ActivityWebhookFilter:    user.ActivityWebhookFilter,
 	}, nil
 }
 
 func (s *Service) UserSearch(currentUsersId uint, q string) ([]entity.PublicUser, error) {
 	slog.Debug("user search request running", "query", q)
 	users := new([]entity.PublicUser)
-	res := s.db.Where("private = 0 AND username LIKE ? AND id != ?", "%"+q+"%", currentUsersId).Table("users").Find(&users)
+	res := s.db.Where("id != ? AND private = ? AND username LIKE ?", currentUsersId, false, "%"+q+"%").Limit(50).Table("users").Find(&users)
 	if res.Error != nil {
 		slog.Error("user search failed", "error", res.Error)
 		return []entity.PublicUser{}, errors.New("failed to find users")
@@ -151,7 +151,7 @@ func (s *Service) GetUserInfo(currentUsersId uint) (entity.PrivateUser, error) {
 func (s *Service) GetUserPublicInfo(userId uint, username string) (entity.PublicUser, error) {
 	slog.Debug("user get info request running")
 	user := new(entity.PublicUser)
-	res := s.db.Where("private = 0 AND id = ? AND username = ?", userId, username).Table("users").Preload("Avatar").Take(&user)
+	res := s.db.Where("private = ? AND id = ? AND username = ?", false, userId, username).Table("users").Preload("Avatar").Take(&user)
 	if res.Error != nil {
 		slog.Error("public user get info failed", "error", res.Error)
 		return entity.PublicUser{}, errors.New("failed to find user")

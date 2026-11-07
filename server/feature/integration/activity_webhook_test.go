@@ -123,4 +123,3 @@ func TestDispatchActivityWebhook_FilterSkip(t *testing.T) {
 		t.Errorf("webhook was called, but should have been filtered out")
 	}
 }
-

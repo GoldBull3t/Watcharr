@@ -15,6 +15,7 @@ import (
 
 	"github.com/sbondCo/Watcharr/config"
 	"github.com/sbondCo/Watcharr/database/entity"
+	"github.com/sbondCo/Watcharr/feature/watched"
 	"gorm.io/gorm"
 )
 
@@ -41,12 +42,12 @@ type SteamConnectRequest struct {
 }
 
 type SteamStatusResponse struct {
-	Connected   bool   `json:"connected"`
-	SteamID     string `json:"steamId,omitempty"`
-	PersonaName string `json:"personaName,omitempty"`
-	Avatar      string `json:"avatar,omitempty"`
-	TotalGames  int    `json:"totalGames"`
-	HasCustomKey bool  `json:"hasCustomKey"`
+	Connected    bool   `json:"connected"`
+	SteamID      string `json:"steamId,omitempty"`
+	PersonaName  string `json:"personaName,omitempty"`
+	Avatar       string `json:"avatar,omitempty"`
+	TotalGames   int    `json:"totalGames"`
+	HasCustomKey bool   `json:"hasCustomKey"`
 }
 
 type SteamSyncResponse struct {
@@ -57,12 +58,12 @@ type SteamSyncResponse struct {
 }
 
 type SteamOwnedGame struct {
-	AppID                  int    `json:"appid"`
-	Name                   string `json:"name"`
-	PlaytimeForever        int    `json:"playtime_forever"` // In minutes
-	Playtime2Weeks         int    `json:"playtime_2weeks"`  // In minutes
-	ImgIconURL             string `json:"img_icon_url"`
-	RtimeLastPlayed        int64  `json:"rtime_last_played"`
+	AppID           int    `json:"appid"`
+	Name            string `json:"name"`
+	PlaytimeForever int    `json:"playtime_forever"` // In minutes
+	Playtime2Weeks  int    `json:"playtime_2weeks"`  // In minutes
+	ImgIconURL      string `json:"img_icon_url"`
+	RtimeLastPlayed int64  `json:"rtime_last_played"`
 }
 
 type steamGetOwnedGamesResponse struct {
@@ -445,6 +446,10 @@ func (s *SteamService) SyncUserPlaytime(userId uint) (SteamSyncResponse, error) 
 	msg := fmt.Sprintf("Sincronizados %d jogos da Steam com sucesso.", syncedCount)
 	if syncedCount == 0 {
 		msg = "Nenhum jogo novo ou horas pendentes para atualizar."
+	}
+
+	if syncedCount > 0 {
+		watched.InvalidateUserWatchedCache(userId)
 	}
 
 	return SteamSyncResponse{

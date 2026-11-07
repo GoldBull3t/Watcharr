@@ -154,6 +154,12 @@ func (s *Service) saveContent(c *entity.Content, onlyUpdate bool) error {
 				return errors.New("failed to cache content in database")
 			}
 		}
+		if c.ID == 0 {
+			var existing entity.Content
+			if err := s.db.Select("id").Where("tmdb_id = ? AND type = ?", c.TmdbID, c.Type).First(&existing).Error; err == nil {
+				c.ID = existing.ID
+			}
+		}
 	}
 	// If row created, download the image in background so content saving is non-blocking
 	if res.RowsAffected > 0 && c.PosterPath != "" {
@@ -174,11 +180,14 @@ func (s *Service) CacheContentShow(
 	onlyUpdate bool,
 ) (entity.Content, error) {
 	slog.Debug("CacheContentShow", "content", content)
-	var releaseDate time.Time
+	var releaseDate *time.Time
 	var dateFormat = "2006-01-02"
-	releaseDate, err := time.Parse(dateFormat, content.FirstAirDate)
-	if err != nil {
-		slog.Error("Failed to parse tv release date", "error", err)
+	if content.FirstAirDate != "" {
+		if parsed, err := time.Parse(dateFormat, content.FirstAirDate); err != nil {
+			slog.Error("Failed to parse tv release date", "error", err)
+		} else {
+			releaseDate = &parsed
+		}
 	}
 	runtime := content.EffectiveRuntime()
 	if runtime == 0 {
@@ -215,7 +224,7 @@ func (s *Service) CacheContentShow(
 		BackdropPath:     content.BackdropPath,
 		ImdbID:           content.ExternalIds.ImdbID,
 		Type:             entity.SHOW,
-		ReleaseDate:      &releaseDate,
+		ReleaseDate:      releaseDate,
 		Popularity:       content.Popularity,
 		VoteAverage:      content.VoteAverage,
 		VoteCount:        content.VoteCount,
@@ -226,7 +235,7 @@ func (s *Service) CacheContentShow(
 		Genres:           showGenres,
 	}
 
-	err = s.saveContent(&c, onlyUpdate)
+	err := s.saveContent(&c, onlyUpdate)
 	if err != nil {
 		slog.Error("CacheContentShow: Failed to save content!", "error", err)
 		return entity.Content{}, errors.New("failed to save content")
@@ -239,14 +248,15 @@ func (s *Service) CacheContentMovie(
 	content tmdb.MovieDetails,
 	onlyUpdate bool,
 ) (entity.Content, error) {
-	var (
-		releaseDate time.Time
-	)
+	var releaseDate *time.Time
 	var dateFormat = "2006-01-02"
 	// Get details from movie/show response and fill out needed vars
-	releaseDate, err := time.Parse(dateFormat, content.ReleaseDate)
-	if err != nil {
-		slog.Error("Failed to parse movie release date", "error", err)
+	if content.ReleaseDate != "" {
+		if parsed, err := time.Parse(dateFormat, content.ReleaseDate); err != nil {
+			slog.Error("Failed to parse movie release date", "error", err)
+		} else {
+			releaseDate = &parsed
+		}
 	}
 
 	var movieGenres string
@@ -274,7 +284,7 @@ func (s *Service) CacheContentMovie(
 		PosterPath:       content.PosterPath,
 		BackdropPath:     content.BackdropPath,
 		Type:             entity.MOVIE,
-		ReleaseDate:      &releaseDate,
+		ReleaseDate:      releaseDate,
 		Popularity:       content.Popularity,
 		VoteAverage:      content.VoteAverage,
 		VoteCount:        content.VoteCount,
@@ -286,7 +296,7 @@ func (s *Service) CacheContentMovie(
 		Genres:           movieGenres,
 	}
 
-	err = s.saveContent(&c, onlyUpdate)
+	err := s.saveContent(&c, onlyUpdate)
 	if err != nil {
 		slog.Error("cacheContentMovie: Failed to save content!", "error", err)
 		return entity.Content{}, errors.New("failed to save content")
@@ -343,6 +353,7 @@ func (s *Service) GetOrCacheContent(
 				slog.Error("GetOrCacheContent: ShowDetails failed.",
 					"content_id", tmdbId,
 					"err", err)
+				return entity.Content{}, errors.New("details request failed")
 			}
 			content, err = s.CacheContentShow(resp, false)
 			if err != nil {

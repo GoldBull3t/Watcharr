@@ -15,6 +15,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -176,15 +177,17 @@ func main() {
 	// Add a logging level hook that updates db Logger mode too, so in debug,
 	// we can log ALL db queries to stdout (mainly for development, but could
 	// potentially help someone debugging their instance).
+	gormLog := &syncedGormLogger{inner: db.Logger}
+	db.Logger = gormLog
 	logging.AddLevelChangedHook(func(debug bool) {
 		if debug {
 			// Setting gorm logger to `Info` makes it log all queries, which is
 			// what we want for debug mode.
-			db.Logger = db.Logger.LogMode(logger.Info)
+			gormLog.SetMode(logger.Info)
 		} else {
 			// When not in debug, we go back to `Warn`, which is the default
 			// level for db.
-			db.Logger = db.Logger.LogMode(logger.Warn)
+			gormLog.SetMode(logger.Warn)
 		}
 	})
 	logging.Level(cfg.DEBUG)
@@ -201,6 +204,18 @@ func main() {
 	}
 	gin.DefaultWriter = multiw
 	gine := gin.Default()
+	if trustedProxiesEnv := strings.TrimSpace(os.Getenv("TRUSTED_PROXIES")); trustedProxiesEnv != "" {
+		proxies := strings.Split(trustedProxiesEnv, ",")
+		for i := range proxies {
+			proxies[i] = strings.TrimSpace(proxies[i])
+		}
+		if err := gine.SetTrustedProxies(proxies); err != nil {
+			slog.Warn("Failed to set trusted proxies, falling back to nil", "error", err)
+			_ = gine.SetTrustedProxies(nil)
+		}
+	} else {
+		_ = gine.SetTrustedProxies(nil)
+	}
 
 	// Register our custom validators
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
@@ -225,8 +240,7 @@ func main() {
 			"Content-Length",
 			"watcharr-lastviewedseason-saved",
 		},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
+		MaxAge: 12 * time.Hour,
 	}
 	if allowedOriginsEnv := strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS")); allowedOriginsEnv != "" {
 		origins := strings.Split(allowedOriginsEnv, ",")
@@ -234,10 +248,10 @@ func main() {
 			origins[i] = strings.TrimSpace(origins[i])
 		}
 		corsCfg.AllowOrigins = origins
+		corsCfg.AllowCredentials = true
 	} else {
-		corsCfg.AllowOriginFunc = func(origin string) bool {
-			return true
-		}
+		corsCfg.AllowAllOrigins = true
+		corsCfg.AllowCredentials = false
 	}
 	gine.Use(cors.New(corsCfg))
 
@@ -491,7 +505,7 @@ func registerStaticUI(gine *gin.Engine) {
 		cleanRel := filepath.Clean(strings.TrimPrefix(reqPath, "/"))
 		if cleanRel != "." && cleanRel != "" && !strings.HasPrefix(cleanRel, "..") {
 			targetPath := filepath.Join(absUIDir, cleanRel)
-			if strings.HasPrefix(targetPath, absUIDir) {
+			if strings.HasPrefix(targetPath, absUIDir+string(filepath.Separator)) {
 				if info, err := os.Stat(targetPath); err == nil && !info.IsDir() {
 					if strings.HasPrefix(reqPath, "/_app/immutable/") {
 						c.Header("Cache-Control", "public, max-age=31536000, immutable")
@@ -512,8 +526,53 @@ func registerStaticUI(gine *gin.Engine) {
 	})
 }
 
+type syncedGormLogger struct {
+	mu    sync.RWMutex
+	inner logger.Interface
+}
+
+func (s *syncedGormLogger) SetMode(level logger.LogLevel) {
+	s.mu.Lock()
+	s.inner = s.inner.LogMode(level)
+	s.mu.Unlock()
+}
+
+func (s *syncedGormLogger) LogMode(level logger.LogLevel) logger.Interface {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.inner.LogMode(level)
+}
+
+func (s *syncedGormLogger) Info(ctx context.Context, msg string, data ...interface{}) {
+	s.mu.RLock()
+	inner := s.inner
+	s.mu.RUnlock()
+	inner.Info(ctx, msg, data...)
+}
+
+func (s *syncedGormLogger) Warn(ctx context.Context, msg string, data ...interface{}) {
+	s.mu.RLock()
+	inner := s.inner
+	s.mu.RUnlock()
+	inner.Warn(ctx, msg, data...)
+}
+
+func (s *syncedGormLogger) Error(ctx context.Context, msg string, data ...interface{}) {
+	s.mu.RLock()
+	inner := s.inner
+	s.mu.RUnlock()
+	inner.Error(ctx, msg, data...)
+}
+
+func (s *syncedGormLogger) Trace(ctx context.Context, begin time.Time, fc func() (sql string, rowsAffected int64), err error) {
+	s.mu.RLock()
+	inner := s.inner
+	s.mu.RUnlock()
+	inner.Trace(ctx, begin, fc, err)
+}
+
 func ensureDirExists(dir string) error {
-	err := os.MkdirAll(dir, 0764)
+	err := os.MkdirAll(dir, 0755)
 	if err != nil {
 		return err
 	}

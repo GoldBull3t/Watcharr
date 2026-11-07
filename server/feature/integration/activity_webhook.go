@@ -256,7 +256,7 @@ func sendDiscordActivityWebhook(webhookUrl string, p ActivityWebhookPayload, isT
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return fmt.Errorf("discord returned status %d: %s", resp.StatusCode, string(b))
 	}
 	return nil
@@ -308,7 +308,7 @@ func sendGenericActivityWebhook(webhookUrl string, p ActivityWebhookPayload, isT
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return fmt.Errorf("webhook endpoint returned status %d: %s", resp.StatusCode, string(b))
 	}
 	return nil

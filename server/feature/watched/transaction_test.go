@@ -326,4 +326,3 @@ func TestActivityHardDeleteAndCleanup(t *testing.T) {
 		t.Fatalf("expected CleanupOldActivities to purge SEASON_ADDED_AUTO (count=0), got %d", count)
 	}
 }
-

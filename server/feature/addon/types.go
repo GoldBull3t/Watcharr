@@ -92,8 +92,8 @@ type Stream struct {
 
 // Scrobble / Playback Payload from Nuvio / Player
 type ScrobblePayload struct {
-	Event         string  `json:"event"`         // "start", "pause", "stop"
-	MediaType     string  `json:"mediaType"`     // "movie" or "series" / "show"
+	Event         string  `json:"event"`     // "start", "pause", "stop"
+	MediaType     string  `json:"mediaType"` // "movie" or "series" / "show"
 	TmdbID        int     `json:"tmdbId"`
 	ImdbID        string  `json:"imdbId"`
 	SeasonNumber  int     `json:"seasonNumber"`  // For TV

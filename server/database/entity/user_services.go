@@ -20,9 +20,9 @@ import (
 type UserServices struct {
 	dbmodel.GormModelNoDel
 	// Service/integration name
-	Name UserServiceName `gorm:"uniqueIndex:svc_name_to_cltid;not null;" json:"-"`
+	Name UserServiceName `gorm:"size:64;uniqueIndex:svc_name_to_cltid;not null;" json:"-"`
 	// The users id on the third party service
-	ClientID  string `gorm:"uniqueIndex:svc_name_to_cltid;not null;" json:"-"`
+	ClientID  string `gorm:"size:255;uniqueIndex:svc_name_to_cltid;not null;" json:"-"`
 	AuthToken string `gorm:"not null;" json:"-"`
 	// Second auth token, generic name so future services can use it without extra confusion.
 	// Ex: We require a second auth token for use with our local server for Plex.

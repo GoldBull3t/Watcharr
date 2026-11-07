@@ -24,10 +24,10 @@ func refineFilterType(db *gorm.DB, ft []util.SupportedMedia) {
 	for _, v := range ft {
 		switch v {
 		case util.SupportedMediaMovie:
-			qstr = append(qstr, "Content.type = ?")
+			qstr = append(qstr, `"Content".type = ?`)
 			astr = append(astr, "movie")
 		case util.SupportedMediaShow:
-			qstr = append(qstr, "Content.type = ?")
+			qstr = append(qstr, `"Content".type = ?`)
 			astr = append(astr, "tv")
 		case util.SupportedMediaGame:
 			qstr = append(qstr, "watcheds.game_id IS NOT NULL")
@@ -76,7 +76,8 @@ func refineFilterStatus(
 				SELECT 1
 				FROM activities
 				WHERE activities.watched_id = watcheds.id
-					AND activities.count_as_play = 1
+					AND activities.count_as_play = TRUE
+					AND activities.deleted_at IS NULL
 			)`, f)
 	} else {
 		slog.Debug("refineFilterStatus: Performing standard query.")
@@ -129,7 +130,7 @@ func refineSort(
 						MAX(COALESCE(custom_date, created_at)) AS a_sort_by_date
 					FROM activities
 					WHERE
-						count_as_play = 1
+						count_as_play = TRUE
 						AND deleted_at IS NULL
 						AND user_id = ?
 					GROUP BY watched_id
@@ -139,12 +140,12 @@ func refineSort(
 		db.Order(obc(clause.Column{Name: "watcheds.rating"}))
 	case domain.WatchedSortAlphabetical:
 		db.Order(obc(clause.Column{
-			Name: "COALESCE(Content.title, Game.name)",
+			Name: `COALESCE("Content".title, "Game".name)`,
 			Raw:  true,
 		}))
 	case domain.WatchedSortDateReleased:
 		db.Order(obc(clause.Column{
-			Name: "COALESCE(Content.release_date, Game.release_date)",
+			Name: `COALESCE("Content".release_date, "Game".release_date)`,
 			Raw:  true,
 		}))
 	}
@@ -172,7 +173,7 @@ func watchedRefineFilter(
 			yrStr := strconv.Itoa(wr.Year)
 			startDate := yrStr + "-01-01"
 			endDate := yrStr + "-12-31 23:59:59"
-			db.Where("((Content.release_date >= ? AND Content.release_date <= ?) OR (Game.release_date >= ? AND Game.release_date <= ?))", startDate, endDate, startDate, endDate)
+			db.Where(`(("Content".release_date >= ? AND "Content".release_date <= ?) OR ("Game".release_date >= ? AND "Game".release_date <= ?))`, startDate, endDate, startDate, endDate)
 		}
 		if wr.MinRating > 0 {
 			db.Where("watcheds.rating >= ?", wr.MinRating)
@@ -182,20 +183,20 @@ func watchedRefineFilter(
 		}
 		if wr.Query != "" {
 			q := "%" + strings.ToLower(wr.Query) + "%"
-			db.Where("LOWER(Content.title) LIKE ? OR LOWER(Game.name) LIKE ?", q, q)
+			db.Where(`LOWER("Content".title) LIKE ? OR LOWER("Game".name) LIKE ?`, q, q)
 		}
 		if wr.Genre != "" {
 			g := "%" + wr.Genre + "%"
-			db.Where("(Content.genres LIKE ? OR Game.genres LIKE ?)", g, g)
+			db.Where(`("Content".genres LIKE ? OR "Game".genres LIKE ?)`, g, g)
 		}
 		if wr.ProductionStatus != "" {
 			switch strings.ToLower(wr.ProductionStatus) {
 			case "canceled":
-				db.Where("Content.status = ?", "Canceled")
+				db.Where(`"Content".status = ?`, "Canceled")
 			case "returning":
-				db.Where("Content.status = ?", "Returning Series")
-						case "ended":
-				db.Where("Content.status = ?", "Ended")
+				db.Where(`"Content".status = ?`, "Returning Series")
+			case "ended":
+				db.Where(`"Content".status = ?`, "Ended")
 			}
 		}
 		if len(wr.TagIDs) > 0 {

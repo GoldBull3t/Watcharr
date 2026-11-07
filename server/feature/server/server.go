@@ -29,7 +29,7 @@ func getServerStats(db *gorm.DB) ServerStats {
 	resp := db.
 		Model(&entity.User{}).
 		Count(&stats.Users).
-		Where("private = 1").
+		Where("private = ?", true).
 		Count(&stats.PrivateUsers)
 	if resp.Error != nil {
 		slog.Error("getServerStats - Users query failed", "error", resp.Error)
@@ -46,16 +46,16 @@ func getServerStats(db *gorm.DB) ServerStats {
 	}
 	// Watched shows count.
 	resp = db.
+		Model(&entity.Watched{}).
 		Joins("JOIN contents ON contents.id = watcheds.content_id AND contents.type = ?", "tv").
-		Find(&entity.Watched{}).
 		Count(&stats.WatchedShows)
 	if resp.Error != nil {
 		slog.Error("getServerStats - WatchedShows query failed", "error", resp.Error)
 	}
 	// Watched movies count.
 	resp = db.
+		Model(&entity.Watched{}).
 		Joins("JOIN contents ON contents.id = watcheds.content_id AND contents.type = ?", "movie").
-		Find(&entity.Watched{}).
 		Count(&stats.WatchedMovies)
 	if resp.Error != nil {
 		slog.Error("getServerStats - WatchedMovies query failed", "error", resp.Error)
@@ -124,8 +124,10 @@ func getServerStats(db *gorm.DB) ServerStats {
 
 // repairContentTable removes orphaned/broken content records and triggers metadata backfill (#62).
 func repairContentTable(db *gorm.DB) (int64, error) {
-	// 1. Delete invalid/corrupted content rows (tmdb_id <= 0 or empty type)
-	res := db.Unscoped().Where("tmdb_id <= 0 OR type = '' OR title = ''").Delete(&entity.Content{})
+	// 1. Delete invalid/corrupted content rows (tmdb_id <= 0 or empty type) that are not referenced in watcheds or arr_requests
+	res := db.Unscoped().
+		Where("(tmdb_id <= 0 OR type = '' OR title = '') AND NOT EXISTS (SELECT 1 FROM watcheds WHERE watcheds.content_id = contents.id) AND NOT EXISTS (SELECT 1 FROM arr_requests WHERE arr_requests.content_id = contents.id)").
+		Delete(&entity.Content{})
 	if res.Error != nil {
 		return 0, res.Error
 	}

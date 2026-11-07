@@ -57,7 +57,9 @@ func getRadarrQueueDetails(cfg *config.ServerConfig, serverName string, arrId st
 		return &ArrDetailsResponse{}, errors.New("no details found")
 	}
 	adr := ArrDetailsResponse{}
-	adr.Progress = int(math.Round((1 - (resp[0].SizeLeft / resp[0].Size)) * 100))
+	if resp[0].Size > 0 {
+		adr.Progress = int(math.Round((1 - (resp[0].SizeLeft / resp[0].Size)) * 100))
+	}
 	adr.EstimatedCompletionTime = resp[0].EstimatedCompletionTime
 	adr.TrackedDownloadStatus = resp[0].TrackedDownloadStatus
 	adr.TrackedDownloadState = resp[0].TrackedDownloadState
@@ -93,10 +95,14 @@ func getSonarrQueueDetails(cfg *config.ServerConfig, serverName string, arrId st
 	totalSize := 0.0
 	totalSizeLeft := 0.0
 	for _, v := range resp {
+		itemProgress := 0
+		if v.Size > 0 {
+			itemProgress = int(math.Round((1 - (v.SizeLeft / v.Size)) * 100))
+		}
 		dr.Items = append(dr.Items, SonarrDetailsResponseItem{
 			Title: "TODO :(", // TODO: Will need to do another request to get all episodes so we can get real episode names from EpisodeID
 			ArrDetailsResponse: ArrDetailsResponse{
-				Progress:                int(math.Round((1 - (v.SizeLeft / v.Size)) * 100)),
+				Progress:                itemProgress,
 				EstimatedCompletionTime: v.EstimatedCompletionTime,
 				TrackedDownloadStatus:   v.TrackedDownloadStatus,
 				TrackedDownloadState:    v.TrackedDownloadState,
@@ -106,7 +112,9 @@ func getSonarrQueueDetails(cfg *config.ServerConfig, serverName string, arrId st
 		totalSize += v.Size
 		totalSizeLeft += v.SizeLeft
 	}
-	dr.Progress = int(math.Round((1 - (totalSizeLeft / totalSize)) * 100))
+	if totalSize > 0 {
+		dr.Progress = int(math.Round((1 - (totalSizeLeft / totalSize)) * 100))
+	}
 	// HACK: Statuses are not great, no easy way to get a good status, since there are multiple items to consider.
 	// At some point, we could add extra checks (ex. if all items (episodes) are paused, overall status can be set to paused).
 	// For now, this is good enough.

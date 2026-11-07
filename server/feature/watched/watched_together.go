@@ -49,14 +49,27 @@ func (s *Service) GetWatchTogetherUsers(currentUserId uint) ([]WatchTogetherUser
 		followedIDs = append(followedIDs, f.FollowedUserID)
 	}
 
-	// 2. Fetch candidates: users that are either followed OR have public profile, excluding self
+	// Only allow private followed users if they also follow currentUserId back (mutual follow)
+	var mutualFollowedIDs []uint
+	if len(followedIDs) > 0 {
+		var reverseFollows []entity.Follow
+		if err := s.db.Where("user_id IN ? AND followed_user_id = ?", followedIDs, currentUserId).Find(&reverseFollows).Error; err != nil {
+			slog.Error("GetWatchTogetherUsers: Failed to get reverse follows", "error", err)
+			return nil, err
+		}
+		for _, rf := range reverseFollows {
+			mutualFollowedIDs = append(mutualFollowedIDs, rf.UserID)
+		}
+	}
+
+	// 2. Fetch candidates: users that have a public profile OR have a mutual follow, excluding self
 	var users []entity.User
 	query := s.db.Model(&entity.User{}).
 		Preload("Avatar").
 		Where("id != ?", currentUserId)
 
-	if len(followedIDs) > 0 {
-		query = query.Where("private = ? OR id IN (?)", false, followedIDs)
+	if len(mutualFollowedIDs) > 0 {
+		query = query.Where("private = ? OR id IN (?)", false, mutualFollowedIDs)
 	} else {
 		query = query.Where("private = ?", false)
 	}
@@ -111,10 +124,14 @@ func (s *Service) GetWatchTogether(currentUserId, targetUserId uint, mode string
 		return WatchTogetherResponse{}, errors.New("target user not found")
 	}
 
-	// 2. Privacy check: if target user is private, verify current user follows them
+	// 2. Privacy check: if target user is private, verify mutual follow (current user follows them AND target user follows current user)
 	if targetUser.Private != nil && *targetUser.Private {
 		var follow entity.Follow
 		if err := s.db.Where("user_id = ? AND followed_user_id = ?", currentUserId, targetUserId).First(&follow).Error; err != nil {
+			return WatchTogetherResponse{}, errors.New("this user profile is private")
+		}
+		var reverseFollow entity.Follow
+		if err := s.db.Where("user_id = ? AND followed_user_id = ?", targetUserId, currentUserId).First(&reverseFollow).Error; err != nil {
 			return WatchTogetherResponse{}, errors.New("this user profile is private")
 		}
 	}
@@ -131,7 +148,7 @@ func (s *Service) GetWatchTogether(currentUserId, targetUserId uint, mode string
 		var currentWatched []entity.Watched
 		err := s.db.Model(&entity.Watched{}).
 			Preload("Content").
-			Where("user_id = ? AND status = ? AND content_id IN (SELECT content_id FROM watcheds WHERE user_id = ? AND status = ? AND deleted_at IS NULL)",
+			Where("user_id = ? AND status = ? AND content_id IN (SELECT content_id FROM watcheds WHERE user_id = ? AND status = ? AND content_id IS NOT NULL AND deleted_at IS NULL)",
 				currentUserId, entity.PLANNED, targetUserId, entity.PLANNED).
 			Order("updated_at DESC").
 			Find(&currentWatched).Error
@@ -175,7 +192,7 @@ func (s *Service) GetWatchTogether(currentUserId, targetUserId uint, mode string
 		var currentWatched []entity.Watched
 		err := s.db.Model(&entity.Watched{}).
 			Preload("Content").
-			Where("user_id = ? AND status = ? AND content_id NOT IN (SELECT content_id FROM watcheds WHERE user_id = ? AND status IN (?, ?) AND deleted_at IS NULL)",
+			Where("user_id = ? AND status = ? AND content_id NOT IN (SELECT content_id FROM watcheds WHERE user_id = ? AND status IN (?, ?) AND content_id IS NOT NULL AND deleted_at IS NULL)",
 				currentUserId, entity.PLANNED, targetUserId, entity.FINISHED, entity.WATCHING).
 			Order("updated_at DESC").
 			Find(&currentWatched).Error
@@ -224,7 +241,7 @@ func (s *Service) GetWatchTogether(currentUserId, targetUserId uint, mode string
 		var targetWatched []entity.Watched
 		err := s.db.Model(&entity.Watched{}).
 			Preload("Content").
-			Where("user_id = ? AND status = ? AND rating >= ? AND content_id NOT IN (SELECT content_id FROM watcheds WHERE user_id = ? AND status IN (?, ?) AND deleted_at IS NULL)",
+			Where("user_id = ? AND status = ? AND rating >= ? AND content_id NOT IN (SELECT content_id FROM watcheds WHERE user_id = ? AND status IN (?, ?) AND content_id IS NOT NULL AND deleted_at IS NULL)",
 				targetUserId, entity.FINISHED, 8.0, currentUserId, entity.FINISHED, entity.WATCHING).
 			Order("rating DESC, updated_at DESC").
 			Find(&targetWatched).Error

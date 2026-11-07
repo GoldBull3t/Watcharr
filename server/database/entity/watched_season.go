@@ -9,6 +9,6 @@ type WatchedSeason struct {
 	User         User          `json:"-"`
 	WatchedID    uint          `json:"-" gorm:"uniqueIndex:ws_watched_to_season_num;not null"`
 	SeasonNumber int           `json:"seasonNumber" gorm:"uniqueIndex:ws_watched_to_season_num;not null"`
-	Status       WatchedStatus `json:"status"`
+	Status       WatchedStatus `json:"status" gorm:"size:64"`
 	Rating       int8          `json:"rating"`
 }

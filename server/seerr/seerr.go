@@ -62,7 +62,7 @@ func (c *Client) request(method, path string, body any, target any) (int, error)
 	defer resp.Body.Close()
 
 	if target != nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		respBytes, err := io.ReadAll(resp.Body)
+		respBytes, err := io.ReadAll(io.LimitReader(resp.Body, 5<<20))
 		if err != nil {
 			return resp.StatusCode, fmt.Errorf("failed to read response body: %w", err)
 		}
@@ -149,4 +149,3 @@ func (c *Client) CreateRequest(payload RequestPayload) (*RequestResponse, error)
 
 	return &resp, nil
 }
-

@@ -224,8 +224,15 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 
 					// Check latest season episodes ONLY if season premiere is reasonably close to calendar window
 					if len(showDetails.Seasons) > 0 {
-						latestSeason := showDetails.Seasons[len(showDetails.Seasons)-1]
-						if latestSeason.SeasonNumber > 0 && latestSeason.AirDate != "" {
+						latestSeasonIdx := -1
+						for idx := len(showDetails.Seasons) - 1; idx >= 0; idx-- {
+							if showDetails.Seasons[idx].SeasonNumber > 0 && showDetails.Seasons[idx].AirDate != "" {
+								latestSeasonIdx = idx
+								break
+							}
+						}
+						if latestSeasonIdx >= 0 {
+							latestSeason := showDetails.Seasons[latestSeasonIdx]
 							sAirDate, err := time.Parse("2006-01-02", latestSeason.AirDate)
 							seasonEligible := false
 							if err == nil {

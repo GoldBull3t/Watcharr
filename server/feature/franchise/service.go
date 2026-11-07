@@ -128,9 +128,20 @@ func (s *Service) GetFranchiseRoadmap(userId uint, franchiseId string, order str
 			return nil, errors.New("coleção não encontrada no TMDB")
 		}
 
-		// Sort parts by release date
+		// Sort parts by release date (push empty dates to the end)
 		sort.Slice(tmdbCol.Parts, func(i, j int) bool {
-			return tmdbCol.Parts[i].ReleaseDate < tmdbCol.Parts[j].ReleaseDate
+			ri := strings.TrimSpace(tmdbCol.Parts[i].ReleaseDate)
+			rj := strings.TrimSpace(tmdbCol.Parts[j].ReleaseDate)
+			if ri == "" && rj == "" {
+				return false
+			}
+			if ri == "" {
+				return false
+			}
+			if rj == "" {
+				return true
+			}
+			return ri < rj
 		})
 
 		items := make([]FranchiseItem, len(tmdbCol.Parts))

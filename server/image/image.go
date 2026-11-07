@@ -65,13 +65,17 @@ func CleanupImages(db *gorm.DB) {
 	slog.Info("cleanupImages running")
 	var unusedImgs []entity.Image
 	// Select images that are not referenced by at least one other row.
-	// Currently only used for user avatars, add new tables when used.
+	// Used for user avatars and cached game posters.
 	db.Raw(`SELECT *
 FROM images
 WHERE NOT EXISTS (
 	SELECT 1
 	FROM users
 	WHERE users.avatar_id = images.id
+) AND NOT EXISTS (
+	SELECT 1
+	FROM games
+	WHERE games.poster_id = images.id
 );`).Scan(&unusedImgs)
 	slog.Info("cleanupImages: scanned for unused images", "amount", len(unusedImgs))
 	if len(unusedImgs) > 0 {
@@ -83,7 +87,7 @@ WHERE NOT EXISTS (
 					return err
 				}
 				// hope its ok to do this sorta thing here :skull:
-				if err := os.Remove(path.Join(config.DataPath, v.Path)); err != nil {
+				if err := os.Remove(path.Join(config.DataPath, v.Path)); err != nil && !os.IsNotExist(err) {
 					return err
 				}
 				// commit transaction if no errors

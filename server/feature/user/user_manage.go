@@ -101,6 +101,8 @@ func (s *ManageService) Delete(adminId uint, targetUserId uint) error {
 			{"watched_seasons", &entity.WatchedSeason{}, "user_id = ?"},
 			{"watcheds", &entity.Watched{}, "user_id = ?"},
 			{"tags", &entity.Tag{}, "user_id = ?"},
+			{"arr_requests", &entity.ArrRequest{}, "user_id = ?"},
+			{"push_subscriptions", &entity.PushSubscription{}, "user_id = ?"},
 			{"user_services", &entity.UserServices{}, "user_id = ?"},
 			{"tokens", &entity.Token{}, "user_id = ?"},
 		}

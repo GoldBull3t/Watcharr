@@ -149,7 +149,12 @@ func (r *Router) SetConfigJellyfinWebhookEnabled(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, router.ErrorResponse{Error: err.Error()})
 		return
 	}
-	resp, err := r.br.Cfg.SetJellyfinWebhookEnabled(ur.Value.(bool))
+	val, ok := ur.Value.(bool)
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid value: expected boolean"})
+		return
+	}
+	resp, err := r.br.Cfg.SetJellyfinWebhookEnabled(val)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, router.ErrorResponse{Error: err.Error()})
 		return
@@ -162,7 +167,12 @@ func (r *Router) UpdateConfigPlexHost(c *gin.Context) {
 	var ur router.ValueRequest
 	err := c.ShouldBindJSON(&ur)
 	if err == nil {
-		resp, err := r.plexProvider.UpdateConfigPlexHost(r.br.Cfg, ur.Value.(string))
+		val, ok := ur.Value.(string)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusBadRequest, router.ErrorResponse{Error: "invalid value: expected string"})
+			return
+		}
+		resp, err := r.plexProvider.UpdateConfigPlexHost(r.br.Cfg, val)
 		if err != nil {
 			c.JSON(http.StatusForbidden, router.ErrorResponse{Error: err.Error()})
 			return

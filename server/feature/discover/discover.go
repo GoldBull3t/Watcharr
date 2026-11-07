@@ -49,8 +49,9 @@ func (s *Service) Discover(
 		return s.DiscoverMovie(r, meta)
 	case domain.SearchTypeGame:
 		return s.DiscoverGame(r, meta)
+	default:
+		return resp, errors.New("unsupported discover type")
 	}
-	return resp, nil
 }
 
 // Discover Multi. Just for tmdb.

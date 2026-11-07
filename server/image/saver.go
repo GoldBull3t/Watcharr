@@ -132,7 +132,7 @@ func (s *Saver) save(b []byte) (string, string, error) {
 	slog.Debug("save: Built path", "path", imgPath)
 
 	// Save file
-	err = os.MkdirAll(path.Dir(fullOutPath), 0764)
+	err = os.MkdirAll(path.Dir(fullOutPath), 0755)
 	if err != nil {
 		return "", "", err
 	}
