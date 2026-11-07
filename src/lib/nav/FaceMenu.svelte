@@ -10,13 +10,18 @@
 	import AboutModal from "./AboutModal.svelte";
 	import { resolve } from "$app/paths";
 	import { t, i18n } from "@/lib/i18n";
+	import { updateUserSetting } from "../util/api";
 
 	let user = $derived(store.userInfo);
 	let proxyUserLogoutShown = $state(false);
 	let aboutModalOpen = $state(false);
 
 	function toggleLanguage() {
-		i18n.setLocale(i18n.currentLocale === "pt" ? "en" : "pt");
+		const next = i18n.currentLocale === "pt" ? "en" : "pt";
+		i18n.setLocale(next);
+		if (store.userSettings) {
+			updateUserSetting("uiLanguage", next);
+		}
 	}
 
 	function logout() {

@@ -454,9 +454,14 @@ func (s *Service) HandleScrobble(userId uint, p ScrobblePayload) error {
 		return nil
 	}
 
+	progress := p.Progress
+	if progress >= 0.8 && progress <= 1.0 {
+		progress = progress * 100.0
+	}
+
 	// We trigger watched status when progress is >= 80%
-	if p.Progress < 80.0 {
-		slog.Debug("Addon Scrobble: Progress under 80%, not marking watched yet", "progress", p.Progress)
+	if progress < 80.0 {
+		slog.Debug("Addon Scrobble: Progress under 80%, not marking watched yet", "progress", progress)
 		return nil
 	}
 

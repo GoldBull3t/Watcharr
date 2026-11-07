@@ -9,7 +9,7 @@
 	import FaceMenu from "@/lib/nav/FaceMenu.svelte";
 	import FollowingMenu from "@/lib/nav/FollowingMenu.svelte";
 	import TagMenu from "@/lib/tag/TagMenu.svelte";
-	import { baseURL, req } from "@/lib/util/api";
+	import { baseURL, req, updateUserSetting } from "@/lib/util/api";
 	import { store } from "@/store.svelte";
 	import {
 		MediaTypeE,
@@ -257,7 +257,19 @@
 		}
 		if (s) {
 			store.userSettings = s;
-			if (s.uiLanguage && (s.uiLanguage === "en" || s.uiLanguage === "pt")) {
+			const localLang =
+				typeof window !== "undefined"
+					? (localStorage.getItem("watcharr_lang") as "en" | "pt" | null)
+					: null;
+			if (localLang && (localLang === "en" || localLang === "pt")) {
+				i18n.setLocale(localLang);
+				if (s.uiLanguage !== localLang) {
+					updateUserSetting("uiLanguage", localLang);
+				}
+			} else if (
+				s.uiLanguage &&
+				(s.uiLanguage === "en" || s.uiLanguage === "pt")
+			) {
 				i18n.setLocale(s.uiLanguage);
 			}
 			if (

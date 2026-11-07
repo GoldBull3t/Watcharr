@@ -310,6 +310,12 @@ func (r *Router) HandleSimklScrobble(c *gin.Context) {
 		}
 	}
 
+	progress := payload.Progress
+	if progress >= 0.8 && progress <= 1.0 {
+		progress = progress * 100.0
+		payload.Progress = progress
+	}
+
 	if payload.Progress >= 80.0 {
 		_ = r.s.HandleScrobble(userId, payload)
 	}
