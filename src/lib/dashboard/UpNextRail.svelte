@@ -55,7 +55,10 @@
 			}
 		} catch (err: unknown) {
 			console.error("Failed to mark episode as watched:", err);
-			const msg = err instanceof Error ? err.message : "Falha ao marcar episódio como visto.";
+			const msg =
+				err instanceof Error
+					? err.message
+					: "Falha ao marcar episódio como visto.";
 			notify({
 				id: nid,
 				type: "error",
@@ -106,7 +109,7 @@
 		</div>
 
 		<div class="up-next-rail small-scrollbar">
-			{#each items as item (item.watchedId)}
+			{#each items as item, idx (`${item.watchedId}-${item.seasonNumber}-${item.episodeNumber}-${idx}`)}
 				{@const bgUrl = getBackdropUrl(item)}
 				{@const isUpdating = updatingWatchedId === item.watchedId}
 

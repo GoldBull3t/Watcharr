@@ -76,7 +76,7 @@
 			</div>
 		{:else if inLibrary.length > 0}
 			<div class="library-items-list">
-				{#each inLibrary.slice(0, 3) as item (item.ids?.tmdb || item.name)}
+				{#each inLibrary.slice(0, 3) as item, idx (`${item.ids?.tmdb ?? idx}-${idx}`)}
 					{@const mediaType =
 						item.type === MediaTypeE.tmdbShow ? "tv" : "movie"}
 					<a

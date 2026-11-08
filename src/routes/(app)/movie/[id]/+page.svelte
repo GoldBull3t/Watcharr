@@ -242,7 +242,7 @@
 									<span>Stream:</span>
 								</span>
 								<div class="stream-badges">
-									{#each quickStreamProviders as prov (prov.name)}
+									{#each quickStreamProviders as prov, idx (`${prov.name || "prov"}-${prov.type || "stream"}-${idx}`)}
 										<a
 											href={prov.link || movie.providersFullListLink || "#"}
 											target="_blank"
@@ -359,7 +359,7 @@
 									<span>Tags</span>
 								</span>
 								<div class="tags-list">
-									{#each movie.watched.tags as t (t.id)}
+									{#each movie.watched.tags as t, tIdx (`${t.id || tIdx}-${tIdx}`)}
 										<Tag
 											tag={t}
 											size="sm"
@@ -436,7 +436,7 @@
 
 				{#if credits.cast?.length > 0}
 					<HorizontalList title="Cast">
-						{#each credits.cast?.slice(0, 50) as cast (cast.credit_id)}
+						{#each credits.cast?.slice(0, 50) as cast, cIdx (`${cast.credit_id || cast.id || cIdx}-${cIdx}`)}
 							<PersonPoster
 								id={cast.id}
 								name={cast.name}

@@ -164,7 +164,7 @@
 			<div class="spotlight-stage">
 				<!-- Panoramic Backdrop Layer -->
 				<div class="stage-backdrop-wrap">
-					{#each spotlightItems as item, idx (item.ids.tmdb || item.ids.igdb || item.name || idx)}
+					{#each spotlightItems as item, idx (`spotlight-${item.ids?.tmdb ?? item.ids?.igdb ?? idx}-${idx}`)}
 						{@const bg = getBackdropUrl(item)}
 						{#if bg}
 							<div

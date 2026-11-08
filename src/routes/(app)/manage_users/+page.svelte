@@ -57,7 +57,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each allUsers as u (u.id)}
+						{#each allUsers as u, uIdx (`user-${u.id ?? uIdx}-${uIdx}`)}
 							{@const joinDate = new Date(u.createdAt)}
 							{@const isAdmin = userHasPermission(
 								u.permissions,

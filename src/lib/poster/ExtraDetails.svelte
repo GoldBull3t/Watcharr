@@ -74,7 +74,7 @@
 				<div class="season-progress-pill" title={seasonProgress.displayText}>
 					{#if seasonProgress.totalSeasons <= 10}
 						<div class="segments-row">
-							{#each seasonProgress.seasons as s (s.number)}
+							{#each seasonProgress.seasons as s, sIdx (`${s.number}-${sIdx}`)}
 								<span
 									class="seg {s.status.toLowerCase()}"
 									title={`T${s.number}: ${

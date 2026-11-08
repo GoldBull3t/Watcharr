@@ -252,7 +252,7 @@
 			</div>
 		{:else if displayedProviders && displayedProviders.length > 0}
 			<div class="providers-badges-grid">
-				{#each displayedProviders as provider (provider.name + (provider.type || ""))}
+				{#each displayedProviders as provider, pIdx (`${provider.name}-${provider.type || ""}-${pIdx}`)}
 					<ProviderIcon
 						i={provider.name}
 						href={provider.link}

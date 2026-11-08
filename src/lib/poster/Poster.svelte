@@ -973,7 +973,7 @@
 							{/if}
 						</div>
 						<div class="tracker-pills-row">
-							{#each seasonProgress.seasons as s (s.number)}
+							{#each seasonProgress.seasons as s, sIdx (`${s.number}-${sIdx}`)}
 								<button
 									type="button"
 									class="season-pill {s.status.toLowerCase()}"

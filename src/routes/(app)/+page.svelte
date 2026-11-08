@@ -632,7 +632,7 @@
 	{:else if viewMode === "grid"}
 		{#if dataLoader.state.data?.length > 0}
 			<PosterList density={gridDensity}>
-				{#each dataLoader.state.data as w, i (w ? `${w.type}-${w.watched?.id || w.ids?.tmdb || w.ids?.igdb || i}` : i)}
+				{#each dataLoader.state.data as w, i (w ? `${w.watched?.id ?? w.ids?.tmdb ?? w.ids?.igdb ?? "m"}-${i}` : i)}
 					{#if w}
 						<Poster
 							bind:watched={dataLoader.state.data[i].watched}

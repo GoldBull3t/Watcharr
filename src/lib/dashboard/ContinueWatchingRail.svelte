@@ -30,7 +30,7 @@
 		</span>
 	</div>
 	<div class="continue-rail small-scrollbar">
-		{#each items.slice(0, 16) as item (item.ids.tmdb || item.ids.igdb || item.name)}
+		{#each items.slice(0, 16) as item, idx (`${item.watched?.id ?? item.ids?.tmdb ?? item.ids?.igdb ?? idx}-${idx}`)}
 			{@const img = getPosterImage(item)}
 			{@const link = getMediaLink(item)}
 			<a href={resolve(link)} class="continue-card">
