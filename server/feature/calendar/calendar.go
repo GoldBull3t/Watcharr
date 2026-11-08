@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,7 +20,36 @@ import (
 	"gorm.io/gorm"
 )
 
-var CalendarStore = gocache.New(time.Minute*10, time.Minute*5)
+var CalendarStore = gocache.New(6*time.Hour, 10*time.Minute)
+
+// InvalidateUserCache evicts all cached calendar event lists for a specific user
+func InvalidateUserCache(userId uint) {
+	if CalendarStore == nil {
+		return
+	}
+	userPrefix := fmt.Sprintf("CalendarEvents:%d:", userId)
+	var keysToDelete []string
+	CalendarStore.Lock()
+	cv := reflect.ValueOf(CalendarStore)
+	if cv.Kind() == reflect.Ptr && !cv.IsNil() {
+		inner := cv.Elem().Field(0)
+		if inner.Kind() == reflect.Ptr && !inner.IsNil() {
+			items := inner.Elem().FieldByName("items")
+			if items.IsValid() && items.Kind() == reflect.Map {
+				for _, kv := range items.MapKeys() {
+					k := kv.String()
+					if strings.HasPrefix(k, userPrefix) {
+						keysToDelete = append(keysToDelete, k)
+					}
+				}
+			}
+		}
+	}
+	CalendarStore.Unlock()
+	for _, k := range keysToDelete {
+		CalendarStore.Delete(k)
+	}
+}
 
 type Service struct {
 	db   *gorm.DB
@@ -87,7 +118,7 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 					filtered = append(filtered, ev)
 				}
 			}
-			CalendarStore.Set(cacheKey, filtered, time.Minute*10)
+			CalendarStore.Set(cacheKey, filtered, 6*time.Hour)
 			return filtered, nil
 		}
 	}
@@ -104,7 +135,7 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 			combined = append(combined, movieCached...)
 			combined = append(combined, tvCached...)
 			sortEvents(combined)
-			CalendarStore.Set(cacheKey, combined, time.Minute*10)
+			CalendarStore.Set(cacheKey, combined, 6*time.Hour)
 			return combined, nil
 		}
 	}
@@ -505,8 +536,8 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 
 	sortEvents(events)
 
-	// Save to main request cache
-	CalendarStore.Set(cacheKey, events, time.Minute*10)
+	// Save to main request cache (6 hours for high performance across user sessions)
+	CalendarStore.Set(cacheKey, events, 6*time.Hour)
 
 	// Pre-populate movie and tv caches if this was an "all" request
 	if req.Type == domain.CalendarTypeAll {
@@ -521,8 +552,8 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 				tvSlice = append(tvSlice, ev)
 			}
 		}
-		CalendarStore.Set(movieKey, movieSlice, time.Minute*10)
-		CalendarStore.Set(tvKey, tvSlice, time.Minute*10)
+		CalendarStore.Set(movieKey, movieSlice, 6*time.Hour)
+		CalendarStore.Set(tvKey, tvSlice, 6*time.Hour)
 	}
 
 	return events, nil

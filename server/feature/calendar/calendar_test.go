@@ -342,5 +342,13 @@ func TestCalendarGetEvents_CrossCachingAndPruning(t *testing.T) {
 	if len(tvEvents) != 0 {
 		t.Fatalf("expected 0 tv events (cancelled show excluded), got %d", len(tvEvents))
 	}
+
+	// 4. Test InvalidateUserCache
+	calendar.InvalidateUserCache(user.ID)
+	// Verify that user's cached entry is gone
+	cacheKey := fmt.Sprintf("CalendarEvents:%d:2026-10-01:2026-10-31:library:all:", user.ID)
+	if _, found := calendar.CalendarStore.Get(cacheKey); found {
+		t.Errorf("expected cache key %s to be invalidated, but it was found", cacheKey)
+	}
 }
 

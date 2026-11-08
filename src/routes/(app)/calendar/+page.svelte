@@ -149,6 +149,49 @@
 	// Fetch calendar events whenever parameters change
 	let activeAbortController: AbortController | undefined;
 	let lastReqKey = "";
+	// In-memory client cache for instant 0ms month transitions
+	const clientEventsCache = new Map<string, CalendarEvent[]>();
+	let prefetchTimeout: ReturnType<typeof setTimeout> | undefined;
+
+	function scheduleAdjacentPrefetch(curScope: string, curType: string, region: string) {
+		if (typeof window === "undefined") return;
+		if (prefetchTimeout) clearTimeout(prefetchTimeout);
+
+		prefetchTimeout = setTimeout(() => {
+			const y = currentDate.getFullYear();
+			const m = currentDate.getMonth();
+
+			// Precalculate next month range for speculative background load
+			const nextMonthFirst = new SvelteDate(y, m + 1, 1);
+			const nextMonthLast = new SvelteDate(y, m + 2, 0);
+			const startDow = (nextMonthFirst.getDay() + 6) % 7;
+			const pStart = new SvelteDate(nextMonthFirst);
+			pStart.setDate(pStart.getDate() - startDow);
+			const endDow = (7 - ((nextMonthLast.getDay() + 6) % 7) - 1 + 7) % 7;
+			const pEnd = new SvelteDate(nextMonthLast);
+			pEnd.setDate(pEnd.getDate() + endDow);
+
+			const nextStart = formatLocalDate(pStart);
+			const nextEnd = formatLocalDate(pEnd);
+			const nextKey = `${nextStart}:${nextEnd}:${curScope}:${curType}:${curScope === "library" ? "" : region}`;
+
+			if (!clientEventsCache.has(nextKey)) {
+				req.get<CalendarEvent[]>("/calendar", {
+					params: {
+						start: nextStart,
+						end: nextEnd,
+						filter: curScope,
+						type: curType,
+						region: curScope === "library" ? "" : region,
+					},
+				}).then((res) => {
+					if (Array.isArray(res)) {
+						clientEventsCache.set(nextKey, res);
+					}
+				}).catch(() => {});
+			}
+		}, 350);
+	}
 
 	async function loadCalendarEvents() {
 		const { start, end } = dateRange;
@@ -162,13 +205,20 @@
 		}
 		lastReqKey = reqKey;
 
+		// 1. Instant cache paint (SWR): if already loaded in this session, render in 0ms!
+		const cached = clientEventsCache.get(reqKey);
+		if (cached && cached.length > 0) {
+			events = cached;
+			loading = false;
+		} else {
+			loading = true;
+		}
+
 		if (activeAbortController) {
 			activeAbortController.abort();
 		}
 		const controller = new AbortController();
 		activeAbortController = controller;
-
-		loading = true;
 		error = undefined;
 
 		try {
@@ -183,13 +233,18 @@
 				signal: controller.signal,
 			});
 			if (!controller.signal.aborted) {
-				events = Array.isArray(res) ? res : [];
+				const freshEvents = Array.isArray(res) ? res : [];
+				events = freshEvents;
+				clientEventsCache.set(reqKey, freshEvents);
+				scheduleAdjacentPrefetch(curScope, curType, region);
 			}
 		} catch (err: unknown) {
 			if (controller.signal.aborted) return;
 			console.error("Calendar: Failed to load events:", err);
-			error = err;
-			events = [];
+			if (!cached || cached.length === 0) {
+				error = err;
+				events = [];
+			}
 		} finally {
 			if (!controller.signal.aborted) {
 				loading = false;
@@ -212,6 +267,9 @@
 	onDestroy(() => {
 		if (activeAbortController) {
 			activeAbortController.abort();
+		}
+		if (prefetchTimeout) {
+			clearTimeout(prefetchTimeout);
 		}
 	});
 
@@ -1245,6 +1303,7 @@
 			height: 100%;
 			overflow: hidden;
 			position: relative;
+			contain: paint layout;
 			transition: background 120ms ease;
 
 			&:hover {
