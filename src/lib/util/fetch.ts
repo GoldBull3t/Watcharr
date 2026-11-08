@@ -255,6 +255,12 @@ export class Reqer {
 				headers: res.headers,
 			};
 		} catch (err) {
+			if (
+				(err instanceof DOMException && err.name === "AbortError") ||
+				(err instanceof Error && err.name === "AbortError")
+			) {
+				throw err;
+			}
 			console.error("Reqer->do: Errored!", err);
 			if (err instanceof ReqerError) {
 				if (this.watcharrAuthed && err.response?.status === 401) {

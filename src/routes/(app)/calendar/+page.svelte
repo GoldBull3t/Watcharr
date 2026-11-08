@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from "$app/paths";
 	import { SvelteDate } from "svelte/reactivity";
+	import { onDestroy, untrack } from "svelte";
 	import Icon from "@/lib/Icon.svelte";
 	import Error from "@/lib/Error.svelte";
 	import Modal from "@/lib/Modal.svelte";
@@ -146,27 +147,32 @@
 	});
 
 	// Fetch calendar events whenever parameters change
+	let activeAbortController: AbortController | undefined;
 	let lastReqKey = "";
-	$effect(() => {
+
+	async function loadCalendarEvents() {
 		const { start, end } = dateRange;
 		const region = store.userSettings?.country || "";
 		const curScope = scopeFilter;
 		const curType = typeFilter;
 
-		// When filtering by library, region does not alter results.
-		// Ignore region changes in library mode to avoid duplicate requests when user settings resolve.
 		const reqKey = `${start}:${end}:${curScope}:${curType}:${curScope === "library" ? "" : region}`;
-		if (reqKey === lastReqKey) {
+		if (reqKey === lastReqKey && events.length > 0) {
 			return;
 		}
 		lastReqKey = reqKey;
 
+		if (activeAbortController) {
+			activeAbortController.abort();
+		}
 		const controller = new AbortController();
+		activeAbortController = controller;
+
 		loading = true;
 		error = undefined;
 
-		req
-			.get<CalendarEvent[]>("/calendar", {
+		try {
+			const res = await req.get<CalendarEvent[]>("/calendar", {
 				params: {
 					start,
 					end,
@@ -175,27 +181,38 @@
 					region: curScope === "library" ? "" : region,
 				},
 				signal: controller.signal,
-			})
-			.then((res) => {
-				if (!controller.signal.aborted) {
-					events = Array.isArray(res) ? res : [];
-				}
-			})
-			.catch((err) => {
-				if (controller.signal.aborted) return;
-				console.error("Calendar: Failed to load events:", err);
-				error = err;
-				events = [];
-			})
-			.finally(() => {
-				if (!controller.signal.aborted) {
-					loading = false;
-				}
 			});
+			if (!controller.signal.aborted) {
+				events = Array.isArray(res) ? res : [];
+			}
+		} catch (err: unknown) {
+			if (controller.signal.aborted) return;
+			console.error("Calendar: Failed to load events:", err);
+			error = err;
+			events = [];
+		} finally {
+			if (!controller.signal.aborted) {
+				loading = false;
+			}
+		}
+	}
 
-		return () => {
-			controller.abort();
-		};
+	$effect(() => {
+		// Track dependencies
+		const _range = dateRange;
+		const _scope = scopeFilter;
+		const _type = typeFilter;
+		const _region = store.userSettings?.country;
+
+		untrack(() => {
+			loadCalendarEvents();
+		});
+	});
+
+	onDestroy(() => {
+		if (activeAbortController) {
+			activeAbortController.abort();
+		}
 	});
 
 	// Period navigation
