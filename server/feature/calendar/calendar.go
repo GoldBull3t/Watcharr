@@ -1,6 +1,7 @@
 package calendar
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -33,6 +34,15 @@ func NewService(db *gorm.DB, cfg *config.ServerConfig, tmdb *tmdb.TMDB) *Service
 	}
 }
 
+func sortEvents(events []domain.CalendarEvent) {
+	sort.Slice(events, func(i, j int) bool {
+		if events[i].ReleaseDate != events[j].ReleaseDate {
+			return events[i].ReleaseDate < events[j].ReleaseDate
+		}
+		return events[i].Title < events[j].Title
+	})
+}
+
 func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.CalendarEvent, error) {
 	now := time.Now()
 	if req.Start == "" {
@@ -53,11 +63,50 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 	if req.Filter == domain.CalendarFilterLibrary {
 		regionForCache = ""
 	}
+
+	// 1. Exact cache lookup
 	cacheKey := cache.CreateCacheKey("CalendarEvents", userId, req.Start, req.End, string(req.Filter), string(req.Type), regionForCache)
 	var cachedEvents []domain.CalendarEvent
 	if cache.GetCache(CalendarStore, cacheKey, &cachedEvents) {
 		slog.Debug("Calendar: Returning cached events", "key", cacheKey)
 		return cachedEvents, nil
+	}
+
+	// 2. Cross-cache lookup: If "all" is cached, instantly slice for "movie" or "tv"
+	if req.Type == domain.CalendarTypeMovie || req.Type == domain.CalendarTypeTV {
+		allKey := cache.CreateCacheKey("CalendarEvents", userId, req.Start, req.End, string(req.Filter), string(domain.CalendarTypeAll), regionForCache)
+		var allCached []domain.CalendarEvent
+		if cache.GetCache(CalendarStore, allKey, &allCached) {
+			targetType := "movie"
+			if req.Type == domain.CalendarTypeTV {
+				targetType = "tv"
+			}
+			filtered := make([]domain.CalendarEvent, 0, len(allCached))
+			for _, ev := range allCached {
+				if ev.MediaType == targetType {
+					filtered = append(filtered, ev)
+				}
+			}
+			CalendarStore.Set(cacheKey, filtered, time.Minute*10)
+			return filtered, nil
+		}
+	}
+
+	// 3. Cross-cache lookup: If both "movie" and "tv" are cached, combine for "all"
+	if req.Type == domain.CalendarTypeAll {
+		movieKey := cache.CreateCacheKey("CalendarEvents", userId, req.Start, req.End, string(req.Filter), string(domain.CalendarTypeMovie), regionForCache)
+		tvKey := cache.CreateCacheKey("CalendarEvents", userId, req.Start, req.End, string(req.Filter), string(domain.CalendarTypeTV), regionForCache)
+		var movieCached, tvCached []domain.CalendarEvent
+		hasMovie := cache.GetCache(CalendarStore, movieKey, &movieCached)
+		hasTv := cache.GetCache(CalendarStore, tvKey, &tvCached)
+		if hasMovie && hasTv {
+			combined := make([]domain.CalendarEvent, 0, len(movieCached)+len(tvCached))
+			combined = append(combined, movieCached...)
+			combined = append(combined, tvCached...)
+			sortEvents(combined)
+			CalendarStore.Set(cacheKey, combined, time.Minute*10)
+			return combined, nil
+		}
 	}
 
 	startDate, err := time.Parse("2006-01-02", req.Start)
@@ -72,10 +121,10 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 	eventsMap := make(map[string]domain.CalendarEvent)
 	var eventsMu sync.Mutex
 
-	// Fetch user's library items (exclude soft-deleted and dropped)
+	// Fetch user's library items (exclude soft-deleted, dropped, and cancelled)
 	var watchedItems []entity.Watched
 	err = s.db.Preload("Content").
-		Where("user_id = ? AND status != ?", userId, entity.DROPPED).
+		Where("user_id = ? AND status NOT IN (?)", userId, []entity.WatchedStatus{entity.DROPPED, entity.CANCELLED}).
 		Find(&watchedItems).Error
 	if err != nil {
 		slog.Error("Calendar: Failed to query watched items", "error", err)
@@ -121,7 +170,7 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 		}
 	}
 
-	// 2. Process Library Shows (pruned candidates + parallel worker pool)
+	// 2. Process Library Shows (pruned candidates + parallel worker pool + per-show caching)
 	if (req.Type == domain.CalendarTypeAll || req.Type == domain.CalendarTypeTV) && s.tmdb != nil {
 		var candidateShows []*entity.Watched
 		for i := range watchedItems {
@@ -131,14 +180,26 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 			}
 
 			// Optimization: Skip shows that definitely cannot have active/new episodes
-			// 1) User already finished the show AND TMDB status is "Ended" or "Canceled"
-			if w.Status == entity.FINISHED && (w.Content.Status == "Ended" || w.Content.Status == "Canceled") {
+			// 1) Show status is known to be Ended or Canceled
+			if w.Content.Status == "Ended" || w.Content.Status == "Canceled" {
+				// If user already finished the show, it can never have new episodes
+				if w.Status == entity.FINISHED {
+					continue
+				}
+				// If it premiered > 3 months before requested start date, it is concluded
+				if w.Content.ReleaseDate != nil && w.Content.ReleaseDate.Before(startDate.AddDate(0, -3, 0)) {
+					continue
+				}
+			}
+
+			// 2) User finished the show AND it premiered > 1 year ago (concluded series)
+			if w.Status == entity.FINISHED && w.Content.ReleaseDate != nil && w.Content.ReleaseDate.Before(startDate.AddDate(-1, 0, 0)) {
 				continue
 			}
 
-			// 2) The show is "Ended" or "Canceled" and premiered > 6 months before the requested start date
-			if (w.Content.Status == "Ended" || w.Content.Status == "Canceled") && w.Content.ReleaseDate != nil {
-				if w.Content.ReleaseDate.Before(startDate.AddDate(0, -6, 0)) {
+			// 3) On HOLD or PLANNED and premiered > 2 years ago with Ended/Canceled status
+			if (w.Status == entity.HOLD || w.Status == entity.PLANNED) && w.Content.ReleaseDate != nil && w.Content.ReleaseDate.Before(startDate.AddDate(-2, 0, 0)) {
+				if w.Content.Status == "Ended" || w.Content.Status == "Canceled" {
 					continue
 				}
 			}
@@ -147,144 +208,210 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 		}
 
 		if len(candidateShows) > 0 {
-			var wg sync.WaitGroup
-			sem := make(chan struct{}, 12) // Limit concurrent outbound HTTP calls to 12
+			// Sort candidate shows so WATCHING shows come first, then Returning Series, then others
+			sort.SliceStable(candidateShows, func(i, j int) bool {
+				scoreI := 0
+				if candidateShows[i].Status == entity.WATCHING {
+					scoreI += 10
+				}
+				if candidateShows[i].Content != nil && candidateShows[i].Content.Status == "Returning Series" {
+					scoreI += 5
+				}
 
+				scoreJ := 0
+				if candidateShows[j].Status == entity.WATCHING {
+					scoreJ += 10
+				}
+				if candidateShows[j].Content != nil && candidateShows[j].Content.Status == "Returning Series" {
+					scoreJ += 5
+				}
+
+				return scoreI > scoreJ
+			})
+
+			var showsToFetch []*entity.Watched
+
+			// Check per-show cache first
 			for _, show := range candidateShows {
-				wg.Add(1)
-				sem <- struct{}{}
+				showCacheKey := cache.CreateCacheKey("ShowCalEvents", show.Content.TmdbID, req.Start, req.End)
+				var cachedShowEvents []domain.CalendarEvent
+				if cache.GetCache(CalendarStore, showCacheKey, &cachedShowEvents) {
+					for _, ev := range cachedShowEvents {
+						ev.Status = string(show.Status) // update with current library status
+						eventsMu.Lock()
+						eventsMap[ev.ID] = ev
+						eventsMu.Unlock()
+					}
+				} else {
+					showsToFetch = append(showsToFetch, show)
+				}
+			}
 
-				go func(w *entity.Watched) {
-					defer func() {
-						<-sem
-						wg.Done()
-					}()
+			if len(showsToFetch) > 0 {
+				ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+				defer cancel()
 
-					showDetails, err := s.tmdb.ShowDetails(tmdb.ShowDetailsOptions{
-						ID:             strconv.Itoa(w.Content.TmdbID),
-						DontRunDBCache: true, // Avoid SQLite locking from concurrent writes
-					})
-					if err != nil {
-						slog.Debug("Calendar: Failed to fetch show details from TMDB", "tmdbId", w.Content.TmdbID, "error", err)
-						return
+				var wg sync.WaitGroup
+				sem := make(chan struct{}, 8) // Limit concurrent outbound HTTP calls to 8
+
+				for _, show := range showsToFetch {
+					select {
+					case <-ctx.Done():
+						slog.Warn("Calendar: Aggregation timeout reached, completing with collected events")
+						break
+					default:
 					}
 
-					poster := showDetails.PosterPath
-					if poster == "" && w.Content != nil {
-						poster = w.Content.PosterPath
-					}
+					wg.Add(1)
+					sem <- struct{}{}
 
-					var showEvents []domain.CalendarEvent
+					go func(w *entity.Watched) {
+						defer func() {
+							<-sem
+							wg.Done()
+						}()
 
-					// Check NextEpisodeToAir
-					if showDetails.NextEpisodeToAir != nil && showDetails.NextEpisodeToAir.AirDate != "" {
-						air := showDetails.NextEpisodeToAir.AirDate
-						if air >= req.Start && air <= req.End {
-							evID := fmt.Sprintf("tv-%d-s%d-e%d", w.Content.TmdbID, showDetails.NextEpisodeToAir.SeasonNumber, showDetails.NextEpisodeToAir.EpisodeNumber)
-							showEvents = append(showEvents, domain.CalendarEvent{
-								ID:            evID,
-								MediaID:       w.Content.TmdbID,
-								MediaType:     "tv",
-								Title:         showDetails.Name,
-								ReleaseDate:   air,
-								PosterPath:    poster,
-								BackdropPath:  showDetails.BackdropPath,
-								Overview:      showDetails.NextEpisodeToAir.Overview,
-								InLibrary:     true,
-								Status:        string(w.Status),
-								SeasonNumber:  showDetails.NextEpisodeToAir.SeasonNumber,
-								EpisodeNumber: showDetails.NextEpisodeToAir.EpisodeNumber,
-								EpisodeName:   showDetails.NextEpisodeToAir.Name,
-							})
+						select {
+						case <-ctx.Done():
+							return
+						default:
 						}
-					}
 
-					// Check LastEpisodeToAir
-					if showDetails.LastEpisodeToAir.AirDate != "" {
-						air := showDetails.LastEpisodeToAir.AirDate
-						if air >= req.Start && air <= req.End {
-							evID := fmt.Sprintf("tv-%d-s%d-e%d", w.Content.TmdbID, showDetails.LastEpisodeToAir.SeasonNumber, showDetails.LastEpisodeToAir.EpisodeNumber)
-							showEvents = append(showEvents, domain.CalendarEvent{
-								ID:            evID,
-								MediaID:       w.Content.TmdbID,
-								MediaType:     "tv",
-								Title:         showDetails.Name,
-								ReleaseDate:   air,
-								PosterPath:    poster,
-								BackdropPath:  showDetails.BackdropPath,
-								Overview:      showDetails.LastEpisodeToAir.Overview,
-								InLibrary:     true,
-								Status:        string(w.Status),
-								SeasonNumber:  showDetails.LastEpisodeToAir.SeasonNumber,
-								EpisodeNumber: showDetails.LastEpisodeToAir.EpisodeNumber,
-								EpisodeName:   showDetails.LastEpisodeToAir.Name,
-							})
+						showDetails, err := s.tmdb.ShowDetails(tmdb.ShowDetailsOptions{
+							ID:             strconv.Itoa(w.Content.TmdbID),
+							DontRunDBCache: true, // Avoid SQLite locking from concurrent writes
+						})
+						if err != nil {
+							slog.Debug("Calendar: Failed to fetch show details from TMDB", "tmdbId", w.Content.TmdbID, "error", err)
+							return
 						}
-					}
 
-					// Check latest season episodes ONLY if season premiere is reasonably close to calendar window
-					if len(showDetails.Seasons) > 0 {
-						latestSeasonIdx := -1
-						for idx := len(showDetails.Seasons) - 1; idx >= 0; idx-- {
-							if showDetails.Seasons[idx].SeasonNumber > 0 && showDetails.Seasons[idx].AirDate != "" {
-								latestSeasonIdx = idx
-								break
+						// Asynchronously sync Content.Status in DB if known and changed
+						if showDetails.Status != "" && (w.Content.Status != string(showDetails.Status)) {
+							go func(contentID int, newStatus string) {
+								_ = s.db.Model(&entity.Content{}).Where("id = ?", contentID).Update("status", newStatus).Error
+							}(w.Content.ID, string(showDetails.Status))
+						}
+
+						poster := showDetails.PosterPath
+						if poster == "" && w.Content != nil {
+							poster = w.Content.PosterPath
+						}
+
+						var showEvents []domain.CalendarEvent
+
+						// Check NextEpisodeToAir
+						if showDetails.NextEpisodeToAir != nil && showDetails.NextEpisodeToAir.AirDate != "" {
+							air := showDetails.NextEpisodeToAir.AirDate
+							if air >= req.Start && air <= req.End {
+								evID := fmt.Sprintf("tv-%d-s%d-e%d", w.Content.TmdbID, showDetails.NextEpisodeToAir.SeasonNumber, showDetails.NextEpisodeToAir.EpisodeNumber)
+								showEvents = append(showEvents, domain.CalendarEvent{
+									ID:            evID,
+									MediaID:       w.Content.TmdbID,
+									MediaType:     "tv",
+									Title:         showDetails.Name,
+									ReleaseDate:   air,
+									PosterPath:    poster,
+									BackdropPath:  showDetails.BackdropPath,
+									Overview:      showDetails.NextEpisodeToAir.Overview,
+									InLibrary:     true,
+									Status:        string(w.Status),
+									SeasonNumber:  showDetails.NextEpisodeToAir.SeasonNumber,
+									EpisodeNumber: showDetails.NextEpisodeToAir.EpisodeNumber,
+									EpisodeName:   showDetails.NextEpisodeToAir.Name,
+								})
 							}
 						}
-						if latestSeasonIdx >= 0 {
-							latestSeason := showDetails.Seasons[latestSeasonIdx]
-							sAirDate, err := time.Parse("2006-01-02", latestSeason.AirDate)
-							seasonEligible := false
-							if err == nil {
-								// Seasons typically air within 4 months of their start date
-								if !sAirDate.Before(startDate.AddDate(0, -4, 0)) && !sAirDate.After(endDate.AddDate(0, 1, 0)) {
-									seasonEligible = true
+
+						// Check LastEpisodeToAir
+						if showDetails.LastEpisodeToAir.AirDate != "" {
+							air := showDetails.LastEpisodeToAir.AirDate
+							if air >= req.Start && air <= req.End {
+								evID := fmt.Sprintf("tv-%d-s%d-e%d", w.Content.TmdbID, showDetails.LastEpisodeToAir.SeasonNumber, showDetails.LastEpisodeToAir.EpisodeNumber)
+								showEvents = append(showEvents, domain.CalendarEvent{
+									ID:            evID,
+									MediaID:       w.Content.TmdbID,
+									MediaType:     "tv",
+									Title:         showDetails.Name,
+									ReleaseDate:   air,
+									PosterPath:    poster,
+									BackdropPath:  showDetails.BackdropPath,
+									Overview:      showDetails.LastEpisodeToAir.Overview,
+									InLibrary:     true,
+									Status:        string(w.Status),
+									SeasonNumber:  showDetails.LastEpisodeToAir.SeasonNumber,
+									EpisodeNumber: showDetails.LastEpisodeToAir.EpisodeNumber,
+									EpisodeName:   showDetails.LastEpisodeToAir.Name,
+								})
+							}
+						}
+
+						// Check latest season episodes ONLY if season premiere is reasonably close to calendar window
+						if len(showDetails.Seasons) > 0 {
+							latestSeasonIdx := -1
+							for idx := len(showDetails.Seasons) - 1; idx >= 0; idx-- {
+								if showDetails.Seasons[idx].SeasonNumber > 0 && showDetails.Seasons[idx].AirDate != "" {
+									latestSeasonIdx = idx
+									break
 								}
-							} else {
-								seasonEligible = true
 							}
-
-							if seasonEligible {
-								seasonDetails, err := s.tmdb.SeasonDetails(strconv.Itoa(w.Content.TmdbID), strconv.Itoa(latestSeason.SeasonNumber))
+							if latestSeasonIdx >= 0 {
+								latestSeason := showDetails.Seasons[latestSeasonIdx]
+								sAirDate, err := time.Parse("2006-01-02", latestSeason.AirDate)
+								seasonEligible := false
 								if err == nil {
-									for _, ep := range seasonDetails.Episodes {
-										if ep.AirDate != "" && ep.AirDate >= req.Start && ep.AirDate <= req.End {
-											evID := fmt.Sprintf("tv-%d-s%d-e%d", w.Content.TmdbID, ep.SeasonNumber, ep.EpisodeNumber)
-											showEvents = append(showEvents, domain.CalendarEvent{
-												ID:            evID,
-												MediaID:       w.Content.TmdbID,
-												MediaType:     "tv",
-												Title:         showDetails.Name,
-												ReleaseDate:   ep.AirDate,
-												PosterPath:    poster,
-												BackdropPath:  showDetails.BackdropPath,
-												Overview:      ep.Overview,
-												InLibrary:     true,
-												Status:        string(w.Status),
-												SeasonNumber:  ep.SeasonNumber,
-												EpisodeNumber: ep.EpisodeNumber,
-												EpisodeName:   ep.Name,
-											})
+									// Seasons typically air within 2 months of their start date
+									if !sAirDate.Before(startDate.AddDate(0, -2, 0)) && !sAirDate.After(endDate.AddDate(0, 1, 0)) {
+										seasonEligible = true
+									}
+								}
+
+								if seasonEligible {
+									seasonDetails, err := s.tmdb.SeasonDetails(strconv.Itoa(w.Content.TmdbID), strconv.Itoa(latestSeason.SeasonNumber))
+									if err == nil {
+										for _, ep := range seasonDetails.Episodes {
+											if ep.AirDate != "" && ep.AirDate >= req.Start && ep.AirDate <= req.End {
+												evID := fmt.Sprintf("tv-%d-s%d-e%d", w.Content.TmdbID, ep.SeasonNumber, ep.EpisodeNumber)
+												showEvents = append(showEvents, domain.CalendarEvent{
+													ID:            evID,
+													MediaID:       w.Content.TmdbID,
+													MediaType:     "tv",
+													Title:         showDetails.Name,
+													ReleaseDate:   ep.AirDate,
+													PosterPath:    poster,
+													BackdropPath:  showDetails.BackdropPath,
+													Overview:      ep.Overview,
+													InLibrary:     true,
+													Status:        string(w.Status),
+													SeasonNumber:  ep.SeasonNumber,
+													EpisodeNumber: ep.EpisodeNumber,
+													EpisodeName:   ep.Name,
+												})
+											}
 										}
 									}
 								}
 							}
 						}
-					}
 
-					if len(showEvents) > 0 {
-						eventsMu.Lock()
-						for _, ev := range showEvents {
-							if _, exists := eventsMap[ev.ID]; !exists {
-								eventsMap[ev.ID] = ev
+						// Cache the show's events (even if empty) for 12 hours so future calls don't re-query TMDB
+						showCacheKey := cache.CreateCacheKey("ShowCalEvents", w.Content.TmdbID, req.Start, req.End)
+						CalendarStore.Set(showCacheKey, showEvents, time.Hour*12)
+
+						if len(showEvents) > 0 {
+							eventsMu.Lock()
+							for _, ev := range showEvents {
+								if _, exists := eventsMap[ev.ID]; !exists {
+									eventsMap[ev.ID] = ev
+								}
 							}
+							eventsMu.Unlock()
 						}
-						eventsMu.Unlock()
-					}
-				}(show)
-			}
+					}(show)
+				}
 
-			wg.Wait()
+				wg.Wait()
+			}
 		}
 	}
 
@@ -376,14 +503,27 @@ func (s *Service) GetEvents(userId uint, req domain.CalendarRequest) ([]domain.C
 		events = append(events, ev)
 	}
 
-	// Sort by release date ascending, then by title
-	sort.Slice(events, func(i, j int) bool {
-		if events[i].ReleaseDate != events[j].ReleaseDate {
-			return events[i].ReleaseDate < events[j].ReleaseDate
-		}
-		return events[i].Title < events[j].Title
-	})
+	sortEvents(events)
 
+	// Save to main request cache
 	CalendarStore.Set(cacheKey, events, time.Minute*10)
+
+	// Pre-populate movie and tv caches if this was an "all" request
+	if req.Type == domain.CalendarTypeAll {
+		movieKey := cache.CreateCacheKey("CalendarEvents", userId, req.Start, req.End, string(req.Filter), string(domain.CalendarTypeMovie), regionForCache)
+		tvKey := cache.CreateCacheKey("CalendarEvents", userId, req.Start, req.End, string(req.Filter), string(domain.CalendarTypeTV), regionForCache)
+		movieSlice := make([]domain.CalendarEvent, 0)
+		tvSlice := make([]domain.CalendarEvent, 0)
+		for _, ev := range events {
+			if ev.MediaType == "movie" {
+				movieSlice = append(movieSlice, ev)
+			} else if ev.MediaType == "tv" {
+				tvSlice = append(tvSlice, ev)
+			}
+		}
+		CalendarStore.Set(movieKey, movieSlice, time.Minute*10)
+		CalendarStore.Set(tvKey, tvSlice, time.Minute*10)
+	}
+
 	return events, nil
 }

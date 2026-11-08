@@ -254,3 +254,93 @@ func TestWebhookSSRFProtection(t *testing.T) {
 		}
 	}
 }
+
+func TestCalendarGetEvents_CrossCachingAndPruning(t *testing.T) {
+	calendar.CalendarStore.Flush()
+	db := testutil.SetupDB(t)
+	cfg := &config.ServerConfig{}
+	svc := calendar.NewService(db, cfg, nil)
+
+	user := entity.User{
+		Username: "cacheuser",
+		Type:     entity.WATCHARR_USER,
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	relDate := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
+	movie := entity.Content{
+		TmdbID:      501,
+		Title:       "October Movie",
+		Type:        entity.MOVIE,
+		ReleaseDate: &relDate,
+	}
+	db.Create(&movie)
+	db.Create(&entity.Watched{
+		UserID:    user.ID,
+		ContentID: &movie.ID,
+		Status:    entity.WATCHING,
+	})
+
+	// Cancelled show should be pruned
+	showCancelled := entity.Content{
+		TmdbID:      502,
+		Title:       "Cancelled Show",
+		Type:        entity.SHOW,
+		Status:      "Returning Series",
+		ReleaseDate: &relDate,
+	}
+	db.Create(&showCancelled)
+	db.Create(&entity.Watched{
+		UserID:    user.ID,
+		ContentID: &showCancelled.ID,
+		Status:    entity.CANCELLED,
+	})
+
+	// 1. Fetch with Type = All
+	allEvents, err := svc.GetEvents(user.ID, domain.CalendarRequest{
+		Start:  "2026-10-01",
+		End:    "2026-10-31",
+		Filter: domain.CalendarFilterLibrary,
+		Type:   domain.CalendarTypeAll,
+	})
+	if err != nil {
+		t.Fatalf("GetEvents all failed: %v", err)
+	}
+	if len(allEvents) != 1 {
+		t.Fatalf("expected 1 event in all, got %d", len(allEvents))
+	}
+	if allEvents[0].MediaID != 501 {
+		t.Errorf("expected movie 501, got %d", allEvents[0].MediaID)
+	}
+
+	// 2. Fetch with Type = Movie (should hit pre-populated or cross cache immediately)
+	movieEvents, err := svc.GetEvents(user.ID, domain.CalendarRequest{
+		Start:  "2026-10-01",
+		End:    "2026-10-31",
+		Filter: domain.CalendarFilterLibrary,
+		Type:   domain.CalendarTypeMovie,
+	})
+	if err != nil {
+		t.Fatalf("GetEvents movie failed: %v", err)
+	}
+	if len(movieEvents) != 1 || movieEvents[0].MediaID != 501 {
+		t.Fatalf("expected movie 501 from cache, got %v", movieEvents)
+	}
+
+	// 3. Fetch with Type = TV (should return 0 because cancelled show was pruned)
+	tvEvents, err := svc.GetEvents(user.ID, domain.CalendarRequest{
+		Start:  "2026-10-01",
+		End:    "2026-10-31",
+		Filter: domain.CalendarFilterLibrary,
+		Type:   domain.CalendarTypeTV,
+	})
+	if err != nil {
+		t.Fatalf("GetEvents tv failed: %v", err)
+	}
+	if len(tvEvents) != 0 {
+		t.Fatalf("expected 0 tv events (cancelled show excluded), got %d", len(tvEvents))
+	}
+}
+
