@@ -402,21 +402,20 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		padding: 5px 8px 5px 14px;
-		background: rgba(13, 17, 24, 0.88);
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		border-radius: 9999px;
+		padding: 6px 10px 6px 14px;
+		background: var(--glass-surface-bg, rgba(13, 17, 24, 0.92));
+		border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));
+		border-radius: 10px;
 		box-shadow:
 			0 16px 36px -4px rgba(0, 0, 0, 0.65),
-			0 4px 12px rgba(0, 0, 0, 0.4),
-			inset 0 1px 0 rgba(255, 255, 255, 0.1);
+			0 4px 12px rgba(0, 0, 0, 0.4);
 		backdrop-filter: blur(20px) saturate(180%);
 		-webkit-backdrop-filter: blur(20px) saturate(180%);
 		width: max-content;
 		max-width: 100%;
 
 		@media screen and (max-width: 640px) {
-			border-radius: 16px;
+			border-radius: 10px;
 			padding: 8px 10px;
 			justify-content: space-between;
 			width: 100%;
@@ -513,14 +512,14 @@
 			align-items: center;
 			gap: 5px;
 			height: 30px;
-			padding: 0 11px;
-			border-radius: 9999px;
+			padding: 0 10px;
+			border-radius: 6px;
 			font-size: 12px;
 			font-weight: 500;
 			cursor: pointer;
-			border: 1px solid rgba(255, 255, 255, 0.08);
+			border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
 			background: rgba(255, 255, 255, 0.04);
-			color: #e2e8f0;
+			color: $text-color;
 			transition: all 130ms cubic-bezier(0.16, 1, 0.3, 1);
 			white-space: nowrap;
 			width: auto;

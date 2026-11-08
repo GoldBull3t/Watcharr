@@ -267,7 +267,10 @@ export class Reqer {
 						ReqerError.withBody(err) && err.hasErrorInBody()
 							? err.body.error
 							: undefined;
-					console.warn(`[Reqer 403 Forbidden] ${p}:`, serverMsg || "Action forbidden");
+					console.warn(
+						`[Reqer 403 Forbidden] ${p}:`,
+						serverMsg || "Action forbidden",
+					);
 					notify({
 						text: serverMsg || "You don't have permission for this action.",
 						type: "error",
@@ -277,7 +280,10 @@ export class Reqer {
 						ReqerError.withBody(err) && err.hasErrorInBody()
 							? err.body.error
 							: undefined;
-					console.error(`[Reqer 500 Internal Error] ${p}:`, serverMsg || err.message);
+					console.error(
+						`[Reqer 500 Internal Error] ${p}:`,
+						serverMsg || err.message,
+					);
 				}
 				throw err;
 			} else if (err instanceof Error) {

@@ -35,14 +35,21 @@
 			}
 		} catch (err) {
 			console.error("Falha ao obter API Key:", err);
-			notify({ text: "Não foi possível carregar a API Key do utilizador.", type: "error" });
+			notify({
+				text: "Não foi possível carregar a API Key do utilizador.",
+				type: "error",
+			});
 		} finally {
 			loading = false;
 		}
 	}
 
 	async function regenerateApiKey() {
-		if (!confirm("Tens a certeza que queres gerar uma nova chave? Todos os addons e integrações anteriores deixarão de funcionar.")) {
+		if (
+			!confirm(
+				"Tens a certeza que queres gerar uma nova chave? Todos os addons e integrações anteriores deixarão de funcionar.",
+			)
+		) {
 			return;
 		}
 		loading = true;
@@ -50,7 +57,10 @@
 			const res = await req.post<ApiKeyResponse>("/user/api-key/regenerate");
 			if (res && res.apiKey) {
 				apiKey = res.apiKey;
-				notify({ text: "Nova chave de API gerada com sucesso!", type: "success" });
+				notify({
+					text: "Nova chave de API gerada com sucesso!",
+					type: "success",
+				});
 			}
 		} catch (err) {
 			notify({ text: "Erro ao gerar nova chave de API.", type: "error" });
@@ -60,18 +70,23 @@
 	}
 
 	let addonManifestUrl = $derived(
-		apiKey ? `${hostUrl}/api/addon/${apiKey}/manifest.json` : ""
+		apiKey ? `${hostUrl}/api/addon/${apiKey}/manifest.json` : "",
 	);
 
 	let stremioUrl = $derived(
-		addonManifestUrl ? addonManifestUrl.replace(/^https?:\/\//, "stremio://") : ""
+		addonManifestUrl
+			? addonManifestUrl.replace(/^https?:\/\//, "stremio://")
+			: "",
 	);
 
 	function copyUrl() {
 		if (!addonManifestUrl) return;
 		navigator.clipboard.writeText(addonManifestUrl);
 		copied = true;
-		notify({ text: "URL do Addon copiado para a área de transferência!", type: "success" });
+		notify({
+			text: "URL do Addon copiado para a área de transferência!",
+			type: "success",
+		});
 		setTimeout(() => {
 			copied = false;
 		}, 3000);
@@ -79,13 +94,20 @@
 </script>
 
 {#if open}
-	<Modal title="Addon Watcharr para Android TV (NuvioTV & Stremio)" desc="Sincroniza a tua biblioteca e progresso de episódios diretamente na Android TV" maxWidth="620px">
+	<Modal
+		title="Addon Watcharr para Android TV (NuvioTV & Stremio)"
+		desc="Sincroniza a tua biblioteca e progresso de episódios diretamente na Android TV"
+		maxWidth="620px"
+	>
 		<div class="addon-modal-content">
 			<div class="banner">
 				<div class="badge">NATIVO & SEM SERVIÇOS PAGOS</div>
 				<p class="desc">
-					O Watcharr atua como um Addon oficial compatível com <strong>NuvioTV</strong> e <strong>Stremio</strong>.
-					As tuas séries a ver, filmes planeados e episódios sincronizam em tempo real entre a tua TV e o teu servidor.
+					O Watcharr atua como um Addon oficial compatível com <strong
+						>NuvioTV</strong
+					>
+					e <strong>Stremio</strong>. As tuas séries a ver, filmes planeados e
+					episódios sincronizam em tempo real entre a tua TV e o teu servidor.
 				</p>
 			</div>
 
@@ -100,7 +122,9 @@
 			</div>
 
 			<div class="section">
-				<label class="label" for="addon-url-input">URL de Instalação do Addon:</label>
+				<label class="label" for="addon-url-input"
+					>URL de Instalação do Addon:</label
+				>
 				<div class="url-row">
 					<input
 						id="addon-url-input"
@@ -109,15 +133,25 @@
 						readonly
 						value={loading ? "A carregar chave..." : addonManifestUrl}
 					/>
-					<button class="copy-btn" onclick={copyUrl} disabled={loading || !apiKey} type="button">
-						<Icon i={copied ? "check" : "clipboard"} wh={16} />
+					<button
+						class="copy-btn"
+						onclick={copyUrl}
+						disabled={loading || !apiKey}
+						type="button"
+					>
+						<Icon i={copied ? "check" : "document"} wh={16} />
 						{copied ? "Copiado!" : "Copiar"}
 					</button>
 				</div>
 				{#if addonManifestUrl}
 					<div class="links-row">
-						<a class="sub-link" href={addonManifestUrl} target="_blank" rel="noopener noreferrer">
-							<Icon i="globe" wh={13} />
+						<a
+							class="sub-link"
+							href={addonManifestUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							<Icon i="compass" wh={13} />
 							Testar no Browser
 						</a>
 						<a class="sub-link" href={stremioUrl}>
@@ -132,20 +166,30 @@
 				<h4>Como configurar na Android TV (NuvioTV):</h4>
 				<ol>
 					<li>
-						Abre o <strong>NuvioTV</strong> na Android TV e vai a <strong>Definições &rarr; Addons</strong> (ou cola na interface web do Nuvio no telemóvel).
+						Abre o <strong>NuvioTV</strong> na Android TV e vai a
+						<strong>Definições &rarr; Addons</strong> (ou cola na interface web do
+						Nuvio no telemóvel).
 					</li>
 					<li>
 						Clica em <strong>Adicionar Addon por URL</strong> e cola o link acima.
 					</li>
 					<li>
-						Em <strong>Definições &rarr; Conteúdo e Descoberta &rarr; Reordenar Catálogos</strong>, ativa os catálogos do Watcharr para a Página Inicial.
+						Em <strong
+							>Definições &rarr; Conteúdo e Descoberta &rarr; Reordenar
+							Catálogos</strong
+						>, ativa os catálogos do Watcharr para a Página Inicial.
 					</li>
 				</ol>
 			</div>
 
 			<div class="actions-row">
-				<button class="regen-btn" onclick={regenerateApiKey} disabled={loading} type="button">
-					<Icon i="arrow-path" wh={14} />
+				<button
+					class="regen-btn"
+					onclick={regenerateApiKey}
+					disabled={loading}
+					type="button"
+				>
+					<Icon i="refresh" wh={14} />
 					Regenerar Chave de Acesso
 				</button>
 				<button class="close-btn" onclick={onClose} type="button">

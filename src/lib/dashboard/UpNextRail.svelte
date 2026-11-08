@@ -53,12 +53,13 @@
 			if (onEpisodeWatched) {
 				onEpisodeWatched();
 			}
-		} catch (err: any) {
+		} catch (err: unknown) {
 			console.error("Failed to mark episode as watched:", err);
+			const msg = err instanceof Error ? err.message : "Falha ao marcar episódio como visto.";
 			notify({
 				id: nid,
 				type: "error",
-				text: err?.message || "Falha ao marcar episódio como visto.",
+				text: msg,
 			});
 		} finally {
 			updatingWatchedId = null;
@@ -216,11 +217,11 @@
 				}
 
 				h3 {
-					font-size: 17px;
+					font-size: 16px;
 					font-weight: 700;
-					color: #fff;
+					color: $text-color;
 					margin: 0;
-					letter-spacing: -0.01em;
+					letter-spacing: -0.02em;
 				}
 
 				.count-badge {
@@ -230,10 +231,10 @@
 					min-width: 20px;
 					height: 20px;
 					padding: 0 6px;
-					border-radius: 10px;
-					background: rgba(255, 255, 255, 0.08);
-					border: 1px solid rgba(255, 255, 255, 0.12);
-					color: rgba(255, 255, 255, 0.85);
+					border-radius: 9999px;
+					background: var(--accent-color, rgba(255, 255, 255, 0.08));
+					border: 1px solid var(--card-border, rgba(255, 255, 255, 0.12));
+					color: $text-color;
 					font-size: 11px;
 					font-weight: 700;
 				}
@@ -241,7 +242,7 @@
 
 			.section-subtitle {
 				font-size: 12px;
-				color: rgba(255, 255, 255, 0.5);
+				color: $text-color-accent;
 			}
 		}
 
@@ -251,19 +252,32 @@
 			overflow-x: auto;
 			padding-bottom: 8px;
 			scroll-behavior: smooth;
+			scroll-snap-type: x mandatory;
 			scrollbar-width: thin;
+			mask-image: linear-gradient(
+				to right,
+				black calc(100% - 40px),
+				transparent 100%
+			);
+			-webkit-mask-image: linear-gradient(
+				to right,
+				black calc(100% - 40px),
+				transparent 100%
+			);
 		}
 
 		.up-next-card {
 			display: block;
 			flex: 0 0 290px;
+			scroll-snap-align: start;
+			contain: layout paint;
 			text-decoration: none;
 			color: inherit;
-			border-radius: 12px;
+			border-radius: 8px;
 			overflow: hidden;
-			background: rgba(255, 255, 255, 0.03);
-			border: 1px solid rgba(255, 255, 255, 0.08);
-			transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+			background: var(--card-bg, rgba(255, 255, 255, 0.03));
+			border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+			transition: all 180ms cubic-bezier(0.16, 1, 0.3, 1);
 
 			&:hover {
 				transform: translateY(-3px);

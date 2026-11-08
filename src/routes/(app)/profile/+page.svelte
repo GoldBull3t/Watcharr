@@ -1026,12 +1026,21 @@
 			<div class="settings-card nuvio-card">
 				<div class="webhook-settings-header">
 					<div>
-						<div class="card-title-row" style="display: flex; align-items: center; gap: 8px;">
+						<div
+							class="card-title-row"
+							style="display: flex; align-items: center; gap: 8px;"
+						>
 							<h4 class="card-title">Android TV & NuvioTV Addon</h4>
-							<span class="status-badge live" style="background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.4); font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">NATIVO</span>
+							<span
+								class="status-badge live"
+								style="background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.4); font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;"
+								>NATIVO</span
+							>
 						</div>
 						<p class="card-desc">
-							Acede à tua biblioteca do Watcharr na Android TV sem instalar apps extras. Suporta sincronização automática de episódios e filmes vistos.
+							Acede à tua biblioteca do Watcharr na Android TV sem instalar apps
+							extras. Suporta sincronização automática de episódios e filmes
+							vistos.
 						</p>
 					</div>
 					<button
@@ -1220,7 +1229,10 @@
 				/>
 			{/if}
 			<DashboardIntegrationModal bind:open={dashboardModalOpen} />
-			<NuvioAddonModal bind:open={nuvioModalOpen} onClose={() => (nuvioModalOpen = false)} />
+			<NuvioAddonModal
+				bind:open={nuvioModalOpen}
+				onClose={() => (nuvioModalOpen = false)}
+			/>
 		</section>
 	</div>
 </div>

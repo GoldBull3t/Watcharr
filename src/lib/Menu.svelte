@@ -100,28 +100,37 @@
 
 				button,
 				a {
-					font-size: 12.5px;
+					font-size: 13px;
 					font-weight: 500;
-					padding: 7px 10px;
+					padding: 8px 12px;
+					min-height: 38px;
+					display: flex;
+					align-items: center;
 					text-align: left;
-					border-radius: 7px;
+					border-radius: 6px;
 					cursor: pointer;
 					color: $text-color;
 					border: none;
 					background: transparent;
 					width: 100% !important;
 					transition:
-						background-color 130ms ease,
-						color 130ms ease;
+						background-color 130ms cubic-bezier(0.16, 1, 0.3, 1),
+						color 130ms cubic-bezier(0.16, 1, 0.3, 1);
+
+					@media screen and (max-width: 768px) {
+						min-height: 44px;
+						padding: 10px 14px;
+						font-size: 14px;
+					}
 
 					&:hover,
 					&:focus-visible {
 						background-color: var(--accent-color, rgba(255, 255, 255, 0.08));
-						color: #ffffff;
+						color: $text-color;
 					}
 
 					&.active {
-						color: #fbbf24;
+						color: $brand-color;
 						background-color: rgba(245, 158, 11, 0.12);
 						font-weight: 600;
 					}

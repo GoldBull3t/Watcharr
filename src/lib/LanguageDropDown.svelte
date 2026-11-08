@@ -42,11 +42,7 @@
 </script>
 
 {#await languagesPromise}
-	<DropDown
-		placeholder="Select a language"
-		options={[]}
-		disabled={true}
-	/>
+	<DropDown placeholder="Select a language" options={[]} disabled={true} />
 {:then mappedLanguages}
 	<DropDown
 		placeholder="Select a language"

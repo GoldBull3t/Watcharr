@@ -66,7 +66,9 @@
 				if (a.data) {
 					const data = safeJsonParse(a.data);
 					return `Added to Watched List${data?.status ? ` as ${toFullTitleCase(data.status)}` : ""}${
-						data?.rating ? ` with Rating ${formatActivityRating(data.rating)}` : ""
+						data?.rating
+							? ` with Rating ${formatActivityRating(data.rating)}`
+							: ""
 					}`;
 				}
 				return "Added to Watched List";

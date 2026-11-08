@@ -102,10 +102,10 @@
 	.skeleton-poster {
 		width: 100%;
 		aspect-ratio: 170 / 256;
-		border-radius: 10px;
-		background-color: #141824;
-		border: 1px solid rgba(255, 255, 255, 0.07);
-		box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+		border-radius: 8px;
+		background-color: var(--card-bg, #141824);
+		border: 1px solid var(--card-border, rgba(255, 255, 255, 0.07));
+		box-shadow: var(--card-shadow, 0 4px 14px rgba(0, 0, 0, 0.25));
 	}
 
 	.skeleton-info {
@@ -116,7 +116,7 @@
 
 		.skeleton-line {
 			border-radius: 4px;
-			background-color: #141824;
+			background-color: var(--card-bg, #141824);
 
 			&.title {
 				width: 75%;
@@ -142,9 +142,9 @@
 	.shimmer {
 		background: linear-gradient(
 			90deg,
-			rgba(20, 24, 36, 0.9) 0%,
-			rgba(36, 44, 64, 0.95) 50%,
-			rgba(20, 24, 36, 0.9) 100%
+			var(--card-bg, rgba(20, 24, 36, 0.9)) 0%,
+			var(--card-border-hover, rgba(36, 44, 64, 0.95)) 50%,
+			var(--card-bg, rgba(20, 24, 36, 0.9)) 100%
 		);
 		background-size: 200% 100%;
 		animation: shimmer 1.8s infinite ease-in-out;

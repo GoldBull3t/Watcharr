@@ -55,7 +55,11 @@
 	const quickStreamProviders = $derived.by(() => {
 		if (!movie?.providers || movie.providers.length === 0) return [];
 		const streamOnly = movie.providers.filter(
-			(p) => !p.type || p.type === "flatrate" || p.type === "free",
+			(p) =>
+				!p.type ||
+				(p.type as unknown as string) === "flatrate" ||
+				(p.type as unknown as string) === "sub" ||
+				(p.type as unknown as string) === "free",
 		);
 		return streamOnly.length > 0
 			? streamOnly.slice(0, 5)
@@ -228,7 +232,11 @@
 						<ExternalRatingsBar media={movie} />
 
 						{#if quickStreamProviders.length > 0}
-							<div class="quick-streaming-feature" role="region" aria-label="Onde assistir em streaming">
+							<div
+								class="quick-streaming-feature"
+								role="region"
+								aria-label="Onde assistir em streaming"
+							>
 								<span class="stream-label">
 									<Icon i="film" wh={12} />
 									<span>Stream:</span>
@@ -541,7 +549,9 @@
 					font-weight: 600;
 					font-size: 11.5px;
 					text-decoration: none;
-					transition: background 0.15s ease, border-color 0.15s ease;
+					transition:
+						background 0.15s ease,
+						border-color 0.15s ease;
 
 					&:hover {
 						background: rgba(16, 185, 129, 0.22);

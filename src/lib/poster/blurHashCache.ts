@@ -18,11 +18,7 @@ export function getOrDecodeBlurHash(
 
 	try {
 		const pixels = decode(hash, width, height);
-		const imgData = new ImageData(
-			new Uint8ClampedArray(pixels),
-			width,
-			height,
-		);
+		const imgData = new ImageData(new Uint8ClampedArray(pixels), width, height);
 		// Keep cache bounded to prevent memory growth
 		if (blurHashCache.size > 300) {
 			const firstKey = blurHashCache.keys().next().value;

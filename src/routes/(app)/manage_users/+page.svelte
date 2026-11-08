@@ -111,7 +111,7 @@
 
 			{#if editingUser}
 				<EditUserModal
-					bind:user={editingUser}
+					user={editingUser}
 					onClose={() => {
 						editingUser = undefined;
 						getUsers();

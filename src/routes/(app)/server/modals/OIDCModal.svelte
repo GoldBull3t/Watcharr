@@ -96,7 +96,11 @@
 			>
 				<code>{cfg.redirectUri || suggestedRedirect}</code>
 			</Setting>
-			<Setting title="Enabled" desc="Show the SSO button on the login page." row>
+			<Setting
+				title="Enabled"
+				desc="Show the SSO button on the login page."
+				row
+			>
 				<Checkbox
 					name="OIDC_ENABLED"
 					value={cfg.enabled}
@@ -177,4 +181,3 @@
 		}
 	}
 </style>
-

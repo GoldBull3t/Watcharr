@@ -217,6 +217,18 @@
 
 	{#if watchedItem}
 		<div class="status-rating-ctr">
+			<button
+				class="quick-check-btn plain"
+				class:is-watched={we?.status === "FINISHED"}
+				title={we?.status === "FINISHED"
+					? "Marcar como não visto"
+					: "Marcar como visto (1-clique)"}
+				onclick={() =>
+					handleStatusClick(we?.status === "FINISHED" ? "DELETE" : "FINISHED")}
+				type="button"
+			>
+				<Icon i="check" wh={14} />
+			</button>
 			<div class="rating">
 				<PosterRating
 					rating={we?.rating}
@@ -487,6 +499,39 @@
 			flex-shrink: 0;
 			position: relative;
 			z-index: 5;
+
+			.quick-check-btn {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				width: 34px;
+				height: 34px;
+				border-radius: 6px;
+				border: 1px solid var(--card-border, rgba(255, 255, 255, 0.12));
+				background: var(--input-bg, rgba(255, 255, 255, 0.04));
+				color: $text-color-accent;
+				cursor: pointer;
+				transition: all 140ms cubic-bezier(0.16, 1, 0.3, 1);
+
+				&:hover {
+					border-color: $success;
+					color: $success;
+					background: rgba(16, 185, 129, 0.12);
+					transform: scale(1.05);
+				}
+
+				&.is-watched {
+					background: $success;
+					border-color: $success;
+					color: #ffffff;
+
+					&:hover {
+						background: rgba(239, 68, 68, 0.18);
+						border-color: $error;
+						color: $error;
+					}
+				}
+			}
 
 			&:hover,
 			&:focus-within,

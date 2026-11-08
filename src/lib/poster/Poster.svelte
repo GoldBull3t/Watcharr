@@ -123,7 +123,7 @@
 					text: "Nenhum trailer encontrado para este título.",
 				});
 			}
-		} catch (err) {
+		} catch {
 			notify({ type: "error", text: "Erro ao carregar o trailer." });
 		} finally {
 			isFetchingTrailer = false;
@@ -182,7 +182,9 @@
 		const prevWatched = {
 			...watched,
 			watchedSeasons: watched.watchedSeasons ? [...watched.watchedSeasons] : [],
-			watchedEpisodes: watched.watchedEpisodes ? [...watched.watchedEpisodes] : [],
+			watchedEpisodes: watched.watchedEpisodes
+				? [...watched.watchedEpisodes]
+				: [],
 		};
 
 		// 2. Compute target optimistic status
@@ -193,20 +195,24 @@
 		else if (currentStatus === "FINISHED") targetStatus = undefined;
 
 		// 3. Immediately mutate local state in 0ms
-		const existingSeasons = watched.watchedSeasons ? [...watched.watchedSeasons] : [];
+		const existingSeasons = watched.watchedSeasons
+			? [...watched.watchedSeasons]
+			: [];
 		const sIdx = existingSeasons.findIndex((s) => s.seasonNumber === seasonNum);
 
 		if (targetStatus) {
 			if (sIdx !== -1) {
-				existingSeasons[sIdx] = { ...existingSeasons[sIdx], status: targetStatus };
+				existingSeasons[sIdx] = {
+					...existingSeasons[sIdx],
+					status: targetStatus,
+				};
 			} else {
 				existingSeasons.push({
 					id: 0,
-					watchedId: watched.id,
+					watchedID: watched.id,
 					seasonNumber: seasonNum,
 					status: targetStatus,
-					createdAt: new Date(),
-					updatedAt: new Date(),
+					rating: 0,
 				});
 			}
 			if (targetStatus === "WATCHING") {
@@ -681,7 +687,7 @@
 			if (typeof navigator !== "undefined" && navigator.vibrate) {
 				navigator.vibrate([25, 20]);
 			}
-		} catch (e) {
+		} catch {
 			// Ignored if not supported
 		}
 	}
@@ -802,7 +808,10 @@
 				aria-valuemin="0"
 				aria-valuemax="100"
 			>
-				<div class="progress-fill" style={`width: ${seasonProgress.percentage}%;`}></div>
+				<div
+					class="progress-fill"
+					style={`width: ${seasonProgress.percentage}%;`}
+				></div>
 			</div>
 		{/if}
 		{#if publicRating && !posterActive}
@@ -964,7 +973,7 @@
 							{/if}
 						</div>
 						<div class="tracker-pills-row">
-							{#each seasonProgress.seasons as s}
+							{#each seasonProgress.seasons as s (s.number)}
 								<button
 									type="button"
 									class="season-pill {s.status.toLowerCase()}"
@@ -1044,12 +1053,8 @@
 {#if lightboxOpen}
 	<MediaLightbox
 		videos={lightboxVideos}
-		backdropPath={media.extBackdropPath ||
-			(media as any).backdropPath ||
-			(media as any).backdrop?.path}
-		posterPath={media.extPosterPath ||
-			(media as any).posterPath ||
-			(media as any).poster?.path}
+		backdropPath={media.extBackdropPath}
+		posterPath={media.extPosterPath}
 		mediaTitle={media.name}
 		initialType="video"
 		onclose={() => (lightboxOpen = false)}
@@ -1106,17 +1111,19 @@
 		background-color: var(--card-bg, #181c25);
 		overflow: hidden;
 		flex: 1 1;
-		border-radius: 10px;
+		border-radius: 8px;
 		min-width: 170px;
 		width: 170px;
 		position: relative;
 		aspect-ratio: 170000/256367;
 		border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
-		box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+		box-shadow: var(--card-shadow, 0 4px 14px rgba(0, 0, 0, 0.25));
 		transform-style: preserve-3d;
+		contain: layout paint;
 		transition:
-			transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
-			box-shadow 240ms cubic-bezier(0.16, 1, 0.3, 1);
+			transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+			box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
+			border-color 200ms cubic-bezier(0.16, 1, 0.3, 1);
 
 		&.is-tilting {
 			transition:
@@ -1310,15 +1317,15 @@
 			padding: 12px;
 			background: linear-gradient(
 				to top,
-				rgba(8, 10, 16, 0.96) 0%,
-				rgba(8, 10, 16, 0.88) 55%,
-				rgba(8, 10, 16, 0.65) 100%
+				rgba(8, 10, 16, 0.94) 0%,
+				rgba(8, 10, 16, 0.82) 55%,
+				rgba(8, 10, 16, 0.55) 100%
 			);
-			backdrop-filter: blur(6px);
-			-webkit-backdrop-filter: blur(6px);
+			backdrop-filter: blur(12px);
+			-webkit-backdrop-filter: blur(12px);
 			transform: translateZ(12px);
 			backface-visibility: hidden;
-			transition: opacity 180ms cubic-bezier(0.16, 1, 0.3, 1);
+			transition: opacity 160ms cubic-bezier(0.16, 1, 0.3, 1);
 
 			& > a {
 				display: flex;

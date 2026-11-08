@@ -57,7 +57,9 @@
 		const trimmed = q.trim();
 		if (!trimmed) return;
 		try {
-			const list = recentSearches.filter((s) => s.toLowerCase() !== trimmed.toLowerCase());
+			const list = recentSearches.filter(
+				(s) => s.toLowerCase() !== trimmed.toLowerCase(),
+			);
 			list.unshift(trimmed);
 			const capped = list.slice(0, 8);
 			recentSearches = capped;
@@ -75,7 +77,10 @@
 	function removeRecentSearch(item: string) {
 		recentSearches = recentSearches.filter((s) => s !== item);
 		try {
-			localStorage.setItem("watcharr_recent_searches", JSON.stringify(recentSearches));
+			localStorage.setItem(
+				"watcharr_recent_searches",
+				JSON.stringify(recentSearches),
+			);
 		} catch {}
 	}
 
@@ -448,11 +453,7 @@
 									path={w.extPosterPath}
 								/>
 							{:else if w.type === MediaTypeE.tmdbMovie || w.type === MediaTypeE.tmdbShow || w.type === MediaTypeE.igdbGame}
-								<Poster
-									media={w}
-									bind:watched={w.watched}
-									fluidSize
-								/>
+								<Poster media={w} bind:watched={w.watched} fluidSize />
 							{/if}
 						{/each}
 					{:else if !dataLoader.state.reqLoading && !dataLoader.state.reqLoadError}

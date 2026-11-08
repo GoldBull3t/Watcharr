@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { afterNavigate, goto, onNavigate } from "$app/navigation";
 	import { resolve } from "$app/paths";
-	import { page } from "$app/state";
+	import { navigating, page } from "$app/state";
 	import Error from "@/lib/Error.svelte";
 	import Icon from "@/lib/Icon.svelte";
 	import Spinner from "@/lib/Spinner.svelte";
@@ -89,14 +89,17 @@
 		navSearchLoading = true;
 		navSearchDebounce = window.setTimeout(async () => {
 			try {
-				const res = await req.get<PaginationResponse<Media, unknown>>("/search", {
-					params: {
-						query: query.trim(),
-						type: "multi",
-						page: 1,
-						preferMyList: "true",
+				const res = await req.get<PaginationResponse<Media, unknown>>(
+					"/search",
+					{
+						params: {
+							query: query.trim(),
+							type: "multi",
+							page: 1,
+							preferMyList: "true",
+						},
 					},
-				});
+				);
 				if (res?.results) {
 					navSearchResults = res.results.slice(0, 6);
 				} else {
@@ -171,7 +174,9 @@
 		navSearchFocused = false;
 		navSearchResults = [];
 		navSearchQuery = "";
-		goto(resolve(`/search?query=${encodeURIComponent(query)}&preferMyList=true`));
+		goto(
+			resolve(`/search?query=${encodeURIComponent(query)}&preferMyList=true`),
+		);
 	}
 
 	function handleSearchKeyDown(ev: KeyboardEvent) {
@@ -411,7 +416,10 @@
 			window.addEventListener("resize", decideOnNavSplit);
 			window.document.addEventListener("scroll", docOnScroll);
 			window.document.addEventListener("keydown", handleGlobalKeybind);
-			window.document.addEventListener("pointerdown", handleDocumentPointerDown);
+			window.document.addEventListener(
+				"pointerdown",
+				handleDocumentPointerDown,
+			);
 
 			return () => {
 				window.removeEventListener("online", handleOnline);
@@ -431,6 +439,14 @@
 		}
 	});
 </script>
+
+{#if navigating.to}
+	<div
+		class="route-progress-bar"
+		role="progressbar"
+		aria-label="A carregar página"
+	></div>
+{/if}
 
 <nav bind:this={navEl} class="top-nav">
 	<div class="wrapper">
@@ -488,7 +504,10 @@
 				oninput={(e) => performNavSearch((e.target as HTMLInputElement).value)}
 				onfocus={() => {
 					navSearchFocused = true;
-					if (navSearchQuery.trim().length >= 2 && navSearchResults.length === 0) {
+					if (
+						navSearchQuery.trim().length >= 2 &&
+						navSearchResults.length === 0
+					) {
 						performNavSearch(navSearchQuery);
 					}
 				}}
@@ -522,8 +541,10 @@
 						<div class="preview-results-list">
 							{#each navSearchResults as item, idx (item.ids.tmdb || item.ids.igdb || item.name || idx)}
 								<a
-									href={resolve(getMediaHref(item) as any)}
-									class="preview-item {navSelectedIndex === idx ? 'selected' : ''}"
+									href={resolve(getMediaHref(item) as "/movie/[id]")}
+									class="preview-item {navSelectedIndex === idx
+										? 'selected'
+										: ''}"
 									onclick={(e) => {
 										e.preventDefault();
 										navigateToMedia(item);
@@ -544,7 +565,7 @@
 									<div class="preview-info">
 										<div class="preview-title-row">
 											<span class="preview-title">
-												{#each getHighlightedParts(item.name || "Untitled", navSearchQuery) as part}
+												{#each getHighlightedParts(item.name || "Untitled", navSearchQuery) as part, pIdx (pIdx)}
 													{#if part.match}
 														<mark class="search-match">{part.str}</mark>
 													{:else}
@@ -557,7 +578,11 @@
 											{/if}
 										</div>
 										<div class="preview-sub">
-											<span class="preview-badge {getMediaBadge(item).toLowerCase()}">
+											<span
+												class="preview-badge {getMediaBadge(
+													item,
+												).toLowerCase()}"
+											>
 												{getMediaBadge(item)}
 											</span>
 											{#if getMediaYear(item)}
@@ -574,7 +599,11 @@
 								class="plain preview-view-all"
 								onclick={() => submitFullSearch()}
 							>
-								<span>Ver todos os resultados para <strong>"{navSearchQuery.trim()}"</strong></span>
+								<span
+									>Ver todos os resultados para <strong
+										>"{navSearchQuery.trim()}"</strong
+									></span
+								>
 								<kbd>Enter ↵</kbd>
 							</button>
 						</div>
@@ -800,6 +829,31 @@
 {/if}
 
 <style lang="scss">
+	.route-progress-bar {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 2px;
+		background: $brand-color;
+		z-index: 999999;
+		animation: routeProgress 1s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+		transform-origin: left;
+	}
+
+	@keyframes routeProgress {
+		0% {
+			transform: scaleX(0.05);
+		}
+		50% {
+			transform: scaleX(0.65);
+		}
+		100% {
+			transform: scaleX(1);
+			opacity: 0.7;
+		}
+	}
+
 	nav.top-nav {
 		view-transition-name: app-header;
 		display: flex;
@@ -1019,8 +1073,8 @@
 
 			input {
 				width: 100%;
-				padding: 8px 34px 8px 38px;
-				border-radius: 9999px;
+				padding: 8px 34px 8px 36px;
+				border-radius: 8px;
 				border: 1px solid var(--input-border, rgba(255, 255, 255, 0.12));
 				background-color: var(--input-bg, rgba(255, 255, 255, 0.04));
 				color: $text-color;
@@ -1031,39 +1085,39 @@
 				outline: none;
 				text-overflow: ellipsis;
 				transition:
-					border-color 150ms ease,
-					box-shadow 150ms ease,
-					background-color 150ms ease;
+					border-color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+					box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1),
+					background-color 150ms cubic-bezier(0.16, 1, 0.3, 1);
 
 				&::placeholder {
 					color: $placeholder-color;
 				}
 
 				&:hover {
-					border-color: var(--card-border, rgba(255, 255, 255, 0.2));
+					border-color: var(--card-border-hover, rgba(255, 255, 255, 0.2));
 					background-color: var(--input-bg, rgba(255, 255, 255, 0.06));
 				}
 
 				&:focus {
 					background-color: var(--card-bg, $bg-color);
 					border-color: $brand-color;
-					box-shadow: 0 0 0 3px $brand-glow;
+					box-shadow: 0 0 0 1px $brand-color;
 				}
 			}
 
 			.search-preview-popover {
 				position: absolute;
-				top: calc(100% + 8px);
+				top: calc(100% + 6px);
 				left: 0;
 				right: 0;
 				min-width: 320px;
 				max-height: 420px;
-				background: rgba(18, 21, 28, 0.98);
-				backdrop-filter: blur(20px);
-				-webkit-backdrop-filter: blur(20px);
-				border: 1px solid var(--card-border, rgba(255, 255, 255, 0.12));
-				border-radius: 12px;
-				box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+				background: var(--glass-modal-bg, rgba(15, 19, 28, 0.96));
+				backdrop-filter: blur(24px);
+				-webkit-backdrop-filter: blur(24px);
+				border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));
+				border-radius: 8px;
+				box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
 				z-index: 99995;
 				overflow: hidden;
 				display: flex;
@@ -1525,13 +1579,21 @@
 		}
 
 		@keyframes vt-fade-out {
-			from { opacity: 1; }
-			to { opacity: 0; }
+			from {
+				opacity: 1;
+			}
+			to {
+				opacity: 0;
+			}
 		}
 
 		@keyframes vt-fade-in {
-			from { opacity: 0; }
-			to { opacity: 1; }
+			from {
+				opacity: 0;
+			}
+			to {
+				opacity: 1;
+			}
 		}
 	}
 </style>

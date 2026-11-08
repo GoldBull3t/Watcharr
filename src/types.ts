@@ -157,6 +157,7 @@ export interface Activity extends dbModel {
 export interface WatchedSeason {
 	id: number;
 	watchedID: number;
+	watchedId?: number;
 	status: WatchedStatus;
 	rating: number;
 	seasonNumber: number;

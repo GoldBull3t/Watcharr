@@ -47,7 +47,8 @@
 
 	function toggleDefaultPerm(perm: UserPermission, on: boolean) {
 		if (!serverConfig) return;
-		let perms = serverConfig.DEFAULT_USER_PERMISSIONS ?? UserPermission.PERM_NONE;
+		let perms =
+			serverConfig.DEFAULT_USER_PERMISSIONS ?? UserPermission.PERM_NONE;
 		perms = on ? perms | perm : perms & ~perm;
 		if (perms === 0) perms = UserPermission.PERM_NONE;
 		defaultPermsDisabled = true;
@@ -439,9 +440,13 @@
 							bind:value={serverConfig.TVDB_KEY}
 							onblur={() => {
 								tvdbkDisabled = true;
-								updateServerConfig("TVDB_KEY", serverConfig!.TVDB_KEY ?? "", () => {
-									tvdbkDisabled = false;
-								});
+								updateServerConfig(
+									"TVDB_KEY",
+									serverConfig!.TVDB_KEY ?? "",
+									() => {
+										tvdbkDisabled = false;
+									},
+								);
 							}}
 							onkeydown={(e) => {
 								if (e.key === "Enter") (e.target as HTMLInputElement).blur();
@@ -465,7 +470,9 @@
 							}}
 						>
 							<option value="tmdb">TMDB</option>
-							<option value="tvdb" disabled={!serverConfig.TVDB_KEY}>TheTVDB</option>
+							<option value="tvdb" disabled={!serverConfig.TVDB_KEY}
+								>TheTVDB</option
+							>
 						</select>
 					</Setting>
 					<Setting
@@ -562,7 +569,8 @@
 							name="DEFAULT_PERM_REQUEST_CONTENT"
 							disabled={defaultPermsDisabled}
 							value={userHasPermission(
-								serverConfig.DEFAULT_USER_PERMISSIONS ?? UserPermission.PERM_NONE,
+								serverConfig.DEFAULT_USER_PERMISSIONS ??
+									UserPermission.PERM_NONE,
 								UserPermission.PERM_REQUEST_CONTENT,
 							)}
 							toggled={(on) =>
@@ -578,7 +586,8 @@
 							name="DEFAULT_PERM_AUTO_APPROVE"
 							disabled={defaultPermsDisabled}
 							value={userHasPermission(
-								serverConfig.DEFAULT_USER_PERMISSIONS ?? UserPermission.PERM_NONE,
+								serverConfig.DEFAULT_USER_PERMISSIONS ??
+									UserPermission.PERM_NONE,
 								UserPermission.PERM_REQUEST_CONTENT_AUTO_APPROVE,
 							)}
 							toggled={(on) =>
@@ -760,7 +769,9 @@
 							<div
 								style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;"
 							>
-								<span style="font-size: 14px; font-weight: 500;">Enable Integration</span>
+								<span style="font-size: 14px; font-weight: 500;"
+									>Enable Integration</span
+								>
 								<Checkbox
 									name="OVERSEERR_ENABLED"
 									disabled={overseerrEnabledDisabled}

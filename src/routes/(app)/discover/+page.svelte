@@ -169,11 +169,7 @@
 								path={w.extPosterPath}
 							/>
 						{:else if w.type === MediaTypeE.tmdbMovie || w.type === MediaTypeE.tmdbShow || w.type === MediaTypeE.igdbGame}
-							<Poster
-								media={w}
-								bind:watched={w.watched}
-								fluidSize
-							/>
+							<Poster media={w} bind:watched={w.watched} fluidSize />
 						{/if}
 					{/each}
 				{:else if !dataLoader.state.reqLoading && !dataLoader.state.reqLoadError}
@@ -282,25 +278,26 @@
 				font-size: 13px;
 				font-weight: 600;
 				color: $text-muted;
-				background: rgba(255, 255, 255, 0.04);
-				border: 1px solid rgba(255, 255, 255, 0.1);
-				border-radius: 8px;
+				background: var(--input-bg, rgba(255, 255, 255, 0.04));
+				border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));
+				border-radius: 6px;
 				cursor: pointer;
 				white-space: nowrap;
 				transition:
-					background-color 0.15s ease,
-					border-color 0.15s ease,
-					color 0.15s ease;
+					background-color 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+					border-color 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+					color 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 
 				&:hover {
 					color: $text-color;
-					background: rgba(255, 255, 255, 0.08);
+					background: var(--accent-color, rgba(255, 255, 255, 0.08));
+					border-color: var(--card-border-hover, rgba(255, 255, 255, 0.16));
 				}
 
 				&.active {
-					color: #fbbf24;
-					background: rgba(245, 158, 11, 0.14);
-					border-color: rgba(245, 158, 11, 0.4);
+					color: $brand-color;
+					background: rgba(245, 158, 11, 0.12);
+					border-color: rgba(245, 158, 11, 0.35);
 				}
 			}
 		}

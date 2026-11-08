@@ -28,9 +28,18 @@
 	const initialPerms = user.permissions;
 	const initialType = user.type;
 
-	let adminPerm = $state(userHasPermission(user.permissions, UserPermission.PERM_ADMIN));
-	let requestContentPerm = $state(userHasPermission(user.permissions, UserPermission.PERM_REQUEST_CONTENT));
-	let autoApprovePerm = $state(userHasPermission(user.permissions, UserPermission.PERM_REQUEST_CONTENT_AUTO_APPROVE));
+	let adminPerm = $state(
+		userHasPermission(user.permissions, UserPermission.PERM_ADMIN),
+	);
+	let requestContentPerm = $state(
+		userHasPermission(user.permissions, UserPermission.PERM_REQUEST_CONTENT),
+	);
+	let autoApprovePerm = $state(
+		userHasPermission(
+			user.permissions,
+			UserPermission.PERM_REQUEST_CONTENT_AUTO_APPROVE,
+		),
+	);
 	let selectedType = $state<UserType>(user.type);
 
 	function computePermissions(): number {
@@ -190,10 +199,18 @@
 		>
 			{#if confirmingDelete}
 				<div class="btns delete-confirm">
-					<button class="danger" disabled={deleting} onclick={() => deleteUser()}>
+					<button
+						class="danger"
+						disabled={deleting}
+						onclick={() => deleteUser()}
+					>
 						{deleting ? "Deleting..." : `Yes, delete ${user.username}`}
 					</button>
-					<button class="plain" disabled={deleting} onclick={() => (confirmingDelete = false)}>
+					<button
+						class="plain"
+						disabled={deleting}
+						onclick={() => (confirmingDelete = false)}
+					>
 						Cancel
 					</button>
 				</div>

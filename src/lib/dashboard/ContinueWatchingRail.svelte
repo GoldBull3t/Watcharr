@@ -149,7 +149,18 @@
 			overflow-x: auto;
 			padding-bottom: 4px;
 			scroll-behavior: smooth;
+			scroll-snap-type: x mandatory;
 			-webkit-overflow-scrolling: touch;
+			mask-image: linear-gradient(
+				to right,
+				black calc(100% - 40px),
+				transparent 100%
+			);
+			-webkit-mask-image: linear-gradient(
+				to right,
+				black calc(100% - 40px),
+				transparent 100%
+			);
 		}
 
 		.continue-card {
@@ -157,21 +168,23 @@
 			flex-flow: column;
 			width: 135px;
 			min-width: 135px;
-			border-radius: 10px;
+			scroll-snap-align: start;
+			contain: layout paint;
+			border-radius: 8px;
 			overflow: hidden;
-			background-color: rgba(20, 25, 36, 0.85);
-			border: 1px solid var(--card-border, rgba(255, 255, 255, 0.07));
-			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+			background-color: var(--card-bg, rgba(20, 25, 36, 0.85));
+			border: 1px solid var(--card-border, rgba(255, 255, 255, 0.08));
+			box-shadow: var(--card-shadow, 0 4px 12px rgba(0, 0, 0, 0.25));
 			text-decoration: none;
 			transition:
 				transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
-				box-shadow 160ms ease,
-				border-color 160ms ease;
+				box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1),
+				border-color 160ms cubic-bezier(0.16, 1, 0.3, 1);
 
 			&:hover {
-				transform: translateY(-3px);
-				box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-				border-color: rgba(255, 255, 255, 0.15);
+				transform: translateY(-2px);
+				box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+				border-color: var(--card-border-hover, rgba(255, 255, 255, 0.18));
 
 				.play-overlay {
 					opacity: 1;

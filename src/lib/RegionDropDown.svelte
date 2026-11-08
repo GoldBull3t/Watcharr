@@ -32,11 +32,7 @@
 </script>
 
 {#await countriesPromise}
-	<DropDown
-		placeholder="Select a country"
-		options={[]}
-		disabled={true}
-	/>
+	<DropDown placeholder="Select a country" options={[]} disabled={true} />
 {:then mappedCountries}
 	<DropDown
 		placeholder="Select a country"

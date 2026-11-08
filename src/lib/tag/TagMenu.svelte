@@ -222,7 +222,8 @@
 						: false
 					: false}
 				<div
-					class="tag-row {inManageMode ? 'manage-row' : ''} {dragOverTagId === t.id
+					class="tag-row {inManageMode ? 'manage-row' : ''} {dragOverTagId ===
+					t.id
 						? 'drag-over'
 						: ''}"
 					role="listitem"
@@ -409,7 +410,9 @@
 			padding: 3px 4px;
 			border-radius: 6px;
 			border: 1px solid transparent;
-			transition: border-color 120ms ease, background 120ms ease;
+			transition:
+				border-color 120ms ease,
+				background 120ms ease;
 
 			&.manage-row {
 				background: rgba(255, 255, 255, 0.02);

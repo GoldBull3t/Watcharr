@@ -176,16 +176,36 @@
 			let anySkipped = false;
 			// Sort so that episodes comes last, so they are imported last.
 			s.data?.sort((a, b) => {
-				const aType = (a["Title Type"] || a["Tipo de título"] || a["Type"] || "")
+				const aType = (
+					a["Title Type"] ||
+					a["Tipo de título"] ||
+					a["Type"] ||
+					""
+				)
 					?.toLowerCase()
 					.trim();
-				if (aType === "tv episode" || aType === "tvepisode" || aType === "episódio de tv" || aType === "episodio de tv") {
+				if (
+					aType === "tv episode" ||
+					aType === "tvepisode" ||
+					aType === "episódio de tv" ||
+					aType === "episodio de tv"
+				) {
 					return 1;
 				}
-				const bType = (b["Title Type"] || b["Tipo de título"] || b["Type"] || "")
+				const bType = (
+					b["Title Type"] ||
+					b["Tipo de título"] ||
+					b["Type"] ||
+					""
+				)
 					?.toLowerCase()
 					.trim();
-				if (bType === "tv episode" || bType === "tvepisode" || bType === "episódio de tv" || bType === "episodio de tv") {
+				if (
+					bType === "tv episode" ||
+					bType === "tvepisode" ||
+					bType === "episódio de tv" ||
+					bType === "episodio de tv"
+				) {
 					return -1;
 				}
 				return 0;
@@ -196,7 +216,11 @@
 					const el = s.data[i] as any;
 					if (el) {
 						const imdbId = el["Const"] || el["const"];
-						const titleVal = el["Title"] || el["Título"] || el["Titulo"] || el["Original Title"];
+						const titleVal =
+							el["Title"] ||
+							el["Título"] ||
+							el["Titulo"] ||
+							el["Original Title"];
 						const type = (
 							el["Title Type"] ||
 							el["Tipo de título"] ||
@@ -218,7 +242,8 @@
 							continue;
 						}
 						const l: ImportedList = { name: titleVal };
-						const releaseDateRaw = el["Release Date"] || el["Data de lançamento"];
+						const releaseDateRaw =
+							el["Release Date"] || el["Data de lançamento"];
 						const year = releaseDateRaw
 							? new Date(releaseDateRaw)
 							: el["Year"]
@@ -278,7 +303,8 @@
 						if (yourRating) {
 							l.rating = Math.floor(Number(yourRating));
 						}
-						const dateRatedRaw = el["Date Rated"] || el["Data da classificação"] || el["Created"];
+						const dateRatedRaw =
+							el["Date Rated"] || el["Data da classificação"] || el["Created"];
 						if (dateRatedRaw) {
 							const parsedRatedDate = new Date(dateRatedRaw);
 							if (!isNaN(parsedRatedDate.getTime())) {

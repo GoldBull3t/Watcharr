@@ -177,7 +177,9 @@
 	function handleOidcCallback() {
 		const code = page.url.searchParams.get("code");
 		const state = page.url.searchParams.get("state");
-		const oauthErr = page.url.searchParams.get("error_description") ?? page.url.searchParams.get("error");
+		const oauthErr =
+			page.url.searchParams.get("error_description") ??
+			page.url.searchParams.get("error");
 		if (oauthErr && !code) {
 			error = `SSO login failed: ${oauthErr}`;
 			history.replaceState(history.state, "", location.pathname);
@@ -338,11 +340,7 @@
 					{/if}
 
 					{#if apOidc}
-						<button
-							type="button"
-							onclick={oidcLogin}
-							class="provider-btn sso"
-						>
+						<button type="button" onclick={oidcLogin} class="provider-btn sso">
 							<Icon i="lock-closed" wh={18} />
 							<span>Continue with {oidcProviderName || "SSO"}</span>
 						</button>
